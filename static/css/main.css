@@ -1,0 +1,103 @@
+:root {
+    --primary-color: #000000;
+    --secondary-color: #3B82F6;
+    --background-color: #ecf0f1;
+    --text-color: #34495e;
+    --card-background: #ffffff;
+    --border-radius: 8px;
+    --box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+body {
+    font-family: 'Arial', sans-serif;
+    margin: 0;
+    padding: 20px;
+    background-color: var(--background-color);
+    color: var(--text-color);
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+h1, h2 {
+    color: var(--primary-color);
+    text-align: center;
+}
+
+.card {
+    background-color: var(--card-background);
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+th, td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+th {
+    background-color: #34495e;
+    color: white;
+    font-weight: bold;
+}
+
+tr:last-child td {
+    border-bottom: none;
+}
+
+button {
+    background-color: var(--secondary-color);
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    margin-right: 5px;
+}
+
+button:hover {
+    opacity: 0.8;
+}
+
+button[onclick^="deleteRecording"] {
+    background-color: #e74c3c;
+}
+
+button[onclick^="deleteRecording"]:hover {
+    background-color: #c0392b;
+}
+
+.status-IDLE { color: var(--secondary-color); }
+.status-RECORDING { color: #e74c3c; }
+.status-OFFLINE { color: #95a5a6; }
+
+a {
+    color: var(--primary-color);
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+@keyframes flash {
+  0% { background-color: transparent; }
+  50% { background-color: #ffff99; }
+  100% { background-color: transparent; }
+}
+
+.flash {
+  animation: flash 1s;
+}

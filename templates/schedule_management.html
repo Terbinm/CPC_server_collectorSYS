@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>錄音排程管理</title>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>錄音排程管理</h1>
+        <div class="card">
+            <h2>切換功能</h2>
+            <button onclick="window.location.href='/'">音頻錄製管理</button>
+            <button onclick="window.location.href='/schedule_management'">調度管理</button>
+        </div>
+        <div id="devices">
+            {% for device in devices %}
+            <div class="device card" id="device-{{ device.id }}">
+                <h2>設備: {{ device.name }} (ID: {{ device.id }})</h2>
+                <div class="schedule-info">
+                    {% if device.id in schedules %}
+
+                    <table id="devicesTable">
+                        <thead>
+                            <tr>
+                                <th>間隔時間: {{ schedules[device.id].interval }} 分鐘</th>
+                                <th>錄音時長: {{ schedules[device.id].duration }} 秒</th>
+                                <th>錄音次數: {{ schedules[device.id].count if schedules[device.id].count else '無限' }}</th>
+                                <th>已錄音次數: {{ schedules[device.id].current_count }}</th>
+                                <th>下次錄音時間: <span class="next-recording-time">{{ schedules[device.id].next_recording_time }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        </tbody>
+                    </table>
+                    <div style="text-align: center; margin-top: 10px;">
+                        <button onclick="deleteSchedule('{{ device.id }}')" style="background-color: #e74c3c;">刪除排程</button>
+                    </div>
+                    {% else %}
+                    <div class="schedule-form">
+                    <h3>創建新排程</h3>
+                    <form onsubmit="createSchedule('{{ device.id }}', event)">
+                        <label>
+                            間隔時間 (分鐘):
+                            <input type="number" step="0.01" min="0.01" required name="interval">
+                        </label>
+                        <label>
+                            錄音時長 (秒):
+                            <input type="number" step="1" min="1" required name="duration">
+                        </label>
+                        <label>
+                            錄音次數 (可選):
+                            <input type="number" step="1" min="1" name="count">
+                        </label>
+                        <button type="submit" style="margin-left: 10px;">創建排程</button>
+                    </form>
+                </div>
+                    {% endif %}
+                </div>
+
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+
+        function createSchedule(deviceId, event) {
+            event.preventDefault();
+            const form = event.target;
+            const data = {
+                device_id: deviceId,
+                interval: parseFloat(form.interval.value),
+                duration: parseInt(form.duration.value),
+                count: form.count.value ? parseInt(form.count.value) : null
+            };
+
+            axios.post('/schedule', data)
+                .then(response => {
+                    alert('排程創建成功');
+                    location.reload();
+                })
+                .catch(error => {
+                    alert('創建排程失敗: ' + error.response.data.error);
+                });
+        }
+
+        function deleteSchedule(deviceId) {
+            axios.delete(`/schedule/${deviceId}`)
+                .then(response => {
+                    alert('排程刪除成功');
+                    location.reload();
+                })
+                .catch(error => {
+                    alert('刪除排程失敗: ' + error.response.data.error);
+                });
+        }
+
+        function updateNextRecordingTime() {
+            const timeElements = document.querySelectorAll('.next-recording-time');
+            timeElements.forEach(el => {
+                const time = new Date(el.textContent);
+                el.textContent = time.toLocaleString();
+            });
+        }
+
+        // 更新顯示的時間
+        updateNextRecordingTime();
+        // setInterval(updateNextRecordingTime, 1000);
+
+        // // 監聽設備狀態更新
+        // socket.on('update_devices', function(data) {
+        //     // 這裡可以添加邏輯來更新設備狀態顯示
+        // });
+        //
+        // // 監聽新的錄音通知
+        // socket.on('new_recording', function(data) {
+        //     // 這裡可以添加邏輯來更新頁面上的錄音信息
+        // });
+    </script>
+</body>
+</html>
