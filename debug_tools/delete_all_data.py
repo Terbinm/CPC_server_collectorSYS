@@ -3,7 +3,7 @@ import json
 
 # 設置服務器 URL
 # SERVER_URL = 'http://163.18.22.51:88'
-SERVER_URL = 'http://192.168.1.31:5000/'
+SERVER_URL = 'http://192.168.201.31:5000/'
 
 
 def get_all_recordings():
