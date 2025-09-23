@@ -34,7 +34,8 @@ class AudioRecorder:
         self.RESPEAKER_RATE = 16000
         self.RESPEAKER_CHANNELS = 1
         self.WAVE_OUTPUT_FILENAME = "output.wav"
-        self.SERVER_URL = "http://163.18.22.51:88/"  # 伺服器的 IP 和端口
+        # self.SERVER_URL = "http://163.18.22.51:88/"  # 伺服器的 IP 和端口
+        self.SERVER_URL = "http://127.0.0.1:5000"  # 伺服器的 IP 和端口
         self.CONFIG_FILE = config_file
         self.TEMP_WAV_DIR = "temp_wav"
         self.device_id = None
