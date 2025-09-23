@@ -1,198 +1,167 @@
-<!DOCTYPE html>
-<html lang="zh-Hant">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>音頻錄製管理</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
-</head>
-<body>
-    <div class="container">
-        <h1>音頻錄製管理</h1>
-        <div class="card">
-            <h2>切換功能</h2>
-            <button onclick="window.location.href='/'">音頻錄製管理</button>
-            <button onclick="window.location.href='/schedule_management'">調度管理</button>
-        </div>
+{% extends "base.html" %}
 
-        <div class="card">
-            <h2>連接的設備</h2>
-            <table id="devicesTable">
-                <thead>
-                    <tr>
-                        <th>設備 ID</th>
-                        <th>設備名稱</th>
-                        <th>狀態</th>
-                        <th>操作</th>
-                    </tr>
-                </thead>
-                <tbody>
-                </tbody>
-            </table>
-        </div>
+{% block title %}音頻錄製管理系統 - 專業音頻收集解決方案{% endblock %}
 
-        <div class="card">
-            <h2>錄音列表</h2>
-            <table id="recordingsTable">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>檔案名</th>
-                        <th>時長 (秒)</th>
-                        <th>時間戳</th>
-                        <th>設備 ID</th>
-                        <th>操作</th>
-                    </tr>
-                </thead>
-                <tbody>
-                </tbody>
-            </table>
+{% block extra_head %}
+<script src="https://cdn.tailwindcss.com"></script>
+{% endblock %}
+
+{% block content %}
+<div class="landing-page bg-gray-50">
+    <!-- Hero Section -->
+    <div class="hero-section bg-gradient-to-br from-indigo-600 via-purple-600 to-blue-600 text-white py-20">
+        <div class="container mx-auto px-6 text-center">
+            <div class="max-w-4xl mx-auto">
+                <h1 class="text-5xl md:text-6xl font-bold mb-6 leading-tight">
+                    音頻錄製<span class="text-yellow-300">管理系統</span>
+                </h1>
+                <p class="text-xl md:text-2xl mb-8 text-indigo-100">
+                    專業的分散式音頻錄製與管理平台
+                </p>
+                <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                    <a href="/dashboard" class="bg-white text-indigo-600 px-8 py-4 rounded-xl font-semibold text-lg hover:bg-gray-100 transform hover:scale-105 transition-all duration-300 shadow-lg">
+                        進入管理系統
+                    </a>
+                    <a href="#features" class="border-2 border-white text-white px-8 py-4 rounded-xl font-semibold text-lg hover:bg-white hover:text-indigo-600 transition-all duration-300">
+                        了解更多
+                    </a>
+                </div>
+            </div>
         </div>
     </div>
 
-    <script>
-    var socket = io();
+    <!-- Features Section -->
+    <div class="features-section py-20" id="features">
+        <div class="container mx-auto px-6">
+            <div class="text-center mb-16">
+                <h2 class="text-4xl font-bold text-gray-800 mb-4">系統特色</h2>
+                <p class="text-xl text-gray-600 max-w-2xl mx-auto">
+                    提供完整的音頻錄製解決方案，從設備管理到雲端儲存
+                </p>
+            </div>
 
-    socket.on('connect', function() {
-        console.log('Connected to server');
-    });
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <div class="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2">
+                    <div class="w-16 h-16 bg-indigo-100 rounded-2xl flex items-center justify-center mb-6">
+                        <svg class="w-8 h-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-2xl font-semibold text-gray-800 mb-4">遠端音頻錄製</h3>
+                    <p class="text-gray-600 leading-relaxed">支援多設備同時錄製，實時監控設備狀態，確保錄製品質</p>
+                </div>
 
-    socket.on('disconnect', function() {
-        console.log('Disconnected from server');
-    });
+                <div class="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2">
+                    <div class="w-16 h-16 bg-purple-100 rounded-2xl flex items-center justify-center mb-6">
+                        <svg class="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-2xl font-semibold text-gray-800 mb-4">智能排程管理</h3>
+                    <p class="text-gray-600 leading-relaxed">自動化錄製排程，支援定時錄製和循環錄製任務</p>
+                </div>
 
-    socket.on('update_devices', function(data) {
-        updateDevicesTable(data.devices);
-    });
+                <div class="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2">
+                    <div class="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mb-6">
+                        <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-2xl font-semibold text-gray-800 mb-4">雲端儲存管理</h3>
+                    <p class="text-gray-600 leading-relaxed">安全的音頻檔案儲存，支援檔案完整性驗證</p>
+                </div>
 
-    socket.on('new_recording', function(data) {
-        addRecordingToTable(data);
-    });
+                <div class="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2">
+                    <div class="w-16 h-16 bg-green-100 rounded-2xl flex items-center justify-center mb-6">
+                        <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-2xl font-semibold text-gray-800 mb-4">設備管理</h3>
+                    <p class="text-gray-600 leading-relaxed">統一管理多個錄製設備，即時狀態監控</p>
+                </div>
 
-    socket.on('recording_deleted', function(data) {
-        removeRecordingFromTable(data.id);
-    });
+                <div class="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2">
+                    <div class="w-16 h-16 bg-yellow-100 rounded-2xl flex items-center justify-center mb-6">
+                        <svg class="w-8 h-8 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-2xl font-semibold text-gray-800 mb-4">錄製監控</h3>
+                    <p class="text-gray-600 leading-relaxed">實時顯示錄製狀態，音頻品質監控</p>
+                </div>
 
-    function updateDevicesTable(devices) {
-        var tbody = document.querySelector('#devicesTable tbody');
-        tbody.innerHTML = '';
-        devices.forEach(function(device) {
-            var row = tbody.insertRow();
-            row.innerHTML = `
-                <td>${device.id}</td>
-                <td><span id="device-name-${device.id}">${device.name}</span> <button onclick="editDeviceName('${device.id}')">編輯</button></td>
-                <td><span class="status-${device.status}">${device.status}</span></td>
-                <td><button onclick="startRecording('${device.id}')">開始錄音</button></td>
-            `;
-        });
-    }
+                <div class="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2">
+                    <div class="w-16 h-16 bg-pink-100 rounded-2xl flex items-center justify-center mb-6">
+                        <svg class="w-8 h-8 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1.01M15 10h1.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-2xl font-semibold text-gray-800 mb-4">音頻播放</h3>
+                    <p class="text-gray-600 leading-relaxed">內建音頻播放器，支援多種音頻格式</p>
+                </div>
+            </div>
+        </div>
+    </div>
 
-    function addRecordingToTable(recording) {
-        // 檢查 recording.id 是否為 undefined
-        if (recording.id === undefined) {
-            return; // 如果 ID 為 undefined，直接返回，不執行後續操作(又不是跟你聊天，還來偷聽。)
-        }
+    <!-- Tech Stack Section -->
+    <div class="tech-section bg-white py-20">
+        <div class="container mx-auto px-6">
+            <div class="text-center mb-16">
+                <h2 class="text-4xl font-bold text-gray-800 mb-4">技術架構</h2>
+                <p class="text-xl text-gray-600">建立在成熟可靠的技術堆疊之上</p>
+            </div>
 
-        var tbody = document.querySelector('#recordingsTable tbody');
-        var newRow = tbody.insertRow(0);
-        // const localTimestamp = new Date(recording.timestamp).toLocaleString();
-        newRow.innerHTML = `
-            <td>${recording.id}</td>
-            <td>${recording.filename}</td>
-            <td>${recording.duration}</td>
-            <td>${recording.timestamp}</td>
-            <td>${recording.device_id}</td>
-            <td>
-                <button onclick="downloadRecording(${recording.id})">下載</button>
-                <button class="btn btn-primary" onclick="window.location.href='/play/${recording.id}'">播放</button>
-                <button onclick="deleteRecording(${recording.id})" style="background-color: #e74c3c;">刪除</button>
-                <audio id="audio-${recording.id}" style="display:none;"></audio>
-            </td>
-        `;
+            <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div class="bg-gray-50 rounded-xl p-6 text-center hover:bg-gray-100 transition-colors">
+                    <div class="w-12 h-12 bg-red-100 rounded-xl mx-auto mb-4 flex items-center justify-center">
+                        <svg class="w-6 h-6 text-red-600" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M2 12C2 6.48 6.48 2 12 2s10 4.48 10 10-4.48 10-10 10S2 17.52 2 12zm4.64-1.96l3.54 3.54c.78.78 2.05.78 2.83 0l7.07-7.07c.78-.78.78-2.05 0-2.83-.78-.78-2.05-.78-2.83 0L12 9.17 8.75 5.92c-.78-.78-2.05-.78-2.83 0s-.78 2.05 0 2.83l.72.72z"/>
+                        </svg>
+                    </div>
+                    <h3 class="text-lg font-semibold text-gray-800 mb-2">後端框架</h3>
+                    <p class="text-sm text-gray-600">Flask + SocketIO</p>
+                </div>
 
-        // 添加閃爍效果
-        newRow.classList.add('flash');
-        setTimeout(() => {
-            newRow.classList.remove('flash');
-        }, 1000);
-    }
+                <div class="bg-gray-50 rounded-xl p-6 text-center hover:bg-gray-100 transition-colors">
+                    <div class="w-12 h-12 bg-blue-100 rounded-xl mx-auto mb-4 flex items-center justify-center">
+                        <svg class="w-6 h-6 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zM7 13.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm5 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm5 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/>
+                        </svg>
+                    </div>
+                    <h3 class="text-lg font-semibold text-gray-800 mb-2">資料庫</h3>
+                    <p class="text-sm text-gray-600">SQLite + SQLAlchemy</p>
+                </div>
 
-    function downloadRecording(id) {
-        fetch(`/check_upload/${id}`)
-            .then(response => response.json())
-            .then(data => {
-                if (data.upload_complete) {
-                    window.location.href = `/download/${id}`;
-                } else {
-                    alert('檔案處理中，請稍後再試。');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('發生錯誤，請稍後再試。');
-            });
-    }
+                <div class="bg-gray-50 rounded-xl p-6 text-center hover:bg-gray-100 transition-colors">
+                    <div class="w-12 h-12 bg-green-100 rounded-xl mx-auto mb-4 flex items-center justify-center">
+                        <svg class="w-6 h-6 text-green-600" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                        </svg>
+                    </div>
+                    <h3 class="text-lg font-semibold text-gray-800 mb-2">即時通訊</h3>
+                    <p class="text-sm text-gray-600">WebSocket</p>
+                </div>
 
+                <div class="bg-gray-50 rounded-xl p-6 text-center hover:bg-gray-100 transition-colors">
+                    <div class="w-12 h-12 bg-purple-100 rounded-xl mx-auto mb-4 flex items-center justify-center">
+                        <svg class="w-6 h-6 text-purple-600" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
+                        </svg>
+                    </div>
+                    <h3 class="text-lg font-semibold text-gray-800 mb-2">音頻處理</h3>
+                    <p class="text-sm text-gray-600">SoundDevice + SoundFile</p>
+                </div>
+            </div>
+        </div>
+    </div>
 
-    function removeRecordingFromTable(id) {
-        var tbody = document.querySelector('#recordingsTable tbody');
-        for (var i = 0; i < tbody.rows.length; i++) {
-            if (Number(tbody.rows[i].cells[0].textContent)  === id) {
-                tbody.deleteRow(i);
-                break;
-            }
-        }
-    }
-
-    function startRecording(deviceId) {
-        var duration = prompt("請輸入錄音時長（秒）:", "10");
-        if (duration) {
-            socket.emit('start_recording', {device_id: deviceId, duration: parseFloat(duration)}, function(response) {
-                if (response.error) {
-                    alert("錄音失敗: " + response.error);
-                } else {
-                    alert(response.message);
-                }
-            });
-        }
-    }
-
-    function deleteRecording(id) {
-        if (confirm('確定要刪除這個錄音嗎？')) {
-            fetch('/delete/' + id, { method: 'POST' })
-                .then(response => response.json())
-                .then(data => {
-                    alert(data.message);
-                    removeRecordingFromTable(id);
-                })
-                .catch((error) => {
-                    console.error('Error:', error);
-                    // alert('刪除失敗');
-                    // window.location.reload();
-                });
-        }
-    }
-
-    function editDeviceName(deviceId) {
-        var currentName = document.getElementById('device-name-' + deviceId).textContent;
-        var newName = prompt("請輸入新的設備名稱:", currentName);
-        if (newName && newName !== currentName) {
-            socket.emit('update_device_name', {device_id: deviceId, device_name: newName});
-        }
-    }
-
-    // 初始化設備列表和錄音列表
-    updateDevicesTable({{ devices | tojson | safe }});
-    {% for recording in recordings %}
-    addRecordingToTable({
-        id: {{ recording.id }},
-        filename: "{{ recording.filename }}",
-        duration: {{ recording.duration }},
-        timestamp: "{{ recording.timestamp }}",
-        device_id: "{{ recording.device_id }}"
-    });
-    {% endfor %}
-    </script>
-</body>
-</html>
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white py-8">
+        <div class="container mx-auto px-6 text-center">
+            <p class="text-gray-300">&copy; 2025 音頻錄製管理系統. 版權所有.</p>
+        </div>
+    </footer>
+</div>
+{% endblock %}

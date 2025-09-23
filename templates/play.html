@@ -1,27 +1,474 @@
-<!DOCTYPE html>
-<html lang="zh-TW">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>播放錄音</title>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
-</head>
-<body class="bg-gray-100">
-    <div class="container mx-auto px-4 py-8">
-        <h1 class="text-3xl font-bold mb-8">播放錄音</h1>
+{% extends "base.html" %}
 
-        <div class="bg-white shadow-md rounded-lg p-6">
-            <p class="mb-2"><strong>文件名:</strong> {{ recording.filename }}</p>
-            <p class="mb-2"><strong>時長:</strong> {{ recording.duration }} 秒</p>
-            <p class="mb-4"><strong>錄製時間:</strong> {{ recording.timestamp }}</p>
+{% block title %}播放錄音 - {{ recording.filename }}{% endblock %}
 
-            <audio controls class="w-full mb-4">
-                <source src="{{ url_for('download_recording', id=recording.id) }}" type="audio/mpeg">
-                您的瀏覽器不支持音頻元素。
-            </audio>
+{% block extra_head %}
+<script src="https://cdn.tailwindcss.com"></script>
+{% endblock %}
 
-            <a href="{{ url_for('index') }}" class="inline-block bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">返回列表</a>
+{% block content %}
+<div class="min-h-screen bg-gray-50 py-4 lg:py-8">
+    <div class="w-full max-w-7xl mx-auto px-4 lg:px-8">
+        <!-- Header -->
+        <div class="text-center mb-6 lg:mb-8">
+            <h1 class="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">音頻錄音播放器</h1>
+            <p class="text-gray-600">聆聽您的音頻錄製內容</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- 主播放區域 -->
+            <div class="lg:col-span-2">
+                <div class="bg-white rounded-xl shadow-lg border border-gray-200 p-6 lg:p-8">
+                    <!-- 錄音基本信息 -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 lg:mb-8">
+                        <div class="text-center p-4 bg-gradient-to-br from-indigo-50 to-blue-50 rounded-lg">
+                            <div class="text-2xl mb-2">🎵</div>
+                            <div class="text-sm text-gray-600 mb-1">檔案名稱</div>
+                            <div class="font-semibold text-gray-800 break-all text-sm">{{ recording.filename }}</div>
+                        </div>
+                        <div class="text-center p-4 bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg">
+                            <div class="text-2xl mb-2">⏱️</div>
+                            <div class="text-sm text-gray-600 mb-1">錄音時長</div>
+                            <div class="font-semibold text-gray-800">{{ recording.duration }} 秒</div>
+                        </div>
+                        <div class="text-center p-4 bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg">
+                            <div class="text-2xl mb-2">📅</div>
+                            <div class="text-sm text-gray-600 mb-1">錄製時間</div>
+                            <div class="font-semibold text-gray-800 text-sm">{{ recording.timestamp }}</div>
+                        </div>
+                    </div>
+
+                    <!-- 音頻播放器與波形分析 -->
+                    <div class="bg-white border border-gray-200 rounded-lg p-6 mb-6">
+                        <div class="text-center mb-4">
+                            <h3 class="text-lg font-medium text-gray-800 mb-2">高品質音頻播放器</h3>
+                            <p class="text-sm text-gray-600">支援多種音頻格式，提供最佳聆聽體驗</p>
+                        </div>
+
+                        <!-- 波形圖 -->
+                        <div class="bg-gray-50 rounded-lg p-4 mb-4">
+                            <h4 class="text-sm font-medium text-gray-700 mb-2 flex items-center">
+                                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path>
+                                </svg>
+                                音頻波形圖
+                            </h4>
+                            <canvas id="waveformCanvas" class="w-full bg-white rounded border" style="height: 120px;"></canvas>
+                            <div class="flex gap-2 mt-3">
+                                <button id="playBtn" class="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700">播放</button>
+                                <button id="pauseBtn" class="px-3 py-1 bg-yellow-600 text-white rounded text-sm hover:bg-yellow-700">暫停</button>
+                                <button id="stopBtn" class="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700">停止</button>
+                                <span id="timeDisplay" class="px-3 py-1 text-sm bg-gray-200 rounded">00:00 / 00:00</span>
+                            </div>
+                        </div>
+
+                        <!-- 頻譜圖 -->
+                        <div class="bg-gray-50 rounded-lg p-4">
+                            <h4 class="text-sm font-medium text-gray-700 mb-2 flex items-center">
+                                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path>
+                                </svg>
+                                即時頻譜分析
+                            </h4>
+                            <canvas id="spectrogramCanvas" class="w-full bg-white rounded border" style="height: 200px;"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- 主要操作按鈕 -->
+                    <div class="flex flex-col sm:flex-row gap-3 justify-center">
+                        <a href="{{ url_for('download_recording', id=recording.id) }}"
+                           class="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 transition-colors shadow-sm">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v10a2 2 0 01-2-2z"></path>
+                            </svg>
+                            下載錄音檔案
+                        </a>
+                        <a href="{{ url_for('dashboard') }}"
+                           class="inline-flex items-center justify-center px-6 py-3 border border-gray-300 text-base font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 transition-colors shadow-sm">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                            </svg>
+                            返回管理頁面
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 側邊詳細信息 -->
+            <div class="lg:col-span-1 space-y-6">
+                <!-- 技術信息 -->
+                <div class="bg-white rounded-lg border border-gray-200 p-6">
+                    <h3 class="text-lg font-medium text-gray-800 mb-4 flex items-center">
+                        <svg class="w-5 h-5 text-gray-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        技術參數資訊
+                    </h3>
+                    <div class="space-y-4 text-sm">
+                        <div class="p-3 bg-gray-50 rounded-lg">
+                            <span class="text-gray-600 font-medium block mb-1">設備識別碼:</span>
+                            <div class="font-mono text-xs p-2 bg-white rounded border break-all">{{ recording.device_id }}</div>
+                        </div>
+                        <div class="p-3 bg-gray-50 rounded-lg">
+                            <span class="text-gray-600 font-medium block mb-1">檔案大小:</span>
+                            <div class="font-mono text-xs p-2 bg-white rounded border">{{ recording.file_size }} bytes</div>
+                        </div>
+                        <div class="p-3 bg-gray-50 rounded-lg">
+                            <span class="text-gray-600 font-medium block mb-1">處理狀態:</span>
+                            <div class="mt-2">
+                                {% if recording.upload_complete %}
+                                <span class="inline-flex px-3 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                                    ✓ 完成處理
+                                </span>
+                                {% else %}
+                                <span class="inline-flex px-3 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                    ⏳ 處理中...
+                                </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="p-3 bg-gray-50 rounded-lg">
+                            <span class="text-gray-600 font-medium block mb-1">錄音編號:</span>
+                            <div class="font-mono text-xs p-2 bg-white rounded border">{{ recording.id }}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 檔案操作 -->
+                <div class="bg-white rounded-lg border border-gray-200 p-6">
+                    <h3 class="text-lg font-medium text-gray-800 mb-4 flex items-center">
+                        <svg class="w-5 h-5 text-gray-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4"></path>
+                        </svg>
+                        檔案操作選項
+                    </h3>
+                    <div class="space-y-3">
+                        <a href="{{ url_for('download_recording', id=recording.id) }}" class="w-full flex items-center justify-center px-4 py-2 border border-indigo-300 rounded-lg text-sm font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition-colors">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v10a2 2 0 01-2-2z"></path>
+                            </svg>
+                            下載檔案
+                        </a>
+                        <button onclick="deleteRecording({{ recording.id }})" class="w-full flex items-center justify-center px-4 py-2 border border-red-300 rounded-lg text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 transition-colors">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                            </svg>
+                            刪除檔案
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 統計信息 -->
+                <div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border border-blue-200 p-6">
+                    <h3 class="text-lg font-medium text-gray-800 mb-4 flex items-center">
+                        <svg class="w-5 h-5 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                        </svg>
+                        錄音統計資料
+                    </h3>
+                    <div class="space-y-3 text-sm">
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">位元率:</span>
+                            <span class="font-medium">44.1 kHz</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">聲道數:</span>
+                            <span class="font-medium">單聲道</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">格式類型:</span>
+                            <span class="font-medium">WAV</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
-</body>
-</html>
+</div>
+
+<script>
+class AudioVisualizer {
+    constructor() {
+        this.audio = null;
+        this.audioContext = null;
+        this.source = null;
+        this.analyser = null;
+        this.dataArray = null;
+        this.waveformCanvas = document.getElementById('waveformCanvas');
+        this.spectrogramCanvas = document.getElementById('spectrogramCanvas');
+        this.waveformCtx = this.waveformCanvas.getContext('2d');
+        this.spectrogramCtx = this.spectrogramCanvas.getContext('2d');
+        this.isPlaying = false;
+        this.animationId = null;
+        this.duration = 0;
+        this.currentTime = 0;
+
+        this.setupCanvas();
+        this.loadAudio();
+    }
+
+    setupCanvas() {
+        // 設置波形圖畫布
+        this.waveformCanvas.width = this.waveformCanvas.offsetWidth;
+        this.waveformCanvas.height = 120;
+
+        // 設置頻譜圖畫布
+        this.spectrogramCanvas.width = this.spectrogramCanvas.offsetWidth;
+        this.spectrogramCanvas.height = 200;
+
+        // 響應式調整
+        window.addEventListener('resize', () => {
+            this.waveformCanvas.width = this.waveformCanvas.offsetWidth;
+            this.spectrogramCanvas.width = this.spectrogramCanvas.offsetWidth;
+        });
+    }
+
+    async loadAudio() {
+        try {
+            this.audio = new Audio('{{ url_for("download_recording", id=recording.id) }}');
+            this.audio.crossOrigin = 'anonymous';
+
+            this.audio.addEventListener('loadedmetadata', () => {
+                this.duration = this.audio.duration;
+                this.updateTimeDisplay();
+            });
+
+            this.audio.addEventListener('timeupdate', () => {
+                this.currentTime = this.audio.currentTime;
+                this.updateTimeDisplay();
+                this.drawWaveform();
+            });
+
+            this.audio.addEventListener('ended', () => {
+                this.stop();
+            });
+
+            // 載入音頻數據並繪製靜態波形
+            await this.loadWaveformData();
+
+        } catch (error) {
+            console.error('音頻載入失敗:', error);
+        }
+    }
+
+    async loadWaveformData() {
+        try {
+            const response = await fetch('{{ url_for("download_recording", id=recording.id) }}');
+            const arrayBuffer = await response.arrayBuffer();
+
+            this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
+
+            this.waveformData = audioBuffer.getChannelData(0);
+            this.drawStaticWaveform();
+
+            // 設置分析器
+            this.setupAnalyser();
+        } catch (error) {
+            console.error('波形數據載入失敗:', error);
+        }
+    }
+
+    setupAnalyser() {
+        if (!this.audioContext) return;
+
+        this.analyser = this.audioContext.createAnalyser();
+        this.analyser.fftSize = 2048;
+
+        const bufferLength = this.analyser.frequencyBinCount;
+        this.dataArray = new Uint8Array(bufferLength);
+        this.frequencyArray = new Uint8Array(bufferLength);
+    }
+
+    drawStaticWaveform() {
+        if (!this.waveformData) return;
+
+        const canvas = this.waveformCanvas;
+        const ctx = this.waveformCtx;
+        const width = canvas.width;
+        const height = canvas.height;
+
+        ctx.clearRect(0, 0, width, height);
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = '#4F46E5';
+
+        const sliceWidth = width / this.waveformData.length;
+        let x = 0;
+
+        ctx.beginPath();
+
+        for (let i = 0; i < this.waveformData.length; i++) {
+            const v = this.waveformData[i] * 0.5;
+            const y = (v + 1) * height / 2;
+
+            if (i === 0) {
+                ctx.moveTo(x, y);
+            } else {
+                ctx.lineTo(x, y);
+            }
+
+            x += sliceWidth;
+        }
+
+        ctx.stroke();
+
+        // 繪製進度線
+        this.drawProgress();
+    }
+
+    drawWaveform() {
+        this.drawStaticWaveform();
+    }
+
+    drawProgress() {
+        if (this.duration === 0) return;
+
+        const progress = this.currentTime / this.duration;
+        const x = progress * this.waveformCanvas.width;
+
+        this.waveformCtx.strokeStyle = '#EC4899';
+        this.waveformCtx.lineWidth = 2;
+        this.waveformCtx.beginPath();
+        this.waveformCtx.moveTo(x, 0);
+        this.waveformCtx.lineTo(x, this.waveformCanvas.height);
+        this.waveformCtx.stroke();
+    }
+
+    drawSpectrogram() {
+        if (!this.analyser) return;
+
+        this.analyser.getByteFrequencyData(this.frequencyArray);
+
+        const canvas = this.spectrogramCanvas;
+        const ctx = this.spectrogramCtx;
+        const width = canvas.width;
+        const height = canvas.height;
+
+        ctx.clearRect(0, 0, width, height);
+
+        const barWidth = width / this.frequencyArray.length;
+        let x = 0;
+
+        for (let i = 0; i < this.frequencyArray.length; i++) {
+            const barHeight = (this.frequencyArray[i] / 255) * height;
+
+            const red = Math.floor(barHeight / height * 255);
+            const green = Math.floor(255 - red);
+            const blue = Math.floor(red * 0.5);
+
+            ctx.fillStyle = `rgb(${red}, ${green}, ${blue})`;
+            ctx.fillRect(x, height - barHeight, barWidth, barHeight);
+
+            x += barWidth;
+        }
+    }
+
+    animate() {
+        this.drawSpectrogram();
+        if (this.isPlaying) {
+            this.animationId = requestAnimationFrame(() => this.animate());
+        }
+    }
+
+    async play() {
+        if (!this.audio) return;
+
+        if (this.audioContext && this.audioContext.state === 'suspended') {
+            await this.audioContext.resume();
+        }
+
+        if (!this.source && this.audioContext) {
+            this.source = this.audioContext.createMediaElementSource(this.audio);
+            this.source.connect(this.analyser);
+            this.analyser.connect(this.audioContext.destination);
+        }
+
+        this.audio.play();
+        this.isPlaying = true;
+        this.animate();
+    }
+
+    pause() {
+        if (this.audio) {
+            this.audio.pause();
+            this.isPlaying = false;
+            if (this.animationId) {
+                cancelAnimationFrame(this.animationId);
+            }
+        }
+    }
+
+    stop() {
+        if (this.audio) {
+            this.audio.pause();
+            this.audio.currentTime = 0;
+            this.isPlaying = false;
+            if (this.animationId) {
+                cancelAnimationFrame(this.animationId);
+            }
+            this.drawWaveform();
+        }
+    }
+
+    updateTimeDisplay() {
+        const current = this.formatTime(this.currentTime);
+        const total = this.formatTime(this.duration);
+        document.getElementById('timeDisplay').textContent = `${current} / ${total}`;
+    }
+
+    formatTime(seconds) {
+        const mins = Math.floor(seconds / 60);
+        const secs = Math.floor(seconds % 60);
+        return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
+}
+
+let visualizer;
+
+document.addEventListener('DOMContentLoaded', function() {
+    visualizer = new AudioVisualizer();
+
+    document.getElementById('playBtn').addEventListener('click', () => {
+        visualizer.play();
+    });
+
+    document.getElementById('pauseBtn').addEventListener('click', () => {
+        visualizer.pause();
+    });
+
+    document.getElementById('stopBtn').addEventListener('click', () => {
+        visualizer.stop();
+    });
+
+    // 波形圖點擊定位
+    document.getElementById('waveformCanvas').addEventListener('click', (e) => {
+        if (!visualizer.audio || !visualizer.duration) return;
+
+        const rect = e.target.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const progress = x / rect.width;
+        const newTime = progress * visualizer.duration;
+
+        visualizer.audio.currentTime = newTime;
+        visualizer.drawWaveform();
+    });
+});
+
+window.deleteRecording = function(id) {
+    if (confirm('確定要刪除這個錄音檔案嗎？此操作無法復原。')) {
+        fetch('/delete/' + id, { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message);
+                if (data.success) {
+                    window.location.href = '{{ url_for("dashboard") }}';
+                }
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+                alert('刪除時發生錯誤，請稍後再試。');
+            });
+    }
+}
+</script>
+{% endblock %}

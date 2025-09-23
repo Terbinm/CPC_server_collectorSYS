@@ -1,0 +1,256 @@
+{% extends "base.html" %}
+
+{% block title %}音頻錄製管理儀表板{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+.flash {
+    animation: flash 1s ease-in-out;
+}
+@keyframes flash {
+    0% { background-color: #fef3c7; }
+    100% { background-color: transparent; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50">
+    <!-- Header -->
+    <div class="bg-white shadow-sm border-b">
+        <div class="w-full px-6 py-4">
+            <div class="flex flex-col sm:flex-row justify-between items-center gap-4">
+                <h1 class="text-2xl md:text-3xl font-bold text-gray-900">音頻錄製管理系統</h1>
+                <nav class="flex space-x-1">
+                    <a href="/dashboard" class="bg-indigo-600 text-white px-3 py-2 rounded-lg text-sm font-medium">
+                        錄製管理
+                    </a>
+                    <a href="/schedule_management" class="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-lg text-sm font-medium hover:bg-gray-100">
+                        排程管理
+                    </a>
+                </nav>
+            </div>
+        </div>
+    </div>
+
+    <div class="w-full px-4 lg:px-6 py-6">
+        <!-- 連接的設備 -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 mb-6">
+            <div class="px-4 lg:px-6 py-4 border-b border-gray-200">
+                <h2 class="text-lg lg:text-xl font-semibold text-gray-800 flex items-center">
+                    <svg class="w-5 h-5 text-indigo-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                    </svg>
+                    已連接的設備列表
+                </h2>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full" id="devicesTable">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-3 lg:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">設備識別碼</th>
+                            <th class="px-3 lg:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">設備名稱</th>
+                            <th class="px-3 lg:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">連接狀態</th>
+                            <th class="px-3 lg:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作選項</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 錄音列表 -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200">
+            <div class="px-4 lg:px-6 py-4 border-b border-gray-200">
+                <h2 class="text-lg lg:text-xl font-semibold text-gray-800 flex items-center">
+                    <svg class="w-5 h-5 text-indigo-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
+                    </svg>
+                    錄音檔案管理
+                </h2>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full" id="recordingsTable">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-2 lg:px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">檔案ID</th>
+                            <th class="px-2 lg:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">檔案名稱</th>
+                            <th class="px-2 lg:px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">時長(秒)</th>
+                            <th class="px-2 lg:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">錄製時間</th>
+                            <th class="px-2 lg:px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">設備ID</th>
+                            <th class="px-2 lg:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作選項</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+var socket = io();
+
+socket.on('connect', function() {
+    console.log('Connected to server');
+});
+
+socket.on('disconnect', function() {
+    console.log('Disconnected from server');
+});
+
+socket.on('update_devices', function(data) {
+    updateDevicesTable(data.devices);
+});
+
+socket.on('new_recording', function(data) {
+    addRecordingToTable(data);
+});
+
+socket.on('recording_deleted', function(data) {
+    removeRecordingFromTable(data.id);
+});
+
+function updateDevicesTable(devices) {
+    var tbody = document.querySelector('#devicesTable tbody');
+    tbody.innerHTML = '';
+    devices.forEach(function(device) {
+        var row = tbody.insertRow();
+        row.innerHTML = `
+            <td class="px-3 lg:px-4 py-2 text-sm font-mono">${device.id}</td>
+            <td class="px-3 lg:px-4 py-2 text-sm">
+                <span id="device-name-${device.id}" class="font-medium">${device.name}</span>
+                <button onclick="editDeviceName('${device.id}')" class="ml-2 text-blue-600 hover:text-blue-800 text-xs">編輯</button>
+            </td>
+            <td class="px-3 lg:px-4 py-2">
+                <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full ${device.status === 'IDLE' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+                    ${device.status}
+                </span>
+            </td>
+            <td class="px-3 lg:px-4 py-2">
+                <button onclick="startRecording('${device.id}')"
+                        class="bg-indigo-600 text-white px-3 py-1 rounded-md hover:bg-indigo-700 text-sm transition-colors">
+                    開始錄音
+                </button>
+            </td>
+        `;
+    });
+}
+
+function addRecordingToTable(recording) {
+    if (recording.id === undefined) {
+        return;
+    }
+
+    var tbody = document.querySelector('#recordingsTable tbody');
+    var newRow = tbody.insertRow(0);
+    newRow.innerHTML = `
+        <td class="px-2 lg:px-3 py-2 text-sm font-mono">${recording.id}</td>
+        <td class="px-2 lg:px-4 py-2 text-sm font-medium break-all">${recording.filename}</td>
+        <td class="px-2 lg:px-3 py-2 text-sm">${recording.duration}</td>
+        <td class="px-2 lg:px-4 py-2 text-xs text-gray-600">${recording.timestamp}</td>
+        <td class="px-2 lg:px-3 py-2 text-sm font-mono">${recording.device_id}</td>
+        <td class="px-2 lg:px-4 py-2">
+            <div class="flex flex-col sm:flex-row gap-1">
+                <button onclick="downloadRecording(${recording.id})"
+                        class="bg-green-600 text-white px-2 py-1 rounded text-xs hover:bg-green-700 transition-colors">
+                    下載
+                </button>
+                <button onclick="window.location.href='/play/${recording.id}'"
+                        class="bg-blue-600 text-white px-2 py-1 rounded text-xs hover:bg-blue-700 transition-colors">
+                    詳情
+                </button>
+                <button onclick="deleteRecording(${recording.id})"
+                        class="bg-red-600 text-white px-2 py-1 rounded text-xs hover:bg-red-700 transition-colors">
+                    刪除
+                </button>
+            </div>
+        </td>
+    `;
+
+    newRow.classList.add('flash');
+    setTimeout(() => {
+        newRow.classList.remove('flash');
+    }, 1000);
+}
+
+function downloadRecording(id) {
+    fetch(`/check_upload/${id}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.upload_complete) {
+                window.location.href = `/download/${id}`;
+            } else {
+                alert('檔案處理中，請稍後再試。');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('發生錯誤，請稍後再試。');
+        });
+}
+
+function removeRecordingFromTable(id) {
+    var tbody = document.querySelector('#recordingsTable tbody');
+    for (var i = 0; i < tbody.rows.length; i++) {
+        if (Number(tbody.rows[i].cells[0].textContent) === id) {
+            tbody.deleteRow(i);
+            break;
+        }
+    }
+}
+
+function startRecording(deviceId) {
+    var duration = prompt("請輸入錄音時長（秒）:", "10");
+    if (duration) {
+        socket.emit('start_recording', {device_id: deviceId, duration: parseFloat(duration)}, function(response) {
+            if (response.error) {
+                alert("錄音失敗: " + response.error);
+            } else {
+                alert(response.message);
+            }
+        });
+    }
+}
+
+function deleteRecording(id) {
+    if (confirm('確定要刪除這個錄音嗎？')) {
+        fetch('/delete/' + id, { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message);
+                removeRecordingFromTable(id);
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+            });
+    }
+}
+
+function editDeviceName(deviceId) {
+    var currentName = document.getElementById('device-name-' + deviceId).textContent;
+    var newName = prompt("請輸入新的設備名稱:", currentName);
+    if (newName && newName !== currentName) {
+        socket.emit('update_device_name', {device_id: deviceId, device_name: newName});
+    }
+}
+
+// 初始化設備列表和錄音列表
+updateDevicesTable({{ devices | tojson | safe }});
+{% for recording in recordings %}
+addRecordingToTable({
+    id: {{ recording.id }},
+    filename: "{{ recording.filename }}",
+    duration: {{ recording.duration }},
+    timestamp: "{{ recording.timestamp }}",
+    device_id: "{{ recording.device_id }}"
+});
+{% endfor %}
+</script>
+{% endblock %}

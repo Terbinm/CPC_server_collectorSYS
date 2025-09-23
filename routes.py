@@ -13,21 +13,28 @@ logger = logging.getLogger(__name__)
 @app.route('/')
 def index():
     """
-    渲染主頁，顯示所有錄音和設備列表
+    宣傳首頁
+    """
+    return render_template('index.html')
+
+
+@app.route('/dashboard')
+def dashboard():
+    """
+    管理儀表板，顯示所有錄音和設備列表
     """
     try:
-        # recordings = AudioRecording.query.order_by(AudioRecording.id.desc()).all() #倒序排序
         recordings = AudioRecording.query.all()
-        return render_template('index.html', recordings=recordings, devices=list(recording_devices.values()))
+        return render_template('dashboard.html', recordings=recordings, devices=list(recording_devices.values()))
     except Exception as e:
-        logger.error(f"主頁路由出錯: {str(e)}")
+        logger.error(f"儀表板路由出錯: {str(e)}")
         return jsonify({"error": "內部伺服器錯誤"}), 500
 
 
 @app.route('/upload_recording', methods=['POST'])
 def upload_recording():
     """
-    處理錄音文件上傳
+    處理錄音檔案上傳
     """
     try:
         if 'file' not in request.files:
@@ -49,10 +56,10 @@ def upload_recording():
             file_size = os.path.getsize(file_path)
             file_hash = calculate_file_hash(file_path)
 
-            # 驗證文件大小和哈希值
+            # 驗證檔案大小和哈希值
             if file_size != expected_size or file_hash != expected_hash:
-                os.remove(file_path)  # 刪除不完整或不匹配的文件
-                return jsonify({'error': '文件上傳不完整或已被修改'}), 400
+                os.remove(file_path)  # 刪除不完整或不匹配的檔案
+                return jsonify({'error': '檔案上傳不完整或已被修改'}), 400
 
             new_recording = AudioRecording(
                 filename=filename,
@@ -91,7 +98,7 @@ def get_recordings():
 @app.route('/download/<int:id>', methods=['GET'])
 def download_recording(id):
     """
-    下載指定ID的錄音文件
+    下載指定ID的錄音檔案
 
     :param id: 錄音ID
     """
