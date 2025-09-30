@@ -159,15 +159,11 @@ def check_and_execute_schedules():
     檢查並執行所有設備的排程
     """
     debug_count = 0
-    # logger.debug(f"debug_count(0) --- {debug_count}")
     current_time = datetime.now()
     for device_id, schedule in list(device_schedules.items()):
         # 為每個設備創建一個鎖(如果還沒有)
         if device_id not in execution_locks:
             execution_locks[device_id] = Lock()
-
-        # debug_count = debug_count + 1
-        # logger.debug(f"debug_count(1) --- {debug_count}")
 
         # 嘗試獲取鎖，如果無法獲取，則跳過這個設備(避免重複呼叫)
         if not execution_locks[device_id].acquire(blocking=False):
@@ -178,34 +174,21 @@ def check_and_execute_schedules():
         try:
             if current_time >= schedule.next_recording_time:
 
-                # debug_count = debug_count + 1
-                # logger.debug(f"debug_count(2) --- {debug_count}")
-
                 # 執行錄音
                 socketio.emit('record', {'duration': schedule.duration},
                               room=next(sid for sid, client in connected_clients.items() if client['id'] == device_id))
 
                 # 更新排程
-
-                # debug_count = debug_count + 1
-                # logger.debug(f"debug_count(3) --- {debug_count}")
-
                 logger.debug(f"設備 {device_id} 新增一次前，錄音紀錄---{schedule.current_count}")
                 schedule.increment_count()
                 schedule.update_next_recording_time()
                 logger.debug(f"設備 {device_id} 新增一次後，錄音紀錄---{schedule.current_count}")
-
-                # debug_count = debug_count + 1
-                # logger.debug(f"debug_count(4) --- {debug_count}")
 
                 if schedule.is_completed():
                     del device_schedules[device_id]
                     logger.info(f"設備 {device_id} 的排程已完成並被刪除")
                 else:
                     logger.info(f"設備 {device_id} 執行了排程錄音，下次錄音時間: {schedule.next_recording_time}")
-
-                # debug_count = debug_count + 1
-                # logger.debug(f"debug_count(5) --- {debug_count}")
 
                 # 發送更新通知
                 socketio.emit('update_devices', {'devices': list(recording_devices.values())})
@@ -214,9 +197,6 @@ def check_and_execute_schedules():
                     'timestamp': current_time.isoformat(),
                     'duration': schedule.duration
                 })
-
-                # debug_count = debug_count + 1
-                # logger.debug(f"debug_count(6) --- {debug_count}")
 
         finally:
             # 釋放鎖

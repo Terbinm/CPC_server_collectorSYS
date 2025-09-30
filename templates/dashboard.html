@@ -7,244 +7,294 @@
 {% block extra_head %}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
 <style>
-.flash {
-    animation: flash 1s ease-in-out;
-}
-@keyframes flash {
-    0% { background-color: #fef3c7; }
-    100% { background-color: transparent; }
-}
+    .flash {
+        animation: flash 1s ease-in-out;
+    }
+
+    @keyframes flash {
+        0% {
+            background-color: #fef3c7;
+        }
+        100% {
+            background-color: transparent;
+        }
+    }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="w-full px-4 lg:px-6 py-6">
-        <!-- 上方區塊：已連接的設備 (3/4) 與 網路上傳 (1/4) -->
-        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-6">
-            <!-- 連接的設備 (佔3格) -->
-            <div class="lg:col-span-3 bg-white rounded-xl shadow-sm border border-gray-200">
-                <div class="px-4 lg:px-6 py-4 border-b border-gray-200">
-                    <h2 class="text-lg lg:text-xl font-semibold text-gray-800 flex items-center">
-                        <svg class="w-5 h-5 text-indigo-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
-                        </svg>
-                        已連接的設備列表
-                    </h2>
-                </div>
-                <div class="overflow-x-auto">
-                    <table class="w-full" id="devicesTable">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th class="px-3 lg:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">設備識別碼</th>
-                                <th class="px-3 lg:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">設備名稱</th>
-                                <th class="px-3 lg:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">連接狀態</th>
-                                <th class="px-3 lg:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作選項</th>
-                            </tr>
-                        </thead>
-                        <tbody class="bg-white divide-y divide-gray-200">
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- 網路上傳區塊 (佔1格) -->
-            <div class="lg:col-span-1 bg-white rounded-xl shadow-sm border border-gray-200">
-                <div class="px-4 lg:px-6 py-4 border-b border-gray-200">
-                    <h2 class="text-base lg:text-lg font-semibold text-gray-800 flex items-center">
-                        <svg class="w-5 h-5 text-indigo-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
-                        </svg>
-                        網路上傳音檔
-                    </h2>
-                </div>
-                <div class="p-4 lg:p-6">
-                    <form id="uploadForm" enctype="multipart/form-data" class="space-y-4">
-                        <div class="flex items-center justify-center w-full">
-                            <label for="fileInput" class="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
-                                <div class="flex flex-col items-center justify-center pt-5 pb-6">
-                                    <svg class="w-8 h-8 mb-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
-                                    </svg>
-                                    <p class="mb-1 text-xs text-gray-500 text-center"><span class="font-semibold">點擊選擇</span></p>
-                                    <p class="text-xs text-gray-400">或拖曳檔案</p>
-                                </div>
-                                <input id="fileInput" type="file" accept="audio/*" class="hidden" onchange="handleFileSelect(event)" />
-                            </label>
-                        </div>
-                        <div id="fileInfo" class="hidden bg-blue-50 border border-blue-200 rounded-lg p-3">
-                            <p class="text-xs text-gray-700 truncate"><span class="font-semibold">檔案：</span> <span id="fileName"></span></p>
-                            <p class="text-xs text-gray-700"><span class="font-semibold">大小：</span> <span id="fileSize"></span></p>
-                        </div>
-                        <div id="uploadBtnContainer" class="hidden text-center">
-                            <button type="submit" class="w-full bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium" id="uploadBtn">
-                                上傳音檔
-                            </button>
-                        </div>
-                        <div id="uploadProgress" class="hidden">
-                            <div class="w-full bg-gray-200 rounded-full h-2.5">
-                                <div id="progressBar" class="bg-indigo-600 h-2.5 rounded-full" style="width: 0%"></div>
-                            </div>
-                            <p class="text-xs text-gray-600 text-center mt-2" id="progressText">上傳中...</p>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-
-        <!-- 錄音列表 -->
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200">
+    <!-- 上方區塊：已連接的設備 (3/4) 與 網路上傳 (1/4) -->
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-6">
+        <!-- 連接的設備 (佔3格) -->
+        <div class="lg:col-span-3 bg-white rounded-xl shadow-sm border border-gray-200">
             <div class="px-4 lg:px-6 py-4 border-b border-gray-200">
                 <h2 class="text-lg lg:text-xl font-semibold text-gray-800 flex items-center">
                     <svg class="w-5 h-5 text-indigo-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
                     </svg>
-                    錄音檔案管理
+                    已連接的設備列表
                 </h2>
             </div>
             <div class="overflow-x-auto">
-                <table class="w-full" id="recordingsTable">
+                <table class="w-full" id="devicesTable">
                     <thead class="bg-gray-50">
-                        <tr>
-                            <th class="px-2 lg:px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">檔案ID</th>
-                            <th class="px-2 lg:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">檔案名稱</th>
-                            <th class="px-2 lg:px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">時長(秒)</th>
-                            <th class="px-2 lg:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">錄製時間</th>
-                            <th class="px-2 lg:px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">設備ID</th>
-                            <th class="px-2 lg:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作選項</th>
-                        </tr>
+                    <tr>
+                        <th class="px-3 lg:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            設備識別碼
+                        </th>
+                        <th class="px-3 lg:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            設備名稱
+                        </th>
+                        <th class="px-3 lg:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            連接狀態
+                        </th>
+                        <th class="px-3 lg:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            操作選項
+                        </th>
+                    </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
                     </tbody>
                 </table>
             </div>
         </div>
+
+        <!-- 網路上傳區塊 (佔1格) -->
+        <div class="lg:col-span-1 bg-white rounded-xl shadow-sm border border-gray-200">
+            <div class="px-4 lg:px-6 py-4 border-b border-gray-200">
+                <h2 class="text-base lg:text-lg font-semibold text-gray-800 flex items-center">
+                    <svg class="w-5 h-5 text-indigo-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                    </svg>
+                    網路上傳音檔
+                </h2>
+            </div>
+            <div class="p-4 lg:p-6">
+                <form id="uploadForm" enctype="multipart/form-data" class="space-y-4">
+                    <div class="flex items-center justify-center w-full">
+                        <label for="fileInput"
+                               class="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+                            <div class="flex flex-col items-center justify-center pt-5 pb-6">
+                                <svg class="w-8 h-8 mb-2 text-gray-400" fill="none" stroke="currentColor"
+                                     viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                          d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                                </svg>
+                                <p class="mb-1 text-xs text-gray-500 text-center"><span
+                                        class="font-semibold">點擊選擇</span></p>
+                                <p class="text-xs text-gray-400">或拖曳檔案</p>
+                            </div>
+                            <input id="fileInput" type="file" accept="audio/*" class="hidden"/>
+                        </label>
+                    </div>
+                    <div id="fileInfo" class="hidden bg-blue-50 border border-blue-200 rounded-lg p-3">
+                        <p class="text-xs text-gray-700 truncate"><span class="font-semibold">檔案：</span> <span
+                                id="fileName"></span></p>
+                        <p class="text-xs text-gray-700"><span class="font-semibold">大小：</span> <span
+                                id="fileSize"></span></p>
+                    </div>
+                    <div id="uploadBtnContainer" class="hidden text-center">
+                        <button type="submit"
+                                class="w-full bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium"
+                                id="uploadBtn">
+                            上傳音檔
+                        </button>
+                    </div>
+                    <div id="uploadProgress" class="hidden">
+                        <div class="w-full bg-gray-200 rounded-full h-2.5">
+                            <div id="progressBar" class="bg-indigo-600 h-2.5 rounded-full" style="width: 0%"></div>
+                        </div>
+                        <p class="text-xs text-gray-600 text-center mt-2" id="progressText">上傳中...</p>
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
+
+    <!-- 錄音列表 -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200">
+        <div class="px-4 lg:px-6 py-4 border-b border-gray-200">
+            <h2 class="text-lg lg:text-xl font-semibold text-gray-800 flex items-center">
+                <svg class="w-5 h-5 text-indigo-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
+                </svg>
+                錄音檔案管理
+            </h2>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full" id="recordingsTable">
+                <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-2 lg:px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        UUID
+                    </th>
+                    <th class="px-2 lg:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        檔案名稱
+                    </th>
+                    <th class="px-2 lg:px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        時長(秒)
+                    </th>
+                    <th class="px-2 lg:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        錄製時間
+                    </th>
+                    <th class="px-2 lg:px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        設備ID
+                    </th>
+                    <th class="px-2 lg:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        操作選項
+                    </th>
+                </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-// 網路上傳相關函數
-let selectedFile = null;
+    // 網路上傳相關函數
+    let selectedFile = null;
 
-function handleFileSelect(event) {
-    selectedFile = event.target.files[0];
-    console.log('File selected:', selectedFile);
-    if (selectedFile) {
-        document.getElementById('fileName').textContent = selectedFile.name;
-        document.getElementById('fileSize').textContent = formatFileSize(selectedFile.size);
-        document.getElementById('fileInfo').classList.remove('hidden');
-        const btnContainer = document.getElementById('uploadBtnContainer');
-        console.log('Button container:', btnContainer);
-        btnContainer.classList.remove('hidden');
-        console.log('Button container classes:', btnContainer.className);
-    }
-}
-
-function formatFileSize(bytes) {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
-}
-
-document.getElementById('uploadForm').addEventListener('submit', async function(e) {
-    e.preventDefault();
-
-    if (!selectedFile) {
-        alert('請先選擇檔案');
-        return;
-    }
-
-    const formData = new FormData();
-    formData.append('file', selectedFile);
-    formData.append('device_id', 'WEB_UPLOAD');
-
-    // 顯示進度條，隱藏按鈕
-    document.getElementById('uploadProgress').classList.remove('hidden');
-    document.getElementById('uploadBtnContainer').classList.add('hidden');
-
-    try {
-        const response = await fetch('/upload_recording', {
-            method: 'POST',
-            body: formData
-        });
-
-        const result = await response.json();
-
-        if (response.ok) {
-            alert('上傳成功！');
-            // 重置表單
-            document.getElementById('uploadForm').reset();
-            document.getElementById('fileInfo').classList.add('hidden');
-            document.getElementById('uploadProgress').classList.add('hidden');
-            selectedFile = null;
-        } else {
-            alert('上傳失敗: ' + result.error);
-            document.getElementById('uploadBtnContainer').classList.remove('hidden');
-        }
-    } catch (error) {
-        console.error('上傳錯誤:', error);
-        alert('上傳過程中發生錯誤');
-        document.getElementById('uploadBtnContainer').classList.remove('hidden');
-    } finally {
-        document.getElementById('uploadProgress').classList.add('hidden');
-    }
-});
-
-// 拖曳上傳支援
-const dropZone = document.querySelector('label[for="fileInput"]');
-
-dropZone.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    dropZone.classList.add('border-indigo-500', 'bg-indigo-50');
-});
-
-dropZone.addEventListener('dragleave', (e) => {
-    e.preventDefault();
-    dropZone.classList.remove('border-indigo-500', 'bg-indigo-50');
-});
-
-dropZone.addEventListener('drop', (e) => {
-    e.preventDefault();
-    dropZone.classList.remove('border-indigo-500', 'bg-indigo-50');
-
-    const files = e.dataTransfer.files;
-    if (files.length > 0) {
+    // 檔案選擇事件監聽器
+    document.addEventListener('DOMContentLoaded', function () {
         const fileInput = document.getElementById('fileInput');
-        fileInput.files = files;
-        handleFileSelect({ target: { files: files } });
+        if (fileInput) {
+            fileInput.addEventListener('change', function (event) {
+                selectedFile = event.target.files[0];
+                console.log('File selected:', selectedFile);
+                if (selectedFile) {
+                    document.getElementById('fileName').textContent = selectedFile.name;
+                    document.getElementById('fileSize').textContent = formatFileSize(selectedFile.size);
+                    document.getElementById('fileInfo').classList.remove('hidden');
+                    const btnContainer = document.getElementById('uploadBtnContainer');
+                    console.log('Button container:', btnContainer);
+                    btnContainer.classList.remove('hidden');
+                    console.log('Button container classes:', btnContainer.className);
+                }
+            });
+        }
+    });
+
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
     }
-});
 
-var socket = io();
+    document.getElementById('uploadForm').addEventListener('submit', async function (e) {
+        e.preventDefault();
 
-socket.on('connect', function() {
-    console.log('Connected to server');
-});
+        if (!selectedFile) {
+            alert('請先選擇檔案');
+            return;
+        }
 
-socket.on('disconnect', function() {
-    console.log('Disconnected from server');
-});
+        const formData = new FormData();
+        formData.append('file', selectedFile);
+        formData.append('device_id', 'WEB_UPLOAD');
 
-socket.on('update_devices', function(data) {
-    updateDevicesTable(data.devices);
-});
+        // 顯示進度條，隱藏按鈕
+        document.getElementById('uploadProgress').classList.remove('hidden');
+        document.getElementById('uploadBtnContainer').classList.add('hidden');
 
-socket.on('new_recording', function(data) {
-    addRecordingToTable(data);
-});
+        try {
+            const response = await fetch('/upload_recording', {
+                method: 'POST',
+                body: formData
+            });
 
-socket.on('recording_deleted', function(data) {
-    removeRecordingFromTable(data.id);
-});
+            const result = await response.json();
 
-function updateDevicesTable(devices) {
-    var tbody = document.querySelector('#devicesTable tbody');
-    tbody.innerHTML = '';
-    devices.forEach(function(device) {
-        var row = tbody.insertRow();
-        row.innerHTML = `
+            if (response.ok) {
+                alert('上傳成功！');
+                // 重置表單
+                document.getElementById('uploadForm').reset();
+                document.getElementById('fileInfo').classList.add('hidden');
+                document.getElementById('uploadProgress').classList.add('hidden');
+                selectedFile = null;
+            } else {
+                alert('上傳失敗: ' + result.error);
+                document.getElementById('uploadBtnContainer').classList.remove('hidden');
+            }
+        } catch (error) {
+            console.error('上傳錯誤:', error);
+            alert('上傳過程中發生錯誤');
+            document.getElementById('uploadBtnContainer').classList.remove('hidden');
+        } finally {
+            document.getElementById('uploadProgress').classList.add('hidden');
+        }
+    });
+
+    // 拖曳上傳支援
+    const dropZone = document.querySelector('label[for="fileInput"]');
+
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('border-indigo-500', 'bg-indigo-50');
+    });
+
+    dropZone.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('border-indigo-500', 'bg-indigo-50');
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('border-indigo-500', 'bg-indigo-50');
+
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            const fileInput = document.getElementById('fileInput');
+            fileInput.files = files;
+
+            // 手動觸發檔案選擇邏輯
+            selectedFile = files[0];
+            if (selectedFile) {
+                document.getElementById('fileName').textContent = selectedFile.name;
+                document.getElementById('fileSize').textContent = formatFileSize(selectedFile.size);
+                document.getElementById('fileInfo').classList.remove('hidden');
+                document.getElementById('uploadBtnContainer').classList.remove('hidden');
+            }
+        }
+    });
+
+    var socket = io();
+
+    socket.on('connect', function () {
+        console.log('Connected to server');
+    });
+
+    socket.on('disconnect', function () {
+        console.log('Disconnected from server');
+    });
+
+    socket.on('update_devices', function (data) {
+        updateDevicesTable(data.devices);
+    });
+
+    socket.on('new_recording', function (data) {
+        addRecordingToTable(data);
+    });
+
+    socket.on('recording_deleted', function (data) {
+        removeRecordingFromTable(data.id);
+    });
+
+    function updateDevicesTable(devices) {
+        var tbody = document.querySelector('#devicesTable tbody');
+        tbody.innerHTML = '';
+        devices.forEach(function (device) {
+            var row = tbody.insertRow();
+            row.innerHTML = `
             <td class="px-3 lg:px-4 py-2 text-sm font-mono">${device.id}</td>
             <td class="px-3 lg:px-4 py-2 text-sm">
                 <span id="device-name-${device.id}" class="font-medium">${device.name}</span>
@@ -268,25 +318,44 @@ function updateDevicesTable(devices) {
                 </div>
             </td>
         `;
-    });
-}
-
-function addRecordingToTable(recording) {
-    if (recording.id === undefined) {
-        return;
+        });
     }
 
-    var tbody = document.querySelector('#recordingsTable tbody');
-    var newRow = tbody.insertRow(0);
-    newRow.innerHTML = `
-        <td class="px-2 lg:px-3 py-2 text-sm font-mono">${recording.id}</td>
+    function addRecordingToTable(recording) {
+        if (recording.id === undefined) {
+            return;
+        }
+
+        var tbody = document.querySelector('#recordingsTable tbody');
+        var newRow = tbody.insertRow(0);
+
+        // 格式化時間戳（處理 ISO 格式）
+        var timestamp = recording.timestamp;
+        try {
+            var date = new Date(timestamp);
+            timestamp = date.toLocaleString('zh-TW', {timeZone: 'Asia/Taipei'});
+        } catch (e) {
+            // 如果解析失敗，保持原樣
+        }
+
+        // 處理 duration（可能是字串或數字）
+        var duration = parseFloat(recording.duration);
+        if (isNaN(duration)) {
+            duration = 0;
+        }
+
+        // 截斷 UUID 顯示（顯示前8字元）
+        var shortId = recording.id.substring(0, 8);
+
+        newRow.innerHTML = `
+        <td class="px-2 lg:px-3 py-2 text-sm font-mono" title="${recording.id}">${shortId}...</td>
         <td class="px-2 lg:px-4 py-2 text-sm font-medium break-all">${recording.filename}</td>
-        <td class="px-2 lg:px-3 py-2 text-sm">${recording.duration}</td>
-        <td class="px-2 lg:px-4 py-2 text-xs text-gray-600">${recording.timestamp}</td>
+        <td class="px-2 lg:px-3 py-2 text-sm">${duration.toFixed(2)}</td>
+        <td class="px-2 lg:px-4 py-2 text-xs text-gray-600">${timestamp}</td>
         <td class="px-2 lg:px-3 py-2 text-sm font-mono">${recording.device_id}</td>
         <td class="px-2 lg:px-4 py-2">
             <div class="flex flex-col sm:flex-row gap-1">
-                <button onclick="downloadRecording(${recording.id})"
+                <button onclick="downloadRecording('${recording.id}')"
                         class="bg-green-600 text-white px-2 py-1 rounded text-xs hover:bg-green-700 transition-colors">
                     下載
                 </button>
@@ -294,7 +363,7 @@ function addRecordingToTable(recording) {
                         class="bg-blue-600 text-white px-2 py-1 rounded text-xs hover:bg-blue-700 transition-colors">
                     詳情
                 </button>
-                <button onclick="deleteRecording(${recording.id})"
+                <button onclick="deleteRecording('${recording.id}')"
                         class="bg-red-600 text-white px-2 py-1 rounded text-xs hover:bg-red-700 transition-colors">
                     刪除
                 </button>
@@ -302,86 +371,86 @@ function addRecordingToTable(recording) {
         </td>
     `;
 
-    newRow.classList.add('flash');
-    setTimeout(() => {
-        newRow.classList.remove('flash');
-    }, 1000);
-}
+        newRow.classList.add('flash');
+        setTimeout(() => {
+            newRow.classList.remove('flash');
+        }, 1000);
+    }
 
-function downloadRecording(id) {
-    fetch(`/check_upload/${id}`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.upload_complete) {
-                window.location.href = `/download/${id}`;
-            } else {
-                alert('檔案處理中，請稍後再試。');
+    function downloadRecording(id) {
+        fetch(`/check_upload/${id}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.upload_complete) {
+                        window.location.href = `/download/${id}`;
+                    } else {
+                        alert('檔案處理中，請稍後再試。');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('發生錯誤，請稍後再試。');
+                });
+    }
+
+    function removeRecordingFromTable(id) {
+        var tbody = document.querySelector('#recordingsTable tbody');
+        for (var i = 0; i < tbody.rows.length; i++) {
+            var cellContent = tbody.rows[i].cells[0].getAttribute('title') || tbody.rows[i].cells[0].textContent.replace('...', '');
+            if (cellContent === id || cellContent.startsWith(id.substring(0, 8))) {
+                tbody.deleteRow(i);
+                break;
             }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('發生錯誤，請稍後再試。');
+        }
+    }
+
+    function startRecording(deviceId) {
+        var durationInput = document.getElementById('duration-' + deviceId);
+        var duration = parseFloat(durationInput.value);
+
+        if (!duration || duration <= 0) {
+            alert("請輸入有效的錄音時長");
+            return;
+        }
+
+        socket.emit('start_recording', {device_id: deviceId, duration: duration}, function (response) {
+            if (response.error) {
+                alert("錄音失敗: " + response.error);
+            }
         });
-}
-
-function removeRecordingFromTable(id) {
-    var tbody = document.querySelector('#recordingsTable tbody');
-    for (var i = 0; i < tbody.rows.length; i++) {
-        if (Number(tbody.rows[i].cells[0].textContent) === id) {
-            tbody.deleteRow(i);
-            break;
-        }
-    }
-}
-
-function startRecording(deviceId) {
-    var durationInput = document.getElementById('duration-' + deviceId);
-    var duration = parseFloat(durationInput.value);
-
-    if (!duration || duration <= 0) {
-        alert("請輸入有效的錄音時長");
-        return;
     }
 
-    socket.emit('start_recording', {device_id: deviceId, duration: duration}, function(response) {
-        if (response.error) {
-            alert("錄音失敗: " + response.error);
+    function deleteRecording(id) {
+        if (confirm('確定要刪除這個錄音嗎？')) {
+            fetch('/delete/' + id, {method: 'POST'})
+                    .then(response => response.json())
+                    .then(data => {
+                        alert(data.message);
+                        removeRecordingFromTable(id);
+                    })
+                    .catch((error) => {
+                        console.error('Error:', error);
+                    });
         }
+    }
+
+    function editDeviceName(deviceId) {
+        var currentName = document.getElementById('device-name-' + deviceId).textContent;
+        var newName = prompt("請輸入新的設備名稱:", currentName);
+        if (newName && newName !== currentName) {
+            socket.emit('update_device_name', {device_id: deviceId, device_name: newName});
+        }
+    }
+    // 初始化設備列表和錄音列表
+    updateDevicesTable({{ devices | tojson | safe }});
+    {% for recording in recordings %}
+    addRecordingToTable({
+        id: "{{ recording.id }}",
+        filename: "{{ recording.filename }}",
+        duration: {{ recording.duration }},
+        timestamp: "{{ recording.timestamp }}",
+        device_id: "{{ recording.device_id }}"
     });
-}
-
-function deleteRecording(id) {
-    if (confirm('確定要刪除這個錄音嗎？')) {
-        fetch('/delete/' + id, { method: 'POST' })
-            .then(response => response.json())
-            .then(data => {
-                alert(data.message);
-                removeRecordingFromTable(id);
-            })
-            .catch((error) => {
-                console.error('Error:', error);
-            });
-    }
-}
-
-function editDeviceName(deviceId) {
-    var currentName = document.getElementById('device-name-' + deviceId).textContent;
-    var newName = prompt("請輸入新的設備名稱:", currentName);
-    if (newName && newName !== currentName) {
-        socket.emit('update_device_name', {device_id: deviceId, device_name: newName});
-    }
-}
-
-// 初始化設備列表和錄音列表
-updateDevicesTable({{ devices | tojson | safe }});
-{% for recording in recordings %}
-addRecordingToTable({
-    id: {{ recording.id }},
-    filename: "{{ recording.filename }}",
-    duration: {{ recording.duration }},
-    timestamp: "{{ recording.timestamp }}",
-    device_id: "{{ recording.device_id }}"
-});
-{% endfor %}
+    {% endfor %}
 </script>
 {% endblock %}

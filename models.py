@@ -1,35 +1,323 @@
-from main import db
+from pymongo import MongoClient, ASCENDING
 from config import Config
 from datetime import datetime
+import uuid
+import logging
+import os
+
+logger = logging.getLogger(__name__)
 
 
-class AudioRecording(db.Model):
-    """
-    聲音數據庫 model
-    """
-    id = db.Column(db.Integer, primary_key=True)  # 編號
-    filename = db.Column(db.String(100), nullable=False)  # 檔案名稱
-    duration = db.Column(db.Float, nullable=False)  # 錄製時長
-    timestamp = db.Column(db.DateTime, default=lambda: datetime.now(Config.TAIPEI_TZ))  # 上傳完成的時間
-    device_id = db.Column(db.String(36), nullable=False)  # 錄製使用的設備
-    upload_complete = db.Column(db.Boolean, default=False)  # 上傳完整性標記
-    file_size = db.Column(db.Integer, nullable=False)  # 文件大小
-    file_hash = db.Column(db.String(64), nullable=False)  # 文件哈希值
+class MongoDBHandler:
+    """MongoDB 操作處理器"""
+
+    def __init__(self):
+        self.config = Config.MONGODB_CONFIG
+        self.mongo_client = None
+        self.db = None
+        self.collection = None
+        self._connect()
+
+    def _connect(self):
+        """建立 MongoDB 連接"""
+        try:
+            connection_string = (
+                f"mongodb://{self.config['username']}:{self.config['password']}"
+                f"@{self.config['host']}:{self.config['port']}/admin"
+            )
+            self.mongo_client = MongoClient(connection_string)
+            self.db = self.mongo_client[self.config['database']]
+            self.collection = self.db[self.config['collection']]
+
+            # 測試連接
+            self.mongo_client.admin.command('ping')
+            logger.info("MongoDB 連接成功")
+
+            # 建立索引
+            self._create_indexes()
+        except Exception as e:
+            logger.error(f"MongoDB 連接失敗: {e}")
+            raise
+
+    def _create_indexes(self):
+        """建立資料庫索引"""
+        for index_field in Config.DATABASE_INDEXES:
+            try:
+                self.collection.create_index([(index_field, ASCENDING)])
+                logger.info(f"索引建立成功: {index_field}")
+            except Exception as e:
+                logger.warning(f"索引建立失敗 {index_field}: {e}")
+
+    def close(self):
+        """關閉連接"""
+        if self.mongo_client:
+            self.mongo_client.close()
+            logger.info("MongoDB 連接已關閉")
+
+
+class AudioRecording:
+    """音頻錄音文檔結構（參考 V3_multi_dataset）"""
+
+    def __init__(self, filename, duration, device_id, file_size, file_hash,
+                 upload_complete=True, metadata=None):
+        self.analyze_uuid = str(uuid.uuid4())
+        self.filename = filename
+        self.duration = duration
+        self.device_id = device_id
+        self.file_size = file_size
+        self.file_hash = file_hash
+        self.upload_complete = upload_complete
+        self.metadata = metadata or {}
+        self.timestamp = datetime.now(Config.TAIPEI_TZ)
+
+    def to_mongodb_document(self):
+        """轉換為 MongoDB 文檔格式（參考 V3_multi_dataset 結構）"""
+        current_time = datetime.utcnow()
+
+        document = {
+            "AnalyzeUUID": self.analyze_uuid,
+            "current_step": 0,  # Web UI 上傳，無後續處理步驟
+            "created_at": current_time,
+            "updated_at": current_time,
+            "files": {
+                "raw": {
+                    "filename": self.filename,
+                    "type": self.metadata.get('format', Config.AUDIO_CONFIG['default_format']),
+                    "size_mb": round(self.file_size / (1024 * 1024), 2)
+                }
+            },
+            "analyze_features": [],  # Web UI 無特徵提取
+            "info_features": {
+                "dataset_UUID": Config.DATASET_CONFIG['dataset_UUID'],
+                "device_id": self.device_id,
+                "testing": False,
+                "obj_ID": Config.DATASET_CONFIG['obj_ID'],
+                "upload_time": self.timestamp.isoformat(),
+                "upload_complete": self.upload_complete,
+                "filepath": os.path.join(Config.UPLOAD_FOLDER, self.filename),
+                "file_hash": self.file_hash,
+                "file_size": self.file_size,
+                "duration": self.duration,
+                "web_ui_metadata": {
+                    "sample_rate": self.metadata.get('sample_rate', Config.AUDIO_CONFIG['sample_rate']),
+                    "channels": self.metadata.get('channels', Config.AUDIO_CONFIG['channels']),
+                    "format": self.metadata.get('format', Config.AUDIO_CONFIG['default_format']),
+                    "source": "WEB_UPLOAD" if self.device_id == "WEB_UPLOAD" else "EDGE_DEVICE"
+                }
+            }
+        }
+
+        return document
+
+    @staticmethod
+    def from_mongodb_document(document):
+        """從 MongoDB 文檔轉換回物件"""
+        try:
+            info = document.get('info_features', {})
+            files = document.get('files', {}).get('raw', {})
+            web_meta = info.get('web_ui_metadata', {})
+
+            # 獲取檔案大小（可能在不同位置）
+            file_size = info.get('file_size', 0)
+            if file_size == 0 and 'size_mb' in files:
+                file_size = int(files.get('size_mb', 0) * 1024 * 1024)
+
+            # 獲取設備 ID（可能是 device_id 或 equ_UUID）
+            device_id = info.get('device_id') or info.get('equ_UUID', 'UNKNOWN')
+
+            recording = AudioRecording(
+                filename=files.get('filename', ''),
+                duration=float(info.get('duration', 0)),
+                device_id=device_id,
+                file_size=file_size,
+                file_hash=info.get('file_hash', ''),
+                upload_complete=info.get('upload_complete', True),
+                metadata=web_meta
+            )
+
+            recording.analyze_uuid = document.get('AnalyzeUUID', '')
+
+            # 解析時間戳（處理多種格式）
+            upload_time = info.get('upload_time')
+            if upload_time:
+                try:
+                    # 移除時區資訊後解析
+                    if isinstance(upload_time, str):
+                        upload_time_str = upload_time.split('+')[0].split('Z')[0]
+                        recording.timestamp = datetime.fromisoformat(upload_time_str)
+                        # 設定為台北時區
+                        if recording.timestamp.tzinfo is None:
+                            recording.timestamp = Config.TAIPEI_TZ.localize(recording.timestamp)
+                    else:
+                        recording.timestamp = upload_time
+                except Exception as e:
+                    logger.warning(f"解析時間戳失敗: {e}, 使用 created_at")
+                    created_at = document.get('created_at')
+                    if created_at:
+                        recording.timestamp = created_at
+                    else:
+                        recording.timestamp = datetime.now(Config.TAIPEI_TZ)
+            else:
+                # 使用 created_at 或 timestamp 欄位
+                timestamp_field = info.get('timestamp') or document.get('created_at')
+                if timestamp_field:
+                    recording.timestamp = timestamp_field
+                else:
+                    recording.timestamp = datetime.now(Config.TAIPEI_TZ)
+
+            return recording
+        except Exception as e:
+            logger.error(f"從 MongoDB 文檔轉換失敗: {e}, 文檔: {document}")
+            raise
+
+    def to_dict(self):
+        """轉換為字典格式（用於 API 回應，保持向後相容）"""
+        try:
+            # 確保 timestamp 是 datetime 物件
+            if isinstance(self.timestamp, datetime):
+                timestamp_str = self.timestamp.isoformat()
+            else:
+                timestamp_str = str(self.timestamp)
+
+            return {
+                'id': str(self.analyze_uuid),
+                'filename': str(self.filename),
+                'duration': float(self.duration),
+                'timestamp': timestamp_str,
+                'device_id': str(self.device_id),
+                'upload_complete': bool(self.upload_complete),
+                'file_size': int(self.file_size),
+                'file_hash': str(self.file_hash)
+            }
+        except Exception as e:
+            logger.error(f"轉換為字典失敗: {e}")
+            # 返回最小可用結構
+            return {
+                'id': str(self.analyze_uuid) if self.analyze_uuid else '',
+                'filename': str(self.filename) if self.filename else '',
+                'duration': 0.0,
+                'timestamp': datetime.now(Config.TAIPEI_TZ).isoformat(),
+                'device_id': str(self.device_id) if self.device_id else '',
+                'upload_complete': False,
+                'file_size': 0,
+                'file_hash': ''
+            }
 
     def __repr__(self):
         return f'<AudioRecording {self.filename}>'
 
-    def to_dict(self):
-        """
-        將 model 轉換為 dict
-        """
-        return {
-            'id': self.id,
-            'filename': self.filename,
-            'duration': self.duration,
-            'timestamp': self.timestamp.isoformat(),
-            'device_id': self.device_id,
-            'upload_complete': self.upload_complete,
-            'file_size': self.file_size,
-            'file_hash': self.file_hash
-        }
+
+class RecordingRepository:
+    """錄音資料存取層"""
+
+    def __init__(self, db_handler: MongoDBHandler):
+        self.db_handler = db_handler
+        self.collection = db_handler.collection
+
+    def insert(self, recording: AudioRecording):
+        """新增錄音記錄"""
+        try:
+            document = recording.to_mongodb_document()
+            result = self.collection.insert_one(document)
+            logger.info(f"成功插入錄音記錄: {recording.filename}")
+            return result.inserted_id
+        except Exception as e:
+            logger.error(f"插入錄音記錄失敗: {e}")
+            raise
+
+    def find_all(self):
+        """查詢所有錄音記錄"""
+        try:
+            documents = self.collection.find().sort('info_features.upload_time', -1)
+            return [AudioRecording.from_mongodb_document(doc) for doc in documents]
+        except Exception as e:
+            logger.error(f"查詢錄音記錄失敗: {e}")
+            return []
+
+    def find_by_uuid(self, analyze_uuid):
+        """根據 UUID 查詢錄音記錄"""
+        try:
+            document = self.collection.find_one({"AnalyzeUUID": analyze_uuid})
+            if document:
+                return AudioRecording.from_mongodb_document(document)
+            return None
+        except Exception as e:
+            logger.error(f"查詢錄音記錄失敗: {e}")
+            return None
+
+    def find_by_filename(self, filename):
+        """根據檔案名稱查詢錄音記錄"""
+        try:
+            document = self.collection.find_one({"files.raw.filename": filename})
+            if document:
+                return AudioRecording.from_mongodb_document(document)
+            return None
+        except Exception as e:
+            logger.error(f"查詢錄音記錄失敗: {e}")
+            return None
+
+    def delete_by_uuid(self, analyze_uuid):
+        """根據 UUID 刪除錄音記錄"""
+        try:
+            result = self.collection.delete_one({"AnalyzeUUID": analyze_uuid})
+            if result.deleted_count > 0:
+                logger.info(f"成功刪除錄音記錄: {analyze_uuid}")
+                return True
+            return False
+        except Exception as e:
+            logger.error(f"刪除錄音記錄失敗: {e}")
+            return False
+
+    def update_upload_status(self, analyze_uuid, upload_complete):
+        """更新上傳狀態"""
+        try:
+            result = self.collection.update_one(
+                {"AnalyzeUUID": analyze_uuid},
+                {
+                    "$set": {
+                        "info_features.upload_complete": upload_complete,
+                        "updated_at": datetime.utcnow()
+                    }
+                }
+            )
+            return result.modified_count > 0
+        except Exception as e:
+            logger.error(f"更新上傳狀態失敗: {e}")
+            return False
+
+    def count(self):
+        """統計錄音總數"""
+        try:
+            return self.collection.count_documents({})
+        except Exception as e:
+            logger.error(f"統計錄音數量失敗: {e}")
+            return 0
+
+    def get_statistics(self):
+        """獲取統計資訊"""
+        try:
+            stats = {
+                'total': self.count(),
+                'by_device': {},
+                'by_source': {}
+            }
+
+            # 按設備統計
+            pipeline_device = [
+                {"$group": {"_id": "$info_features.device_id", "count": {"$sum": 1}}},
+                {"$sort": {"count": -1}}
+            ]
+            device_stats = list(self.collection.aggregate(pipeline_device))
+            stats['by_device'] = {stat['_id']: stat['count'] for stat in device_stats}
+
+            # 按來源統計
+            pipeline_source = [
+                {"$group": {"_id": "$info_features.web_ui_metadata.source", "count": {"$sum": 1}}}
+            ]
+            source_stats = list(self.collection.aggregate(pipeline_source))
+            stats['by_source'] = {stat['_id']: stat['count'] for stat in source_stats}
+
+            return stats
+        except Exception as e:
+            logger.error(f"獲取統計資訊失敗: {e}")
+            return {}

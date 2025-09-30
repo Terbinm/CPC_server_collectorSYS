@@ -1,6 +1,6 @@
 from flask import request, jsonify, send_file, render_template, redirect, url_for
-from main import app, db, socketio
-from models import AudioRecording
+from main import app, db, socketio, mongodb_handler
+from models import AudioRecording, RecordingRepository
 from utils import calculate_file_hash
 from werkzeug.utils import secure_filename
 import os
@@ -10,6 +10,9 @@ import soundfile as sf
 from io import BytesIO
 
 logger = logging.getLogger(__name__)
+
+# 初始化錄音資料存取層
+recording_repo = RecordingRepository(mongodb_handler)
 
 
 @app.route('/')
@@ -26,11 +29,27 @@ def dashboard():
     管理儀表板，顯示所有錄音和設備列表
     """
     try:
-        recordings = AudioRecording.query.all()
-        return render_template('dashboard.html', recordings=recordings, devices=list(recording_devices.values()))
+        logger.info("正在載入儀表板...")
+        recordings = recording_repo.find_all()
+        logger.info(f"查詢到 {len(recordings)} 筆錄音記錄")
+
+        # 轉換為字典格式以便模板使用
+        recordings_dict = []
+        for idx, rec in enumerate(recordings):
+            try:
+                rec_dict = rec.to_dict()
+                recordings_dict.append(rec_dict)
+                logger.debug(f"錄音 {idx + 1} 轉換成功: {rec_dict.get('filename')}")
+            except Exception as e:
+                logger.error(f"錄音 {idx + 1} 轉換失敗: {e}")
+                # 跳過有問題的記錄
+                continue
+
+        logger.info(f"成功轉換 {len(recordings_dict)} 筆錄音記錄")
+        return render_template('dashboard.html', recordings=recordings_dict, devices=list(recording_devices.values()))
     except Exception as e:
-        logger.error(f"儀表板路由出錯: {str(e)}")
-        return jsonify({"error": "內部伺服器錯誤"}), 500
+        logger.error(f"儀表板路由出錯: {str(e)}", exc_info=True)
+        return jsonify({"error": "內部伺服器錯誤", "detail": str(e)}), 500
 
 
 @app.route('/upload_recording', methods=['POST'])
@@ -70,6 +89,7 @@ def upload_recording():
             file_hash = calculate_file_hash(file_path)
 
             # 如果是設備上傳，驗證檔案完整性
+            upload_complete = True
             if device_id != 'WEB_UPLOAD':
                 expected_size = int(request.form.get('file_size', 0))
                 expected_hash = request.form.get('file_hash', '')
@@ -78,22 +98,37 @@ def upload_recording():
                     os.remove(file_path)
                     return jsonify({'error': '檔案上傳不完整或已被修改'}), 400
 
+            # 獲取音頻元數據
+            metadata = {}
+            try:
+                audio_info = sf.info(file_path)
+                metadata = {
+                    'sample_rate': audio_info.samplerate,
+                    'channels': audio_info.channels,
+                    'format': audio_info.format
+                }
+            except Exception as e:
+                logger.warning(f"無法讀取音頻元數據: {str(e)}")
+
+            # 建立錄音記錄
             new_recording = AudioRecording(
                 filename=filename,
                 duration=duration,
                 device_id=device_id,
-                upload_complete=True,
                 file_size=file_size,
-                file_hash=file_hash
+                file_hash=file_hash,
+                upload_complete=upload_complete,
+                metadata=metadata
             )
 
-            db.session.add(new_recording)
-            db.session.commit()
+            # 插入 MongoDB
+            recording_repo.insert(new_recording)
 
+            # 發送 Socket.IO 事件
             socketio.emit('new_recording', new_recording.to_dict(), namespace='/')
 
             logger.info(f"成功上傳錄音: {filename} (來源: {device_id})")
-            return jsonify({'message': '檔案上傳成功', 'id': new_recording.id})
+            return jsonify({'message': '檔案上傳成功', 'id': new_recording.analyze_uuid})
     except Exception as e:
         logger.error(f"上傳錄音時出錯: {str(e)}")
         return jsonify({'error': '檔案上傳失敗'}), 500
@@ -105,78 +140,96 @@ def get_recordings():
     獲取所有錄音的列表
     """
     try:
-        recordings = AudioRecording.query.all()
+        recordings = recording_repo.find_all()
         return jsonify([r.to_dict() for r in recordings])
     except Exception as e:
         logger.error(f"獲取錄音列表時出錯: {str(e)}")
         return jsonify({'error': '獲取錄音列表失敗'}), 500
 
 
-@app.route('/download/<int:id>', methods=['GET'])
+@app.route('/download/<id>', methods=['GET'])
 def download_recording(id):
     """
     下載指定ID的錄音檔案
 
-    :param id: 錄音ID
+    :param id: 錄音 UUID
     """
     try:
-        recording = AudioRecording.query.get_or_404(id)
+        recording = recording_repo.find_by_uuid(id)
+        if not recording:
+            return jsonify({'error': '找不到錄音記錄'}), 404
+
         if not recording.upload_complete:
             return jsonify({'error': '錄音尚未完成上傳，請稍後再試'}), 400
-        return send_file(os.path.join(app.config['UPLOAD_FOLDER'], recording.filename),
-                         as_attachment=True)
+
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], recording.filename)
+        if not os.path.exists(file_path):
+            return jsonify({'error': '檔案不存在'}), 404
+
+        return send_file(file_path, as_attachment=True)
     except Exception as e:
         logger.error(f"下載錄音時出錯: {str(e)}")
         return jsonify({'error': '下載錄音失敗'}), 500
 
 
-@app.route('/check_upload/<int:id>', methods=['GET'])
+@app.route('/check_upload/<id>', methods=['GET'])
 def check_upload(id):
     """
     檢查指定ID的錄音上傳狀態
 
-    :param id: 錄音ID
+    :param id: 錄音 UUID
     """
     try:
-        recording = AudioRecording.query.get_or_404(id)
+        recording = recording_repo.find_by_uuid(id)
+        if not recording:
+            return jsonify({'error': '找不到錄音記錄'}), 404
+
         return jsonify({'upload_complete': recording.upload_complete})
     except Exception as e:
         logger.error(f"檢查上傳狀態時出錯: {str(e)}")
         return jsonify({'error': '檢查上傳狀態失敗'}), 500
 
 
-@app.route('/play/<int:id>', methods=['GET'])
+@app.route('/play/<id>', methods=['GET'])
 def play_recording(id):
     """
     渲染播放指定ID錄音的頁面
 
-    :param id: 錄音ID
+    :param id: 錄音 UUID
     """
     try:
-        recording = AudioRecording.query.get_or_404(id)
-        return render_template('play.html', recording=recording)
+        recording = recording_repo.find_by_uuid(id)
+        if not recording:
+            return jsonify({'error': '找不到錄音記錄'}), 404
+
+        # 轉換為字典格式以便模板使用
+        recording_dict = recording.to_dict()
+        return render_template('play.html', recording=recording_dict)
     except Exception as e:
         logger.error(f"播放錄音時出錯: {str(e)}")
         return jsonify({'error': '播放錄音失敗'}), 500
 
 
-@app.route('/delete/<int:id>', methods=['POST'])
+@app.route('/delete/<id>', methods=['POST'])
 def delete_recording(id):
     """
     刪除指定ID的錄音
 
-    :param id: 錄音ID
+    :param id: 錄音 UUID
     """
     try:
-        recording = AudioRecording.query.get_or_404(id)
+        recording = recording_repo.find_by_uuid(id)
+        if not recording:
+            return jsonify({'error': '找不到錄音記錄'}), 404
+
         file_path = os.path.join(app.config['UPLOAD_FOLDER'], recording.filename)
         if os.path.exists(file_path):
             os.remove(file_path)
-        db.session.delete(recording)
-        db.session.commit()
+
+        recording_repo.delete_by_uuid(id)
         socketio.emit('recording_deleted', {'id': id})
         logger.info(f"成功刪除錄音: {recording.filename}")
-        return jsonify({'message': '錄音已刪除'})
+        return jsonify({'message': '錄音已刪除', 'success': True})
     except Exception as e:
         logger.error(f"刪除錄音時出錯: {str(e)}")
         return jsonify({'error': '刪除錄音失敗'}), 500
