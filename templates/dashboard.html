@@ -2,9 +2,10 @@
 
 {% block title %}音頻錄製管理儀表板{% endblock %}
 
+{% block page_title %}音頻錄製管理系統{% endblock %}
+
 {% block extra_head %}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
-<script src="https://cdn.tailwindcss.com"></script>
 <style>
 .flash {
     animation: flash 1s ease-in-out;
@@ -17,91 +18,76 @@
 {% endblock %}
 
 {% block content %}
-<div class="min-h-screen bg-gray-50">
-    <!-- Header -->
-    <div class="bg-white shadow-sm border-b">
-        <div class="w-full px-6 py-4">
-            <div class="flex flex-col sm:flex-row justify-between items-center gap-4">
-                <h1 class="text-2xl md:text-3xl font-bold text-gray-900">音頻錄製管理系統</h1>
-                <nav class="flex space-x-1">
-                    <a href="/dashboard" class="bg-indigo-600 text-white px-3 py-2 rounded-lg text-sm font-medium">
-                        錄製管理
-                    </a>
-                    <a href="/schedule_management" class="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-lg text-sm font-medium hover:bg-gray-100">
-                        排程管理
-                    </a>
-                </nav>
+<div class="w-full px-4 lg:px-6 py-6">
+        <!-- 上方區塊：已連接的設備 (3/4) 與 網路上傳 (1/4) -->
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-6">
+            <!-- 連接的設備 (佔3格) -->
+            <div class="lg:col-span-3 bg-white rounded-xl shadow-sm border border-gray-200">
+                <div class="px-4 lg:px-6 py-4 border-b border-gray-200">
+                    <h2 class="text-lg lg:text-xl font-semibold text-gray-800 flex items-center">
+                        <svg class="w-5 h-5 text-indigo-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                        </svg>
+                        已連接的設備列表
+                    </h2>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full" id="devicesTable">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-3 lg:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">設備識別碼</th>
+                                <th class="px-3 lg:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">設備名稱</th>
+                                <th class="px-3 lg:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">連接狀態</th>
+                                <th class="px-3 lg:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作選項</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                        </tbody>
+                    </table>
+                </div>
             </div>
-        </div>
-    </div>
 
-    <div class="w-full px-4 lg:px-6 py-6">
-        <!-- 連接的設備 -->
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 mb-6">
-            <div class="px-4 lg:px-6 py-4 border-b border-gray-200">
-                <h2 class="text-lg lg:text-xl font-semibold text-gray-800 flex items-center">
-                    <svg class="w-5 h-5 text-indigo-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
-                    </svg>
-                    已連接的設備列表
-                </h2>
-            </div>
-            <div class="overflow-x-auto">
-                <table class="w-full" id="devicesTable">
-                    <thead class="bg-gray-50">
-                        <tr>
-                            <th class="px-3 lg:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">設備識別碼</th>
-                            <th class="px-3 lg:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">設備名稱</th>
-                            <th class="px-3 lg:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">連接狀態</th>
-                            <th class="px-3 lg:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作選項</th>
-                        </tr>
-                    </thead>
-                    <tbody class="bg-white divide-y divide-gray-200">
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- 網路上傳區塊 -->
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 mb-6">
-            <div class="px-4 lg:px-6 py-4 border-b border-gray-200">
-                <h2 class="text-lg lg:text-xl font-semibold text-gray-800 flex items-center">
-                    <svg class="w-5 h-5 text-indigo-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
-                    </svg>
-                    網路上傳音檔
-                </h2>
-            </div>
-            <div class="p-6">
-                <form id="uploadForm" enctype="multipart/form-data" class="space-y-4">
-                    <div class="flex items-center justify-center w-full">
-                        <label for="fileInput" class="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
-                            <div class="flex flex-col items-center justify-center pt-5 pb-6">
-                                <svg class="w-10 h-10 mb-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
-                                </svg>
-                                <p class="mb-2 text-sm text-gray-500"><span class="font-semibold">點擊選擇檔案</span> 或拖曳檔案至此</p>
-                                <p class="text-xs text-gray-500">支援 WAV, MP3, FLAC 等音訊格式</p>
-                            </div>
-                            <input id="fileInput" type="file" accept="audio/*" class="hidden" onchange="handleFileSelect(event)" />
-                        </label>
-                    </div>
-                    <div id="fileInfo" class="hidden bg-blue-50 border border-blue-200 rounded-lg p-4">
-                        <p class="text-sm text-gray-700"><span class="font-semibold">已選擇檔案：</span> <span id="fileName"></span></p>
-                        <p class="text-sm text-gray-700"><span class="font-semibold">檔案大小：</span> <span id="fileSize"></span></p>
-                    </div>
-                    <div class="text-center">
-                        <button type="submit" class="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed" id="uploadBtn" disabled>
-                            上傳音檔
-                        </button>
-                    </div>
-                    <div id="uploadProgress" class="hidden">
-                        <div class="w-full bg-gray-200 rounded-full h-2.5">
-                            <div id="progressBar" class="bg-indigo-600 h-2.5 rounded-full" style="width: 0%"></div>
+            <!-- 網路上傳區塊 (佔1格) -->
+            <div class="lg:col-span-1 bg-white rounded-xl shadow-sm border border-gray-200">
+                <div class="px-4 lg:px-6 py-4 border-b border-gray-200">
+                    <h2 class="text-base lg:text-lg font-semibold text-gray-800 flex items-center">
+                        <svg class="w-5 h-5 text-indigo-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                        </svg>
+                        網路上傳音檔
+                    </h2>
+                </div>
+                <div class="p-4 lg:p-6">
+                    <form id="uploadForm" enctype="multipart/form-data" class="space-y-4">
+                        <div class="flex items-center justify-center w-full">
+                            <label for="fileInput" class="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+                                <div class="flex flex-col items-center justify-center pt-5 pb-6">
+                                    <svg class="w-8 h-8 mb-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                                    </svg>
+                                    <p class="mb-1 text-xs text-gray-500 text-center"><span class="font-semibold">點擊選擇</span></p>
+                                    <p class="text-xs text-gray-400">或拖曳檔案</p>
+                                </div>
+                                <input id="fileInput" type="file" accept="audio/*" class="hidden" onchange="handleFileSelect(event)" />
+                            </label>
                         </div>
-                        <p class="text-sm text-gray-600 text-center mt-2" id="progressText">上傳中...</p>
-                    </div>
-                </form>
+                        <div id="fileInfo" class="hidden bg-blue-50 border border-blue-200 rounded-lg p-3">
+                            <p class="text-xs text-gray-700 truncate"><span class="font-semibold">檔案：</span> <span id="fileName"></span></p>
+                            <p class="text-xs text-gray-700"><span class="font-semibold">大小：</span> <span id="fileSize"></span></p>
+                        </div>
+                        <div id="uploadBtnContainer" class="hidden text-center">
+                            <button type="submit" class="w-full bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium" id="uploadBtn">
+                                上傳音檔
+                            </button>
+                        </div>
+                        <div id="uploadProgress" class="hidden">
+                            <div class="w-full bg-gray-200 rounded-full h-2.5">
+                                <div id="progressBar" class="bg-indigo-600 h-2.5 rounded-full" style="width: 0%"></div>
+                            </div>
+                            <p class="text-xs text-gray-600 text-center mt-2" id="progressText">上傳中...</p>
+                        </div>
+                    </form>
+                </div>
             </div>
         </div>
 
@@ -133,7 +119,6 @@
             </div>
         </div>
     </div>
-</div>
 {% endblock %}
 
 {% block scripts %}
@@ -143,11 +128,15 @@ let selectedFile = null;
 
 function handleFileSelect(event) {
     selectedFile = event.target.files[0];
+    console.log('File selected:', selectedFile);
     if (selectedFile) {
         document.getElementById('fileName').textContent = selectedFile.name;
         document.getElementById('fileSize').textContent = formatFileSize(selectedFile.size);
         document.getElementById('fileInfo').classList.remove('hidden');
-        document.getElementById('uploadBtn').disabled = false;
+        const btnContainer = document.getElementById('uploadBtnContainer');
+        console.log('Button container:', btnContainer);
+        btnContainer.classList.remove('hidden');
+        console.log('Button container classes:', btnContainer.className);
     }
 }
 
@@ -171,9 +160,9 @@ document.getElementById('uploadForm').addEventListener('submit', async function(
     formData.append('file', selectedFile);
     formData.append('device_id', 'WEB_UPLOAD');
 
-    // 顯示進度條
+    // 顯示進度條，隱藏按鈕
     document.getElementById('uploadProgress').classList.remove('hidden');
-    document.getElementById('uploadBtn').disabled = true;
+    document.getElementById('uploadBtnContainer').classList.add('hidden');
 
     try {
         const response = await fetch('/upload_recording', {
@@ -190,16 +179,16 @@ document.getElementById('uploadForm').addEventListener('submit', async function(
             document.getElementById('fileInfo').classList.add('hidden');
             document.getElementById('uploadProgress').classList.add('hidden');
             selectedFile = null;
-            document.getElementById('uploadBtn').disabled = true;
         } else {
             alert('上傳失敗: ' + result.error);
+            document.getElementById('uploadBtnContainer').classList.remove('hidden');
         }
     } catch (error) {
         console.error('上傳錯誤:', error);
         alert('上傳過程中發生錯誤');
+        document.getElementById('uploadBtnContainer').classList.remove('hidden');
     } finally {
         document.getElementById('uploadProgress').classList.add('hidden');
-        document.getElementById('uploadBtn').disabled = false;
     }
 });
 
@@ -222,7 +211,8 @@ dropZone.addEventListener('drop', (e) => {
 
     const files = e.dataTransfer.files;
     if (files.length > 0) {
-        document.getElementById('fileInput').files = files;
+        const fileInput = document.getElementById('fileInput');
+        fileInput.files = files;
         handleFileSelect({ target: { files: files } });
     }
 });
@@ -266,10 +256,16 @@ function updateDevicesTable(devices) {
                 </span>
             </td>
             <td class="px-3 lg:px-4 py-2">
-                <button onclick="startRecording('${device.id}')"
-                        class="bg-indigo-600 text-white px-3 py-1 rounded-md hover:bg-indigo-700 text-sm transition-colors">
-                    開始錄音
-                </button>
+                <div class="flex items-center gap-2">
+                    <div class="flex items-center gap-1">
+                        <label for="duration-${device.id}" class="text-xs text-gray-600 whitespace-nowrap">時長(秒):</label>
+                        <input type="number" id="duration-${device.id}" value="10" min="1" class="w-16 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                    </div>
+                    <button onclick="startRecording('${device.id}')"
+                            class="bg-indigo-600 text-white px-3 py-1 rounded-md hover:bg-indigo-700 text-sm transition-colors whitespace-nowrap">
+                        開始錄音
+                    </button>
+                </div>
             </td>
         `;
     });
@@ -339,16 +335,19 @@ function removeRecordingFromTable(id) {
 }
 
 function startRecording(deviceId) {
-    var duration = prompt("請輸入錄音時長（秒）:", "10");
-    if (duration) {
-        socket.emit('start_recording', {device_id: deviceId, duration: parseFloat(duration)}, function(response) {
-            if (response.error) {
-                alert("錄音失敗: " + response.error);
-            } else {
-                alert(response.message);
-            }
-        });
+    var durationInput = document.getElementById('duration-' + deviceId);
+    var duration = parseFloat(durationInput.value);
+
+    if (!duration || duration <= 0) {
+        alert("請輸入有效的錄音時長");
+        return;
     }
+
+    socket.emit('start_recording', {device_id: deviceId, duration: duration}, function(response) {
+        if (response.error) {
+            alert("錄音失敗: " + response.error);
+        }
+    });
 }
 
 function deleteRecording(id) {
