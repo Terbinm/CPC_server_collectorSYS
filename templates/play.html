@@ -25,12 +25,12 @@
                         <div class="text-center p-4 bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg">
                             <div class="text-2xl mb-2">⏱️</div>
                             <div class="text-sm text-gray-600 mb-1">錄音時長</div>
-                            <div class="font-semibold text-gray-800">{{ recording.duration }} 秒</div>
+                            <div class="font-semibold text-gray-800">{{ "%.2f"|format(recording.duration) }} 秒</div>
                         </div>
                         <div class="text-center p-4 bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg">
                             <div class="text-2xl mb-2">📅</div>
                             <div class="text-sm text-gray-600 mb-1">錄製時間</div>
-                            <div class="font-semibold text-gray-800 text-sm">{{ recording.timestamp }}</div>
+                            <div class="font-semibold text-gray-800 text-sm" id="timestamp">{{ recording.timestamp }}</div>
                         </div>
                     </div>
 
@@ -102,6 +102,10 @@
                     </h3>
                     <div class="space-y-4 text-sm">
                         <div class="p-3 bg-gray-50 rounded-lg">
+                            <span class="text-gray-600 font-medium block mb-1">UUID:</span>
+                            <div class="font-mono text-xs p-2 bg-white rounded border break-all">{{ recording.id }}</div>
+                        </div>
+                        <div class="p-3 bg-gray-50 rounded-lg">
                             <span class="text-gray-600 font-medium block mb-1">設備識別碼:</span>
                             <div class="font-mono text-xs p-2 bg-white rounded border break-all">{{ recording.device_id }}</div>
                         </div>
@@ -124,8 +128,8 @@
                             </div>
                         </div>
                         <div class="p-3 bg-gray-50 rounded-lg">
-                            <span class="text-gray-600 font-medium block mb-1">錄音編號:</span>
-                            <div class="font-mono text-xs p-2 bg-white rounded border">{{ recording.id }}</div>
+                            <span class="text-gray-600 font-medium block mb-1">檔案雜湊值:</span>
+                            <div class="font-mono text-xs p-2 bg-white rounded border break-all">{{ recording.file_hash[:16] }}...</div>
                         </div>
                     </div>
                 </div>
@@ -145,7 +149,7 @@
                             </svg>
                             下載檔案
                         </a>
-                        <button onclick="deleteRecording({{ recording.id }})" class="w-full flex items-center justify-center px-4 py-2 border border-red-300 rounded-lg text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 transition-colors">
+                        <button onclick="deleteRecording('{{ recording.id }}')" class="w-full flex items-center justify-center px-4 py-2 border border-red-300 rounded-lg text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 transition-colors">
                             <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
                             </svg>
@@ -164,7 +168,7 @@
                     </h3>
                     <div class="space-y-3 text-sm">
                         <div class="flex justify-between">
-                            <span class="text-gray-600">位元率:</span>
+                            <span class="text-gray-600">採樣率:</span>
                             <span class="font-medium">44.1 kHz</span>
                         </div>
                         <div class="flex justify-between">
@@ -184,6 +188,19 @@
 
 {% block scripts %}
 <script>
+// 格式化時間戳顯示
+document.addEventListener('DOMContentLoaded', function() {
+    var timestampEl = document.getElementById('timestamp');
+    if (timestampEl) {
+        try {
+            var date = new Date(timestampEl.textContent);
+            timestampEl.textContent = date.toLocaleString('zh-TW', {timeZone: 'Asia/Taipei'});
+        } catch(e) {
+            console.error('時間戳解析失敗:', e);
+        }
+    }
+});
+
 class AudioVisualizer {
     constructor() {
         this.audio = null;

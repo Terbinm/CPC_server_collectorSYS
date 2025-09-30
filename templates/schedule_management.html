@@ -164,7 +164,7 @@ function updateNextRecordingTime() {
     const timeElements = document.querySelectorAll('.next-recording-time');
     timeElements.forEach(el => {
         const time = new Date(el.textContent);
-        el.textContent = time.toLocaleString();
+        el.textContent = time.toLocaleString('zh-TW', {timeZone: 'Asia/Taipei'});
     });
 }
 
