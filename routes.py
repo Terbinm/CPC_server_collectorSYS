@@ -6,6 +6,8 @@ from werkzeug.utils import secure_filename
 import os
 from shared_state import device_schedules, recording_devices, RecordingSchedule
 import logging
+import soundfile as sf
+from io import BytesIO
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +36,7 @@ def dashboard():
 @app.route('/upload_recording', methods=['POST'])
 def upload_recording():
     """
-    處理錄音檔案上傳
+    處理錄音檔案上傳（支援邊緣設備和網路上傳）
     """
     try:
         if 'file' not in request.files:
@@ -48,18 +50,33 @@ def upload_recording():
             file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             file.save(file_path)
 
-            duration = float(request.form.get('duration', 0))
-            device_id = request.form.get('device_id', 'unknown')
-            expected_size = int(request.form.get('file_size', 0))
-            expected_hash = request.form.get('file_hash', '')
+            # 判斷是網路上傳還是設備上傳
+            device_id = request.form.get('device_id', 'WEB_UPLOAD')
+
+            # 獲取或計算 duration
+            duration = request.form.get('duration')
+            if duration:
+                duration = float(duration)
+            else:
+                # 網路上傳時自動計算音檔時長
+                try:
+                    audio_info = sf.info(file_path)
+                    duration = audio_info.duration
+                except Exception as e:
+                    logger.warning(f"無法讀取音檔時長: {str(e)}")
+                    duration = 0.0
 
             file_size = os.path.getsize(file_path)
             file_hash = calculate_file_hash(file_path)
 
-            # 驗證檔案大小和哈希值
-            if file_size != expected_size or file_hash != expected_hash:
-                os.remove(file_path)  # 刪除不完整或不匹配的檔案
-                return jsonify({'error': '檔案上傳不完整或已被修改'}), 400
+            # 如果是設備上傳，驗證檔案完整性
+            if device_id != 'WEB_UPLOAD':
+                expected_size = int(request.form.get('file_size', 0))
+                expected_hash = request.form.get('file_hash', '')
+
+                if file_size != expected_size or file_hash != expected_hash:
+                    os.remove(file_path)
+                    return jsonify({'error': '檔案上傳不完整或已被修改'}), 400
 
             new_recording = AudioRecording(
                 filename=filename,
@@ -75,7 +92,7 @@ def upload_recording():
 
             socketio.emit('new_recording', new_recording.to_dict(), namespace='/')
 
-            logger.info(f"成功上傳錄音: {filename}")
+            logger.info(f"成功上傳錄音: {filename} (來源: {device_id})")
             return jsonify({'message': '檔案上傳成功', 'id': new_recording.id})
     except Exception as e:
         logger.error(f"上傳錄音時出錯: {str(e)}")

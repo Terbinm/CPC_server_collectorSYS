@@ -62,6 +62,49 @@
             </div>
         </div>
 
+        <!-- 網路上傳區塊 -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 mb-6">
+            <div class="px-4 lg:px-6 py-4 border-b border-gray-200">
+                <h2 class="text-lg lg:text-xl font-semibold text-gray-800 flex items-center">
+                    <svg class="w-5 h-5 text-indigo-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                    </svg>
+                    網路上傳音檔
+                </h2>
+            </div>
+            <div class="p-6">
+                <form id="uploadForm" enctype="multipart/form-data" class="space-y-4">
+                    <div class="flex items-center justify-center w-full">
+                        <label for="fileInput" class="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+                            <div class="flex flex-col items-center justify-center pt-5 pb-6">
+                                <svg class="w-10 h-10 mb-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                                </svg>
+                                <p class="mb-2 text-sm text-gray-500"><span class="font-semibold">點擊選擇檔案</span> 或拖曳檔案至此</p>
+                                <p class="text-xs text-gray-500">支援 WAV, MP3, FLAC 等音訊格式</p>
+                            </div>
+                            <input id="fileInput" type="file" accept="audio/*" class="hidden" onchange="handleFileSelect(event)" />
+                        </label>
+                    </div>
+                    <div id="fileInfo" class="hidden bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <p class="text-sm text-gray-700"><span class="font-semibold">已選擇檔案：</span> <span id="fileName"></span></p>
+                        <p class="text-sm text-gray-700"><span class="font-semibold">檔案大小：</span> <span id="fileSize"></span></p>
+                    </div>
+                    <div class="text-center">
+                        <button type="submit" class="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed" id="uploadBtn" disabled>
+                            上傳音檔
+                        </button>
+                    </div>
+                    <div id="uploadProgress" class="hidden">
+                        <div class="w-full bg-gray-200 rounded-full h-2.5">
+                            <div id="progressBar" class="bg-indigo-600 h-2.5 rounded-full" style="width: 0%"></div>
+                        </div>
+                        <p class="text-sm text-gray-600 text-center mt-2" id="progressText">上傳中...</p>
+                    </div>
+                </form>
+            </div>
+        </div>
+
         <!-- 錄音列表 -->
         <div class="bg-white rounded-xl shadow-sm border border-gray-200">
             <div class="px-4 lg:px-6 py-4 border-b border-gray-200">
@@ -95,6 +138,95 @@
 
 {% block scripts %}
 <script>
+// 網路上傳相關函數
+let selectedFile = null;
+
+function handleFileSelect(event) {
+    selectedFile = event.target.files[0];
+    if (selectedFile) {
+        document.getElementById('fileName').textContent = selectedFile.name;
+        document.getElementById('fileSize').textContent = formatFileSize(selectedFile.size);
+        document.getElementById('fileInfo').classList.remove('hidden');
+        document.getElementById('uploadBtn').disabled = false;
+    }
+}
+
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+}
+
+document.getElementById('uploadForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    if (!selectedFile) {
+        alert('請先選擇檔案');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', selectedFile);
+    formData.append('device_id', 'WEB_UPLOAD');
+
+    // 顯示進度條
+    document.getElementById('uploadProgress').classList.remove('hidden');
+    document.getElementById('uploadBtn').disabled = true;
+
+    try {
+        const response = await fetch('/upload_recording', {
+            method: 'POST',
+            body: formData
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            alert('上傳成功！');
+            // 重置表單
+            document.getElementById('uploadForm').reset();
+            document.getElementById('fileInfo').classList.add('hidden');
+            document.getElementById('uploadProgress').classList.add('hidden');
+            selectedFile = null;
+            document.getElementById('uploadBtn').disabled = true;
+        } else {
+            alert('上傳失敗: ' + result.error);
+        }
+    } catch (error) {
+        console.error('上傳錯誤:', error);
+        alert('上傳過程中發生錯誤');
+    } finally {
+        document.getElementById('uploadProgress').classList.add('hidden');
+        document.getElementById('uploadBtn').disabled = false;
+    }
+});
+
+// 拖曳上傳支援
+const dropZone = document.querySelector('label[for="fileInput"]');
+
+dropZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropZone.classList.add('border-indigo-500', 'bg-indigo-50');
+});
+
+dropZone.addEventListener('dragleave', (e) => {
+    e.preventDefault();
+    dropZone.classList.remove('border-indigo-500', 'bg-indigo-50');
+});
+
+dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropZone.classList.remove('border-indigo-500', 'bg-indigo-50');
+
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+        document.getElementById('fileInput').files = files;
+        handleFileSelect({ target: { files: files } });
+    }
+});
+
 var socket = io();
 
 socket.on('connect', function() {
