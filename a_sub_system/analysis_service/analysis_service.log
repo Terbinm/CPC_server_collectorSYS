@@ -278,3 +278,244 @@
 2025-10-03 05:40:00,601 - analysis_service - INFO - 分析流程資源已清理
 2025-10-03 05:40:00,607 - analysis_service - INFO - MongoDB 連接已關閉
 2025-10-03 05:40:00,607 - analysis_service - INFO - 服務已停止
+2025-10-03 05:45:14,848 - analysis_service - INFO - ============================================================
+2025-10-03 05:45:14,849 - analysis_service - INFO - 音訊分析服務初始化
+2025-10-03 05:45:14,849 - analysis_service - INFO - ============================================================
+2025-10-03 05:45:14,849 - analysis_service - INFO - 初始化 MongoDB 連接...
+2025-10-03 05:45:14,928 - analysis_service - INFO - ✓ MongoDB 連接成功
+2025-10-03 05:45:14,937 - analysis_service - INFO - 初始化分析流程...
+2025-10-03 05:45:14,938 - analysis_service - INFO - AudioSlicer 初始化: duration=0.16s, interval=0.2s
+2025-10-03 05:45:14,957 - analysis_service - INFO - LEAF 提取器初始化成功 (device=cpu)
+2025-10-03 05:45:14,957 - analysis_service - INFO - 分類器初始化: method=random
+2025-10-03 05:45:14,957 - analysis_service - INFO - ✓ 所有處理器初始化成功
+2025-10-03 05:45:14,957 - analysis_service - INFO - 初始化 MongoDB 監聽器...
+2025-10-03 05:45:14,957 - analysis_service - INFO - MongoDB 監聽器初始化完成
+2025-10-03 05:45:14,958 - analysis_service - INFO - ✓ 所有組件初始化完成
+2025-10-03 05:45:14,958 - analysis_service - INFO - 啟動 3 個工作執行緒...
+2025-10-03 05:45:14,959 - analysis_service - INFO - Worker-1 已啟動
+2025-10-03 05:45:14,960 - analysis_service - INFO - Worker-2 已啟動
+2025-10-03 05:45:14,961 - analysis_service - INFO - Worker-3 已啟動
+2025-10-03 05:45:14,962 - analysis_service - INFO - 處理現有待處理記錄...
+2025-10-03 05:45:14,963 - analysis_service - INFO - 檢查現有待處理記錄...
+2025-10-03 05:45:14,968 - analysis_service - INFO - 沒有待處理記錄
+2025-10-03 05:45:14,968 - analysis_service - INFO - ============================================================
+2025-10-03 05:45:14,968 - analysis_service - INFO - 服務啟動成功，開始監聽新記錄...
+2025-10-03 05:45:14,969 - analysis_service - INFO - 按 Ctrl+C 停止服務
+2025-10-03 05:45:14,969 - analysis_service - INFO - ============================================================
+2025-10-03 05:45:14,969 - analysis_service - INFO - 使用輪詢模式監聽 MongoDB
+2025-10-03 05:45:14,970 - analysis_service - INFO - 開始輪詢模式，間隔: 5 秒
+2025-10-03 05:45:30,423 - analysis_service - INFO - 
+收到終止信號 (2)，正在關閉服務...
+2025-10-03 05:45:30,424 - analysis_service - INFO - 正在停止服務...
+2025-10-03 05:45:30,425 - analysis_service - INFO - MongoDB 監聽器已停止
+2025-10-03 05:45:30,425 - analysis_service - INFO - 等待工作執行緒完成...
+2025-10-03 05:47:07,724 - analysis_service - INFO - ============================================================
+2025-10-03 05:47:07,724 - analysis_service - INFO - 音訊分析服務初始化
+2025-10-03 05:47:07,724 - analysis_service - INFO - ============================================================
+2025-10-03 05:47:07,724 - analysis_service - INFO - 初始化 MongoDB 連接...
+2025-10-03 05:47:07,815 - analysis_service - INFO - ✓ MongoDB 連接成功
+2025-10-03 05:47:07,828 - analysis_service - INFO - 初始化分析流程...
+2025-10-03 05:47:07,828 - analysis_service - INFO - AudioSlicer 初始化: duration=0.16s, interval=0.2s
+2025-10-03 05:47:07,851 - analysis_service - INFO - LEAF 提取器初始化成功 (device=cpu)
+2025-10-03 05:47:07,851 - analysis_service - INFO - 分類器初始化: method=random
+2025-10-03 05:47:07,852 - analysis_service - INFO - ✓ 所有處理器初始化成功
+2025-10-03 05:47:07,852 - analysis_service - INFO - 初始化 MongoDB 監聽器...
+2025-10-03 05:47:07,852 - analysis_service - INFO - MongoDB 監聽器初始化完成
+2025-10-03 05:47:07,852 - analysis_service - INFO - ✓ 所有組件初始化完成
+2025-10-03 05:47:07,852 - analysis_service - INFO - 啟動 3 個工作執行緒...
+2025-10-03 05:47:07,854 - analysis_service - INFO - Worker-1 已啟動
+2025-10-03 05:47:07,855 - analysis_service - INFO - Worker-2 已啟動
+2025-10-03 05:47:07,857 - analysis_service - INFO - Worker-3 已啟動
+2025-10-03 05:47:07,859 - analysis_service - INFO - 處理現有待處理記錄...
+2025-10-03 05:47:07,859 - analysis_service - INFO - 檢查現有待處理記錄...
+2025-10-03 05:47:07,863 - analysis_service - INFO - 找到 1 筆待處理記錄
+2025-10-03 05:47:07,863 - analysis_service - INFO - 收到新記錄: 4aade814-f22e-48f7-8671-cf8f2ded3c6a
+2025-10-03 05:47:07,863 - analysis_service - INFO - ============================================================
+2025-10-03 05:47:07,863 - analysis_service - INFO - 服務啟動成功，開始監聽新記錄...
+2025-10-03 05:47:07,864 - analysis_service - INFO - 按 Ctrl+C 停止服務
+2025-10-03 05:47:07,864 - analysis_service - INFO - Worker-1 開始處理: 4aade814-f22e-48f7-8671-cf8f2ded3c6a
+2025-10-03 05:47:07,864 - analysis_service - INFO - ============================================================
+2025-10-03 05:47:07,864 - analysis_service - INFO - ============================================================
+2025-10-03 05:47:07,865 - analysis_service - INFO - 使用輪詢模式監聽 MongoDB
+2025-10-03 05:47:07,865 - analysis_service - INFO - 開始處理記錄: 4aade814-f22e-48f7-8671-cf8f2ded3c6a
+2025-10-03 05:47:07,865 - analysis_service - INFO - 開始輪詢模式，間隔: 5 秒
+2025-10-03 05:47:07,866 - analysis_service - INFO - ============================================================
+2025-10-03 05:47:07,867 - analysis_service - INFO - [Step 1] 開始音訊切割...
+2025-10-03 05:47:07,870 - analysis_service - INFO - 收到新記錄: 4aade814-f22e-48f7-8671-cf8f2ded3c6a
+2025-10-03 05:47:07,870 - analysis_service - INFO - Worker-2 開始處理: 4aade814-f22e-48f7-8671-cf8f2ded3c6a
+2025-10-03 05:47:07,870 - analysis_service - INFO - ============================================================
+2025-10-03 05:47:07,870 - analysis_service - INFO - 開始處理記錄: 4aade814-f22e-48f7-8671-cf8f2ded3c6a
+2025-10-03 05:47:07,870 - analysis_service - INFO - ============================================================
+2025-10-03 05:47:07,871 - analysis_service - INFO - [Step 1] 開始音訊切割...
+2025-10-03 05:47:07,875 - analysis_service - INFO - 開始切割音訊: uploads\00000998.wav
+2025-10-03 05:47:07,887 - analysis_service - INFO - 開始切割音訊: uploads\00000998.wav
+2025-10-03 05:47:17,617 - analysis_service - INFO - 切割完成: 共 50 個切片
+2025-10-03 05:47:17,618 - analysis_service - INFO - 切割完成: 共 50 個切片
+2025-10-03 05:47:17,623 - analysis_service - INFO - [Step 1] ✓ 音訊切割完成: 50 個切片
+2025-10-03 05:47:17,624 - analysis_service - INFO - [Step 2] 開始 LEAF 特徵提取...
+2025-10-03 05:47:17,632 - analysis_service - INFO - 開始提取 LEAF 特徵: 50 個切片
+2025-10-03 05:47:17,644 - analysis_service - INFO - [Step 1] ✓ 音訊切割完成: 50 個切片
+2025-10-03 05:47:17,644 - analysis_service - INFO - [Step 2] 開始 LEAF 特徵提取...
+2025-10-03 05:47:17,653 - analysis_service - INFO - 開始提取 LEAF 特徵: 50 個切片
+2025-10-03 05:47:18,458 - analysis_service - INFO - LEAF 特徵提取完成: 50 個特徵
+2025-10-03 05:47:18,460 - analysis_service - INFO - LEAF 特徵提取完成: 50 個特徵
+2025-10-03 05:47:18,466 - analysis_service - INFO - [Step 2] ✓ LEAF 特徵提取完成: 50 個特徵
+2025-10-03 05:47:18,466 - analysis_service - INFO - [Step 3] 開始分類...
+2025-10-03 05:47:18,472 - analysis_service - INFO - 開始分類: 50 個切片
+2025-10-03 05:47:18,473 - analysis_service - INFO - 分類完成: uncertain (正常: 0, 異常: 0)
+2025-10-03 05:47:18,473 - analysis_service - INFO - [Step 2] ✓ LEAF 特徵提取完成: 50 個特徵
+2025-10-03 05:47:18,473 - analysis_service - INFO - [Step 3] 開始分類...
+2025-10-03 05:47:18,478 - analysis_service - INFO - [Step 3] ✓ 分類完成: uncertain (正常: 0, 異常: 0)
+2025-10-03 05:47:18,479 - analysis_service - INFO - ✓ 記錄處理完成: 4aade814-f22e-48f7-8671-cf8f2ded3c6a
+2025-10-03 05:47:18,479 - analysis_service - INFO - Worker-1 處理成功: 4aade814-f22e-48f7-8671-cf8f2ded3c6a
+2025-10-03 05:47:18,484 - analysis_service - INFO - 開始分類: 50 個切片
+2025-10-03 05:47:18,484 - analysis_service - INFO - 分類完成: uncertain (正常: 0, 異常: 0)
+2025-10-03 05:47:18,489 - analysis_service - INFO - [Step 3] ✓ 分類完成: uncertain (正常: 0, 異常: 0)
+2025-10-03 05:47:18,490 - analysis_service - INFO - ✓ 記錄處理完成: 4aade814-f22e-48f7-8671-cf8f2ded3c6a
+2025-10-03 05:47:18,490 - analysis_service - INFO - Worker-2 處理成功: 4aade814-f22e-48f7-8671-cf8f2ded3c6a
+2025-10-03 05:50:53,115 - analysis_service - INFO - 收到新記錄: fa967b34-0965-4b8b-b0f5-f91535e67a12
+2025-10-03 05:50:53,116 - analysis_service - INFO - Worker-1 開始處理: fa967b34-0965-4b8b-b0f5-f91535e67a12
+2025-10-03 05:50:53,116 - analysis_service - INFO - ============================================================
+2025-10-03 05:50:53,116 - analysis_service - INFO - 開始處理記錄: fa967b34-0965-4b8b-b0f5-f91535e67a12
+2025-10-03 05:50:53,116 - analysis_service - INFO - ============================================================
+2025-10-03 05:50:53,116 - analysis_service - INFO - [Step 1] 開始音訊切割...
+2025-10-03 05:50:53,118 - analysis_service - INFO - 開始切割音訊: uploads\00000992.wav
+2025-10-03 05:50:53,121 - analysis_service - INFO - 切割完成: 共 50 個切片
+2025-10-03 05:50:53,123 - analysis_service - INFO - [Step 1] ✓ 音訊切割完成: 50 個切片
+2025-10-03 05:50:53,123 - analysis_service - INFO - [Step 2] 開始 LEAF 特徵提取...
+2025-10-03 05:50:53,126 - analysis_service - INFO - 開始提取 LEAF 特徵: 50 個切片
+2025-10-03 05:50:53,507 - analysis_service - INFO - LEAF 特徵提取完成: 50 個特徵
+2025-10-03 05:50:53,511 - analysis_service - INFO - [Step 2] ✓ LEAF 特徵提取完成: 50 個特徵
+2025-10-03 05:50:53,511 - analysis_service - INFO - [Step 3] 開始分類...
+2025-10-03 05:50:53,515 - analysis_service - INFO - 開始分類: 50 個切片
+2025-10-03 05:50:53,520 - analysis_service - INFO - 分類完成: normal (正常: 33, 異常: 17)
+2025-10-03 05:50:53,523 - analysis_service - INFO - [Step 3] ✓ 分類完成: normal (正常: 33, 異常: 17)
+2025-10-03 05:50:53,523 - analysis_service - INFO - ✓ 記錄處理完成: fa967b34-0965-4b8b-b0f5-f91535e67a12
+2025-10-03 05:50:53,523 - analysis_service - INFO - Worker-1 處理成功: fa967b34-0965-4b8b-b0f5-f91535e67a12
+2025-10-03 05:55:18,359 - analysis_service - INFO - 收到新記錄: 07c0f54a-d7e4-47ca-a44e-414b1b08c9ac
+2025-10-03 05:55:18,359 - analysis_service - INFO - Worker-1 開始處理: 07c0f54a-d7e4-47ca-a44e-414b1b08c9ac
+2025-10-03 05:55:18,360 - analysis_service - INFO - ============================================================
+2025-10-03 05:55:18,360 - analysis_service - INFO - 開始處理記錄: 07c0f54a-d7e4-47ca-a44e-414b1b08c9ac
+2025-10-03 05:55:18,360 - analysis_service - INFO - ============================================================
+2025-10-03 05:55:18,360 - analysis_service - ERROR - 檔案不存在: uploads\00001001.wav
+2025-10-03 05:55:18,362 - analysis_service - ERROR - 已標記錯誤: 07c0f54a-d7e4-47ca-a44e-414b1b08c9ac - 無法獲取檔案路徑
+2025-10-03 05:55:18,362 - analysis_service - ERROR - Worker-1 處理失敗: 07c0f54a-d7e4-47ca-a44e-414b1b08c9ac
+2025-10-03 05:55:41,143 - analysis_service - INFO - 
+收到終止信號 (2)，正在關閉服務...
+2025-10-03 05:55:41,144 - analysis_service - INFO - 正在停止服務...
+2025-10-03 05:55:41,144 - analysis_service - INFO - MongoDB 監聽器已停止
+2025-10-03 05:55:41,144 - analysis_service - INFO - 等待工作執行緒完成...
+2025-10-03 05:56:16,538 - analysis_service - INFO - ============================================================
+2025-10-03 05:56:16,538 - analysis_service - INFO - 音訊分析服務初始化
+2025-10-03 05:56:16,538 - analysis_service - INFO - ============================================================
+2025-10-03 05:56:16,538 - analysis_service - INFO - 初始化 MongoDB 連接...
+2025-10-03 05:56:16,566 - analysis_service - INFO - ✓ MongoDB 連接成功
+2025-10-03 05:56:16,570 - analysis_service - INFO - 初始化分析流程...
+2025-10-03 05:56:16,570 - analysis_service - INFO - AudioSlicer 初始化: duration=0.16s, interval=0.2s
+2025-10-03 05:56:16,578 - analysis_service - INFO - LEAF 提取器初始化成功 (device=cpu)
+2025-10-03 05:56:16,578 - analysis_service - INFO - 分類器初始化: method=random
+2025-10-03 05:56:16,578 - analysis_service - INFO - ✓ 所有處理器初始化成功
+2025-10-03 05:56:16,578 - analysis_service - INFO - 初始化 MongoDB 監聽器...
+2025-10-03 05:56:16,578 - analysis_service - INFO - MongoDB 監聽器初始化完成
+2025-10-03 05:56:16,578 - analysis_service - INFO - ✓ 所有組件初始化完成
+2025-10-03 05:56:16,578 - analysis_service - INFO - 啟動 3 個工作執行緒...
+2025-10-03 05:56:16,579 - analysis_service - INFO - Worker-1 已啟動
+2025-10-03 05:56:16,579 - analysis_service - INFO - Worker-2 已啟動
+2025-10-03 05:56:16,579 - analysis_service - INFO - Worker-3 已啟動
+2025-10-03 05:56:16,579 - analysis_service - INFO - 處理現有待處理記錄...
+2025-10-03 05:56:16,580 - analysis_service - INFO - 檢查現有待處理記錄...
+2025-10-03 05:56:16,582 - analysis_service - INFO - 沒有待處理記錄
+2025-10-03 05:56:16,582 - analysis_service - INFO - ============================================================
+2025-10-03 05:56:16,582 - analysis_service - INFO - 服務啟動成功，開始監聽新記錄...
+2025-10-03 05:56:16,582 - analysis_service - INFO - 按 Ctrl+C 停止服務
+2025-10-03 05:56:16,582 - analysis_service - INFO - ============================================================
+2025-10-03 05:56:16,582 - analysis_service - INFO - 使用輪詢模式監聽 MongoDB
+2025-10-03 05:56:16,582 - analysis_service - INFO - 開始輪詢模式，間隔: 5 秒
+2025-10-03 05:56:26,589 - analysis_service - INFO - 收到新記錄: 6f1ab172-514e-4e7c-b0fc-f09b7f836cac
+2025-10-03 05:56:26,589 - analysis_service - INFO - Worker-3 開始處理: 6f1ab172-514e-4e7c-b0fc-f09b7f836cac
+2025-10-03 05:56:26,590 - analysis_service - INFO - ============================================================
+2025-10-03 05:56:26,590 - analysis_service - INFO - 開始處理記錄: 6f1ab172-514e-4e7c-b0fc-f09b7f836cac
+2025-10-03 05:56:26,590 - analysis_service - INFO - ============================================================
+2025-10-03 05:56:26,590 - analysis_service - INFO - [Step 1] 開始音訊切割...
+2025-10-03 05:56:26,592 - analysis_service - INFO - 開始切割音訊: uploads\00000993.wav
+2025-10-03 05:56:28,316 - analysis_service - INFO - 切割完成: 共 50 個切片
+2025-10-03 05:56:28,319 - analysis_service - INFO - [Step 1] ✓ 音訊切割完成: 50 個切片
+2025-10-03 05:56:28,319 - analysis_service - INFO - [Step 2] 開始 LEAF 特徵提取...
+2025-10-03 05:56:28,323 - analysis_service - INFO - 開始提取 LEAF 特徵: 50 個切片
+2025-10-03 05:56:29,122 - analysis_service - INFO - LEAF 特徵提取完成: 50 個特徵
+2025-10-03 05:56:29,126 - analysis_service - INFO - [Step 2] ✓ LEAF 特徵提取完成: 50 個特徵
+2025-10-03 05:56:29,126 - analysis_service - INFO - [Step 3] 開始分類...
+2025-10-03 05:56:29,130 - analysis_service - INFO - 開始分類: 50 個切片
+2025-10-03 05:56:29,130 - analysis_service - INFO - 分類完成: normal (正常: 39, 異常: 11)
+2025-10-03 05:56:29,132 - analysis_service - INFO - [Step 3] ✓ 分類完成: normal (正常: 39, 異常: 11)
+2025-10-03 05:56:29,132 - analysis_service - INFO - ✓ 記錄處理完成: 6f1ab172-514e-4e7c-b0fc-f09b7f836cac
+2025-10-03 05:56:29,132 - analysis_service - INFO - Worker-3 處理成功: 6f1ab172-514e-4e7c-b0fc-f09b7f836cac
+2025-10-03 06:15:53,832 - analysis_service - INFO - 
+收到終止信號 (2)，正在關閉服務...
+2025-10-03 06:15:53,833 - analysis_service - INFO - 正在停止服務...
+2025-10-03 06:15:53,833 - analysis_service - INFO - MongoDB 監聽器已停止
+2025-10-03 06:15:53,833 - analysis_service - INFO - 等待工作執行緒完成...
+2025-10-03 06:15:54,075 - analysis_service - INFO - Worker-3 已停止
+2025-10-03 06:15:54,508 - analysis_service - INFO - Worker-2 已停止
+2025-10-03 06:15:54,508 - analysis_service - INFO - Worker-1 已停止
+2025-10-03 06:15:54,510 - analysis_service - INFO - LEAF 提取器資源已清理
+2025-10-03 06:15:54,510 - analysis_service - INFO - 分析流程資源已清理
+2025-10-03 06:15:54,514 - analysis_service - INFO - MongoDB 連接已關閉
+2025-10-03 06:15:54,514 - analysis_service - INFO - 服務已停止
+2025-10-03 06:20:19,011 - analysis_service - INFO - ============================================================
+2025-10-03 06:20:19,012 - analysis_service - INFO - 音訊分析服務初始化
+2025-10-03 06:20:19,012 - analysis_service - INFO - ============================================================
+2025-10-03 06:20:19,012 - analysis_service - INFO - 初始化 MongoDB 連接...
+2025-10-03 06:20:19,042 - analysis_service - INFO - ✓ MongoDB 連接成功
+2025-10-03 06:20:19,048 - analysis_service - INFO - 初始化分析流程...
+2025-10-03 06:20:19,048 - analysis_service - INFO - AudioSlicer 初始化: duration=0.16s, interval=0.2s
+2025-10-03 06:20:19,056 - analysis_service - INFO - LEAF 提取器初始化成功 (device=cpu)
+2025-10-03 06:20:19,056 - analysis_service - INFO - 分類器初始化: method=random
+2025-10-03 06:20:19,056 - analysis_service - INFO - ✓ 所有處理器初始化成功
+2025-10-03 06:20:19,056 - analysis_service - INFO - 初始化 MongoDB 監聽器...
+2025-10-03 06:20:19,056 - analysis_service - INFO - MongoDB 監聽器初始化完成
+2025-10-03 06:20:19,056 - analysis_service - INFO - ✓ 所有組件初始化完成
+2025-10-03 06:20:19,056 - analysis_service - INFO - 啟動 3 個工作執行緒...
+2025-10-03 06:20:19,058 - analysis_service - INFO - Worker-1 已啟動
+2025-10-03 06:20:19,058 - analysis_service - INFO - Worker-2 已啟動
+2025-10-03 06:20:19,059 - analysis_service - INFO - Worker-3 已啟動
+2025-10-03 06:20:19,059 - analysis_service - INFO - 處理現有待處理記錄...
+2025-10-03 06:20:19,062 - analysis_service - INFO - 檢查現有待處理記錄...
+2025-10-03 06:20:19,066 - analysis_service - INFO - 沒有待處理記錄
+2025-10-03 06:20:19,067 - analysis_service - INFO - ============================================================
+2025-10-03 06:20:19,067 - analysis_service - INFO - 服務啟動成功，開始監聽新記錄...
+2025-10-03 06:20:19,067 - analysis_service - INFO - 按 Ctrl+C 停止服務
+2025-10-03 06:20:19,067 - analysis_service - INFO - ============================================================
+2025-10-03 06:20:19,067 - analysis_service - INFO - 使用輪詢模式監聽 MongoDB
+2025-10-03 06:20:19,067 - analysis_service - INFO - 開始輪詢模式，間隔: 5 秒
+2025-10-03 06:20:39,084 - analysis_service - INFO - 收到新記錄: a674eed5-03e6-4f23-a07e-4ddd9fd315d2
+2025-10-03 06:20:39,084 - analysis_service - INFO - Worker-1 開始處理: a674eed5-03e6-4f23-a07e-4ddd9fd315d2
+2025-10-03 06:20:39,085 - analysis_service - INFO - ============================================================
+2025-10-03 06:20:39,085 - analysis_service - INFO - 開始處理記錄: a674eed5-03e6-4f23-a07e-4ddd9fd315d2
+2025-10-03 06:20:39,085 - analysis_service - INFO - ============================================================
+2025-10-03 06:20:39,086 - analysis_service - INFO - [Step 1] 開始音訊切割...
+2025-10-03 06:20:39,089 - analysis_service - INFO - 開始切割音訊: uploads\00000994.wav
+2025-10-03 06:20:40,677 - analysis_service - INFO - 切割完成: 共 50 個切片
+2025-10-03 06:20:40,680 - analysis_service - INFO - [Step 1] ✓ 音訊切割完成: 50 個切片
+2025-10-03 06:20:40,680 - analysis_service - INFO - [Step 2] 開始 LEAF 特徵提取...
+2025-10-03 06:20:40,683 - analysis_service - INFO - 開始提取 LEAF 特徵: 50 個切片
+2025-10-03 06:20:41,474 - analysis_service - INFO - LEAF 特徵提取完成: 50 個特徵
+2025-10-03 06:20:41,478 - analysis_service - INFO - [Step 2] ✓ LEAF 特徵提取完成: 50 個特徵
+2025-10-03 06:20:41,478 - analysis_service - INFO - [Step 3] 開始分類...
+2025-10-03 06:20:41,482 - analysis_service - INFO - 開始分類: 50 個切片
+2025-10-03 06:20:41,482 - analysis_service - INFO - 分類完成: normal (正常: 38, 異常: 12)
+2025-10-03 06:20:41,484 - analysis_service - INFO - [Step 3] ✓ 分類完成: normal (正常: 38, 異常: 12)
+2025-10-03 06:20:41,485 - analysis_service - INFO - ✓ 記錄處理完成: a674eed5-03e6-4f23-a07e-4ddd9fd315d2
+2025-10-03 06:20:41,485 - analysis_service - INFO - Worker-1 處理成功: a674eed5-03e6-4f23-a07e-4ddd9fd315d2
+2025-10-03 06:30:11,541 - analysis_service - INFO - 
+收到終止信號 (2)，正在關閉服務...
+2025-10-03 06:30:11,542 - analysis_service - INFO - 正在停止服務...
+2025-10-03 06:30:11,542 - analysis_service - INFO - MongoDB 監聽器已停止
+2025-10-03 06:30:11,542 - analysis_service - INFO - 等待工作執行緒完成...
+2025-10-03 06:30:12,212 - analysis_service - INFO - Worker-2 已停止
+2025-10-03 06:30:12,212 - analysis_service - INFO - Worker-3 已停止
+2025-10-03 06:30:12,509 - analysis_service - INFO - Worker-1 已停止
+2025-10-03 06:30:12,510 - analysis_service - INFO - LEAF 提取器資源已清理
+2025-10-03 06:30:12,510 - analysis_service - INFO - 分析流程資源已清理
+2025-10-03 06:30:12,511 - analysis_service - INFO - MongoDB 連接已關閉
+2025-10-03 06:30:12,511 - analysis_service - INFO - 服務已停止

@@ -33,11 +33,23 @@ def dashboard():
         recordings = recording_repo.find_all()
         logger.info(f"查詢到 {len(recordings)} 筆錄音記錄")
 
-        # 轉換為字典格式以便模板使用
+        # 轉換為字典格式以便模板使用，包含分析狀態
         recordings_dict = []
         for idx, rec in enumerate(recordings):
             try:
                 rec_dict = rec.to_dict()
+
+                # 獲取分析狀態和摘要
+                original_doc = recording_repo.collection.find_one({"AnalyzeUUID": rec.analyze_uuid})
+                if original_doc:
+                    rec_dict['analysis_status'] = original_doc.get('analysis_status', 'pending')
+                    rec_dict['current_step'] = original_doc.get('current_step', 0)
+                    rec_dict['analysis_summary'] = original_doc.get('analysis_summary', {})
+                else:
+                    rec_dict['analysis_status'] = 'pending'
+                    rec_dict['current_step'] = 0
+                    rec_dict['analysis_summary'] = {}
+
                 recordings_dict.append(rec_dict)
                 logger.debug(f"錄音 {idx + 1} 轉換成功: {rec_dict.get('filename')}")
             except Exception as e:
@@ -204,6 +216,20 @@ def play_recording(id):
 
         # 轉換為字典格式以便模板使用
         recording_dict = recording.to_dict()
+
+        # 獲取分析狀態和詳細資訊
+        original_doc = recording_repo.collection.find_one({"AnalyzeUUID": recording.analyze_uuid})
+        if original_doc:
+            recording_dict['analysis_status'] = original_doc.get('analysis_status', 'pending')
+            recording_dict['current_step'] = original_doc.get('current_step', 0)
+            recording_dict['analysis_summary'] = original_doc.get('analysis_summary', {})
+            recording_dict['analyze_features'] = original_doc.get('analyze_features', [])
+        else:
+            recording_dict['analysis_status'] = 'pending'
+            recording_dict['current_step'] = 0
+            recording_dict['analysis_summary'] = {}
+            recording_dict['analyze_features'] = []
+
         return render_template('play.html', recording=recording_dict)
     except Exception as e:
         logger.error(f"播放錄音時出錯: {str(e)}")

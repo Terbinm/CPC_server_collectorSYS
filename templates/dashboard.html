@@ -19,6 +19,50 @@
             background-color: transparent;
         }
     }
+
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.25rem 0.75rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .status-pending {
+        background-color: #FEF3C7;
+        color: #92400E;
+    }
+
+    .status-processing {
+        background-color: #DBEAFE;
+        color: #1E40AF;
+    }
+
+    .status-completed {
+        background-color: #D1FAE5;
+        color: #065F46;
+    }
+
+    .status-error {
+        background-color: #FEE2E2;
+        color: #991B1B;
+    }
+
+    .prediction-normal {
+        color: #059669;
+        font-weight: 600;
+    }
+
+    .prediction-abnormal {
+        color: #DC2626;
+        font-weight: 600;
+    }
+
+    .prediction-uncertain {
+        color: #F59E0B;
+        font-weight: 600;
+    }
 </style>
 {% endblock %}
 
@@ -143,6 +187,12 @@
                     </th>
                     <th class="px-2 lg:px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         設備ID
+                    </th>
+                    <th class="px-2 lg:px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        分析狀態
+                    </th>
+                    <th class="px-2 lg:px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        分析結果
                     </th>
                     <th class="px-2 lg:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         操作選項
@@ -321,6 +371,37 @@
         });
     }
 
+    function getAnalysisStatusBadge(status, currentStep) {
+        const statusMap = {
+            'pending': {text: '等待處理', class: 'status-pending'},
+            'processing': {text: `處理中 (Step ${currentStep}/4)`, class: 'status-processing'},
+            'sliced': {text: '切割完成', class: 'status-processing'},
+            'features_extracted': {text: '特徵提取完成', class: 'status-processing'},
+            'completed': {text: '✓ 分析完成', class: 'status-completed'},
+            'error': {text: '✗ 錯誤', class: 'status-error'}
+        };
+
+        const badge = statusMap[status] || {text: '未知', class: 'status-pending'};
+        return `<span class="status-badge ${badge.class}">${badge.text}</span>`;
+    }
+
+    function getAnalysisResult(summary) {
+        if (!summary || !summary.final_prediction) {
+            return '<span class="text-gray-400 text-xs">-</span>';
+        }
+
+        const predictionMap = {
+            'normal': {text: '✓ 正常', class: 'prediction-normal'},
+            'abnormal': {text: '✗ 異常', class: 'prediction-abnormal'},
+            'uncertain': {text: '? 不確定', class: 'prediction-uncertain'}
+        };
+
+        const prediction = predictionMap[summary.final_prediction] || {text: summary.final_prediction, class: ''};
+        const confidence = summary.average_confidence ? ` (${(summary.average_confidence * 100).toFixed(1)}%)` : '';
+
+        return `<span class="${prediction.class}">${prediction.text}${confidence}</span>`;
+    }
+
     function addRecordingToTable(recording) {
         if (recording.id === undefined) {
             return;
@@ -347,12 +428,23 @@
         // 截斷 UUID 顯示（顯示前8字元）
         var shortId = recording.id.substring(0, 8);
 
+        // 分析狀態
+        const analysisStatus = recording.analysis_status || 'pending';
+        const currentStep = recording.current_step || 0;
+        const analysisSummary = recording.analysis_summary || {};
+
         newRow.innerHTML = `
         <td class="px-2 lg:px-3 py-2 text-sm font-mono" title="${recording.id}">${shortId}...</td>
         <td class="px-2 lg:px-4 py-2 text-sm font-medium break-all">${recording.filename}</td>
         <td class="px-2 lg:px-3 py-2 text-sm">${duration.toFixed(2)}</td>
         <td class="px-2 lg:px-4 py-2 text-xs text-gray-600">${timestamp}</td>
         <td class="px-2 lg:px-3 py-2 text-sm font-mono">${recording.device_id}</td>
+        <td class="px-2 lg:px-3 py-2 text-sm">
+            ${getAnalysisStatusBadge(analysisStatus, currentStep)}
+        </td>
+        <td class="px-2 lg:px-3 py-2 text-sm">
+            ${getAnalysisResult(analysisSummary)}
+        </td>
         <td class="px-2 lg:px-4 py-2">
             <div class="flex flex-col sm:flex-row gap-1">
                 <button onclick="downloadRecording('${recording.id}')"
@@ -441,15 +533,19 @@
             socket.emit('update_device_name', {device_id: deviceId, device_name: newName});
         }
     }
+
     // 初始化設備列表和錄音列表
-    updateDevicesTable({{ devices | tojson | safe }});
-    {% for recording in recordings %}
+    updateDevicesTable({{ devices | tojson | safe}});
+    {%for recording in recordings %}
     addRecordingToTable({
         id: "{{ recording.id }}",
         filename: "{{ recording.filename }}",
         duration: {{ recording.duration }},
         timestamp: "{{ recording.timestamp }}",
-        device_id: "{{ recording.device_id }}"
+        device_id: "{{ recording.device_id }}",
+        analysis_status:    "{{ recording.analysis_status }}",
+        current_step:    {{ recording.current_step }},
+        analysis_summary: {{ recording.analysis_summary | tojson | safe }}
     });
     {% endfor %}
 </script>
