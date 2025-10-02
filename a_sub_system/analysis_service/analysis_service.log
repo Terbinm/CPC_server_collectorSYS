@@ -49,3 +49,232 @@
 2025-10-01 02:22:46,390 - analysis_service - INFO - 分析流程資源已清理
 2025-10-01 02:22:46,393 - analysis_service - INFO - MongoDB 連接已關閉
 2025-10-01 02:22:46,393 - analysis_service - INFO - 服務已停止
+2025-10-03 05:36:35,259 - analysis_service - INFO - ============================================================
+2025-10-03 05:36:35,259 - analysis_service - INFO - 音訊分析服務初始化
+2025-10-03 05:36:35,259 - analysis_service - INFO - ============================================================
+2025-10-03 05:36:35,260 - analysis_service - INFO - 初始化 MongoDB 連接...
+2025-10-03 05:36:35,329 - analysis_service - INFO - ✓ MongoDB 連接成功
+2025-10-03 05:36:35,344 - analysis_service - INFO - 初始化分析流程...
+2025-10-03 05:36:35,344 - analysis_service - INFO - AudioSlicer 初始化: duration=0.16s, interval=0.2s
+2025-10-03 05:36:35,414 - analysis_service - INFO - LEAF 提取器初始化成功 (device=cpu)
+2025-10-03 05:36:35,414 - analysis_service - INFO - 分類器初始化: method=random
+2025-10-03 05:36:35,415 - analysis_service - INFO - ✓ 所有處理器初始化成功
+2025-10-03 05:36:35,415 - analysis_service - INFO - 初始化 MongoDB 監聽器...
+2025-10-03 05:36:35,415 - analysis_service - INFO - MongoDB 監聽器初始化完成
+2025-10-03 05:36:35,415 - analysis_service - INFO - ✓ 所有組件初始化完成
+2025-10-03 05:36:35,415 - analysis_service - INFO - 啟動 3 個工作執行緒...
+2025-10-03 05:36:35,417 - analysis_service - INFO - Worker-1 已啟動
+2025-10-03 05:36:35,418 - analysis_service - INFO - Worker-2 已啟動
+2025-10-03 05:36:35,418 - analysis_service - INFO - Worker-3 已啟動
+2025-10-03 05:36:35,419 - analysis_service - INFO - 處理現有待處理記錄...
+2025-10-03 05:36:35,419 - analysis_service - INFO - 檢查現有待處理記錄...
+2025-10-03 05:36:35,433 - analysis_service - INFO - 找到 1 筆待處理記錄
+2025-10-03 05:36:35,434 - analysis_service - INFO - 收到新記錄: 30b90342-12e8-4cf8-9312-de1f1f771710
+2025-10-03 05:36:35,434 - analysis_service - INFO - ============================================================
+2025-10-03 05:36:35,434 - analysis_service - INFO - Worker-1 開始處理: 30b90342-12e8-4cf8-9312-de1f1f771710
+2025-10-03 05:36:35,434 - analysis_service - INFO - 服務啟動成功，開始監聽新記錄...
+2025-10-03 05:36:35,435 - analysis_service - INFO - ============================================================
+2025-10-03 05:36:35,435 - analysis_service - INFO - 按 Ctrl+C 停止服務
+2025-10-03 05:36:35,435 - analysis_service - INFO - 開始處理記錄: 30b90342-12e8-4cf8-9312-de1f1f771710
+2025-10-03 05:36:35,435 - analysis_service - INFO - ============================================================
+2025-10-03 05:36:35,435 - analysis_service - INFO - ============================================================
+2025-10-03 05:36:35,435 - analysis_service - INFO - 使用 Change Stream 模式監聽 MongoDB
+2025-10-03 05:36:35,436 - analysis_service - INFO - 開始監聽 Change Stream...
+2025-10-03 05:36:35,436 - analysis_service - INFO - 開始監聽 MongoDB Change Stream...
+2025-10-03 05:36:35,437 - analysis_service - ERROR - 檔案不存在: uploads\Asus_Duo_20251002_170048.wav
+2025-10-03 05:36:35,454 - analysis_service - ERROR - Change Stream 監聽失敗: The $changeStream stage is only supported on replica sets, full error: {'ok': 0.0, 'errmsg': 'The $changeStream stage is only supported on replica sets', 'code': 40573, 'codeName': 'Location40573'}
+2025-10-03 05:36:35,455 - analysis_service - ERROR - Change Stream 錯誤 (重試 1/3): The $changeStream stage is only supported on replica sets, full error: {'ok': 0.0, 'errmsg': 'The $changeStream stage is only supported on replica sets', 'code': 40573, 'codeName': 'Location40573'}
+2025-10-03 05:36:35,456 - analysis_service - ERROR - 已標記錯誤: 30b90342-12e8-4cf8-9312-de1f1f771710 - 無法獲取檔案路徑
+2025-10-03 05:36:35,456 - analysis_service - ERROR - Worker-1 處理失敗: 30b90342-12e8-4cf8-9312-de1f1f771710
+2025-10-03 05:36:37,455 - analysis_service - INFO - 開始監聽 Change Stream...
+2025-10-03 05:36:37,456 - analysis_service - INFO - 開始監聽 MongoDB Change Stream...
+2025-10-03 05:36:37,461 - analysis_service - ERROR - Change Stream 監聽失敗: The $changeStream stage is only supported on replica sets, full error: {'ok': 0.0, 'errmsg': 'The $changeStream stage is only supported on replica sets', 'code': 40573, 'codeName': 'Location40573'}
+2025-10-03 05:36:37,461 - analysis_service - ERROR - Change Stream 錯誤 (重試 2/3): The $changeStream stage is only supported on replica sets, full error: {'ok': 0.0, 'errmsg': 'The $changeStream stage is only supported on replica sets', 'code': 40573, 'codeName': 'Location40573'}
+2025-10-03 05:36:39,465 - analysis_service - INFO - 開始監聽 Change Stream...
+2025-10-03 05:36:39,467 - analysis_service - INFO - 開始監聽 MongoDB Change Stream...
+2025-10-03 05:36:39,472 - analysis_service - ERROR - Change Stream 監聽失敗: The $changeStream stage is only supported on replica sets, full error: {'ok': 0.0, 'errmsg': 'The $changeStream stage is only supported on replica sets', 'code': 40573, 'codeName': 'Location40573'}
+2025-10-03 05:36:39,472 - analysis_service - ERROR - Change Stream 錯誤 (重試 3/3): The $changeStream stage is only supported on replica sets, full error: {'ok': 0.0, 'errmsg': 'The $changeStream stage is only supported on replica sets', 'code': 40573, 'codeName': 'Location40573'}
+2025-10-03 05:36:39,472 - analysis_service - ERROR - 達到最大重試次數，切換到輪詢模式
+2025-10-03 05:36:39,472 - analysis_service - INFO - 開始輪詢模式，間隔: 5 秒
+2025-10-03 05:36:39,479 - analysis_service - INFO - 收到新記錄: 30b90342-12e8-4cf8-9312-de1f1f771710
+2025-10-03 05:36:39,480 - analysis_service - INFO - Worker-3 開始處理: 30b90342-12e8-4cf8-9312-de1f1f771710
+2025-10-03 05:36:39,481 - analysis_service - INFO - ============================================================
+2025-10-03 05:36:39,481 - analysis_service - INFO - 開始處理記錄: 30b90342-12e8-4cf8-9312-de1f1f771710
+2025-10-03 05:36:39,481 - analysis_service - INFO - ============================================================
+2025-10-03 05:36:39,484 - analysis_service - ERROR - 檔案不存在: uploads\Asus_Duo_20251002_170048.wav
+2025-10-03 05:36:39,489 - analysis_service - ERROR - 已標記錯誤: 30b90342-12e8-4cf8-9312-de1f1f771710 - 無法獲取檔案路徑
+2025-10-03 05:36:39,489 - analysis_service - ERROR - Worker-3 處理失敗: 30b90342-12e8-4cf8-9312-de1f1f771710
+2025-10-03 05:37:24,057 - analysis_service - INFO - 
+收到終止信號 (2)，正在關閉服務...
+2025-10-03 05:37:24,057 - analysis_service - INFO - 正在停止服務...
+2025-10-03 05:37:24,057 - analysis_service - INFO - MongoDB 監聽器已停止
+2025-10-03 05:37:24,057 - analysis_service - INFO - 等待工作執行緒完成...
+2025-10-03 05:37:24,844 - analysis_service - INFO - Worker-2 已停止
+2025-10-03 05:37:24,860 - analysis_service - INFO - Worker-1 已停止
+2025-10-03 05:37:24,877 - analysis_service - INFO - Worker-3 已停止
+2025-10-03 05:37:24,878 - analysis_service - INFO - LEAF 提取器資源已清理
+2025-10-03 05:37:24,878 - analysis_service - INFO - 分析流程資源已清理
+2025-10-03 05:37:24,884 - analysis_service - INFO - MongoDB 連接已關閉
+2025-10-03 05:37:24,884 - analysis_service - INFO - 服務已停止
+2025-10-03 05:37:32,877 - analysis_service - INFO - ============================================================
+2025-10-03 05:37:32,877 - analysis_service - INFO - 音訊分析服務初始化
+2025-10-03 05:37:32,877 - analysis_service - INFO - ============================================================
+2025-10-03 05:37:32,878 - analysis_service - INFO - 初始化 MongoDB 連接...
+2025-10-03 05:37:32,959 - analysis_service - INFO - ✓ MongoDB 連接成功
+2025-10-03 05:37:32,969 - analysis_service - INFO - 初始化分析流程...
+2025-10-03 05:37:32,969 - analysis_service - INFO - AudioSlicer 初始化: duration=0.16s, interval=0.2s
+2025-10-03 05:37:32,989 - analysis_service - INFO - LEAF 提取器初始化成功 (device=cpu)
+2025-10-03 05:37:32,989 - analysis_service - INFO - 分類器初始化: method=random
+2025-10-03 05:37:32,989 - analysis_service - INFO - ✓ 所有處理器初始化成功
+2025-10-03 05:37:32,990 - analysis_service - INFO - 初始化 MongoDB 監聽器...
+2025-10-03 05:37:32,990 - analysis_service - INFO - MongoDB 監聽器初始化完成
+2025-10-03 05:37:32,990 - analysis_service - INFO - ✓ 所有組件初始化完成
+2025-10-03 05:37:32,990 - analysis_service - INFO - 啟動 3 個工作執行緒...
+2025-10-03 05:37:32,992 - analysis_service - INFO - Worker-1 已啟動
+2025-10-03 05:37:32,993 - analysis_service - INFO - Worker-2 已啟動
+2025-10-03 05:37:32,996 - analysis_service - INFO - Worker-3 已啟動
+2025-10-03 05:37:32,996 - analysis_service - INFO - 處理現有待處理記錄...
+2025-10-03 05:37:32,997 - analysis_service - INFO - 檢查現有待處理記錄...
+2025-10-03 05:37:33,001 - analysis_service - INFO - 找到 1 筆待處理記錄
+2025-10-03 05:37:33,001 - analysis_service - INFO - 收到新記錄: 30b90342-12e8-4cf8-9312-de1f1f771710
+2025-10-03 05:37:33,001 - analysis_service - INFO - ============================================================
+2025-10-03 05:37:33,002 - analysis_service - INFO - Worker-1 開始處理: 30b90342-12e8-4cf8-9312-de1f1f771710
+2025-10-03 05:37:33,002 - analysis_service - INFO - 服務啟動成功，開始監聽新記錄...
+2025-10-03 05:37:33,003 - analysis_service - INFO - ============================================================
+2025-10-03 05:37:33,003 - analysis_service - INFO - 按 Ctrl+C 停止服務
+2025-10-03 05:37:33,004 - analysis_service - INFO - 開始處理記錄: 30b90342-12e8-4cf8-9312-de1f1f771710
+2025-10-03 05:37:33,004 - analysis_service - INFO - ============================================================
+2025-10-03 05:37:33,004 - analysis_service - INFO - ============================================================
+2025-10-03 05:37:33,005 - analysis_service - ERROR - 檔案不存在: uploads\Asus_Duo_20251002_170048.wav
+2025-10-03 05:37:33,005 - analysis_service - INFO - 使用 Change Stream 模式監聽 MongoDB
+2025-10-03 05:37:33,007 - analysis_service - INFO - 開始監聽 Change Stream...
+2025-10-03 05:37:33,008 - analysis_service - INFO - 開始監聽 MongoDB Change Stream...
+2025-10-03 05:37:33,011 - analysis_service - ERROR - 已標記錯誤: 30b90342-12e8-4cf8-9312-de1f1f771710 - 無法獲取檔案路徑
+2025-10-03 05:37:33,011 - analysis_service - ERROR - Worker-1 處理失敗: 30b90342-12e8-4cf8-9312-de1f1f771710
+2025-10-03 05:37:33,021 - analysis_service - ERROR - Change Stream 監聽失敗: The $changeStream stage is only supported on replica sets, full error: {'ok': 0.0, 'errmsg': 'The $changeStream stage is only supported on replica sets', 'code': 40573, 'codeName': 'Location40573'}
+2025-10-03 05:37:33,022 - analysis_service - ERROR - Change Stream 錯誤 (重試 1/3): The $changeStream stage is only supported on replica sets, full error: {'ok': 0.0, 'errmsg': 'The $changeStream stage is only supported on replica sets', 'code': 40573, 'codeName': 'Location40573'}
+2025-10-03 05:37:35,022 - analysis_service - INFO - 開始監聽 Change Stream...
+2025-10-03 05:37:35,023 - analysis_service - INFO - 開始監聽 MongoDB Change Stream...
+2025-10-03 05:37:35,027 - analysis_service - ERROR - Change Stream 監聽失敗: The $changeStream stage is only supported on replica sets, full error: {'ok': 0.0, 'errmsg': 'The $changeStream stage is only supported on replica sets', 'code': 40573, 'codeName': 'Location40573'}
+2025-10-03 05:37:35,028 - analysis_service - ERROR - Change Stream 錯誤 (重試 2/3): The $changeStream stage is only supported on replica sets, full error: {'ok': 0.0, 'errmsg': 'The $changeStream stage is only supported on replica sets', 'code': 40573, 'codeName': 'Location40573'}
+2025-10-03 05:37:37,028 - analysis_service - INFO - 開始監聽 Change Stream...
+2025-10-03 05:37:37,029 - analysis_service - INFO - 開始監聽 MongoDB Change Stream...
+2025-10-03 05:37:37,034 - analysis_service - ERROR - Change Stream 監聽失敗: The $changeStream stage is only supported on replica sets, full error: {'ok': 0.0, 'errmsg': 'The $changeStream stage is only supported on replica sets', 'code': 40573, 'codeName': 'Location40573'}
+2025-10-03 05:37:37,034 - analysis_service - ERROR - Change Stream 錯誤 (重試 3/3): The $changeStream stage is only supported on replica sets, full error: {'ok': 0.0, 'errmsg': 'The $changeStream stage is only supported on replica sets', 'code': 40573, 'codeName': 'Location40573'}
+2025-10-03 05:37:37,035 - analysis_service - ERROR - 達到最大重試次數，切換到輪詢模式
+2025-10-03 05:37:37,035 - analysis_service - INFO - 開始輪詢模式，間隔: 5 秒
+2025-10-03 05:37:37,039 - analysis_service - INFO - 收到新記錄: 30b90342-12e8-4cf8-9312-de1f1f771710
+2025-10-03 05:37:37,040 - analysis_service - INFO - Worker-3 開始處理: 30b90342-12e8-4cf8-9312-de1f1f771710
+2025-10-03 05:37:37,040 - analysis_service - INFO - ============================================================
+2025-10-03 05:37:37,040 - analysis_service - INFO - 開始處理記錄: 30b90342-12e8-4cf8-9312-de1f1f771710
+2025-10-03 05:37:37,041 - analysis_service - INFO - ============================================================
+2025-10-03 05:37:37,041 - analysis_service - ERROR - 檔案不存在: uploads\Asus_Duo_20251002_170048.wav
+2025-10-03 05:37:37,044 - analysis_service - ERROR - 已標記錯誤: 30b90342-12e8-4cf8-9312-de1f1f771710 - 無法獲取檔案路徑
+2025-10-03 05:37:37,044 - analysis_service - ERROR - Worker-3 處理失敗: 30b90342-12e8-4cf8-9312-de1f1f771710
+2025-10-03 05:37:39,711 - analysis_service - INFO - 
+收到終止信號 (2)，正在關閉服務...
+2025-10-03 05:37:39,711 - analysis_service - INFO - 正在停止服務...
+2025-10-03 05:37:39,712 - analysis_service - INFO - MongoDB 監聽器已停止
+2025-10-03 05:37:39,712 - analysis_service - INFO - 等待工作執行緒完成...
+2025-10-03 05:37:40,066 - analysis_service - INFO - Worker-2 已停止
+2025-10-03 05:37:40,066 - analysis_service - INFO - Worker-3 已停止
+2025-10-03 05:37:40,081 - analysis_service - INFO - Worker-1 已停止
+2025-10-03 05:37:40,082 - analysis_service - INFO - LEAF 提取器資源已清理
+2025-10-03 05:37:40,082 - analysis_service - INFO - 分析流程資源已清理
+2025-10-03 05:37:40,086 - analysis_service - INFO - MongoDB 連接已關閉
+2025-10-03 05:37:40,087 - analysis_service - INFO - 服務已停止
+2025-10-03 05:38:08,619 - analysis_service - INFO - ============================================================
+2025-10-03 05:38:08,619 - analysis_service - INFO - 音訊分析服務初始化
+2025-10-03 05:38:08,620 - analysis_service - INFO - ============================================================
+2025-10-03 05:38:08,620 - analysis_service - INFO - 初始化 MongoDB 連接...
+2025-10-03 05:38:08,715 - analysis_service - INFO - ✓ MongoDB 連接成功
+2025-10-03 05:38:08,731 - analysis_service - INFO - 初始化分析流程...
+2025-10-03 05:38:08,731 - analysis_service - INFO - AudioSlicer 初始化: duration=0.16s, interval=0.2s
+2025-10-03 05:38:08,752 - analysis_service - INFO - LEAF 提取器初始化成功 (device=cpu)
+2025-10-03 05:38:08,753 - analysis_service - INFO - 分類器初始化: method=random
+2025-10-03 05:38:08,753 - analysis_service - INFO - ✓ 所有處理器初始化成功
+2025-10-03 05:38:08,753 - analysis_service - INFO - 初始化 MongoDB 監聽器...
+2025-10-03 05:38:08,753 - analysis_service - INFO - MongoDB 監聽器初始化完成
+2025-10-03 05:38:08,753 - analysis_service - INFO - ✓ 所有組件初始化完成
+2025-10-03 05:38:08,753 - analysis_service - INFO - 啟動 3 個工作執行緒...
+2025-10-03 05:38:08,754 - analysis_service - INFO - Worker-1 已啟動
+2025-10-03 05:38:08,756 - analysis_service - INFO - Worker-2 已啟動
+2025-10-03 05:38:08,758 - analysis_service - INFO - Worker-3 已啟動
+2025-10-03 05:38:08,758 - analysis_service - INFO - 處理現有待處理記錄...
+2025-10-03 05:38:08,758 - analysis_service - INFO - 檢查現有待處理記錄...
+2025-10-03 05:38:08,764 - analysis_service - INFO - 找到 1 筆待處理記錄
+2025-10-03 05:38:08,764 - analysis_service - INFO - 收到新記錄: 30b90342-12e8-4cf8-9312-de1f1f771710
+2025-10-03 05:38:08,764 - analysis_service - INFO - ============================================================
+2025-10-03 05:38:08,765 - analysis_service - INFO - Worker-1 開始處理: 30b90342-12e8-4cf8-9312-de1f1f771710
+2025-10-03 05:38:08,765 - analysis_service - INFO - ============================================================
+2025-10-03 05:38:08,765 - analysis_service - INFO - 服務啟動成功，開始監聽新記錄...
+2025-10-03 05:38:08,765 - analysis_service - INFO - 開始處理記錄: 30b90342-12e8-4cf8-9312-de1f1f771710
+2025-10-03 05:38:08,766 - analysis_service - INFO - 按 Ctrl+C 停止服務
+2025-10-03 05:38:08,766 - analysis_service - INFO - ============================================================
+2025-10-03 05:38:08,767 - analysis_service - INFO - ============================================================
+2025-10-03 05:38:08,767 - analysis_service - INFO - [Step 1] 開始音訊切割...
+2025-10-03 05:38:08,768 - analysis_service - INFO - 使用 Change Stream 模式監聽 MongoDB
+2025-10-03 05:38:08,768 - analysis_service - INFO - 開始監聽 Change Stream...
+2025-10-03 05:38:08,768 - analysis_service - INFO - 開始監聽 MongoDB Change Stream...
+2025-10-03 05:38:08,773 - analysis_service - INFO - 開始切割音訊: uploads\Asus_Duo_20251002_170048.wav
+2025-10-03 05:38:08,794 - analysis_service - ERROR - Change Stream 監聽失敗: The $changeStream stage is only supported on replica sets, full error: {'ok': 0.0, 'errmsg': 'The $changeStream stage is only supported on replica sets', 'code': 40573, 'codeName': 'Location40573'}
+2025-10-03 05:38:08,795 - analysis_service - ERROR - Change Stream 錯誤 (重試 1/3): The $changeStream stage is only supported on replica sets, full error: {'ok': 0.0, 'errmsg': 'The $changeStream stage is only supported on replica sets', 'code': 40573, 'codeName': 'Location40573'}
+2025-10-03 05:38:10,796 - analysis_service - INFO - 開始監聽 Change Stream...
+2025-10-03 05:38:10,796 - analysis_service - INFO - 開始監聽 MongoDB Change Stream...
+2025-10-03 05:38:10,800 - analysis_service - ERROR - Change Stream 監聽失敗: The $changeStream stage is only supported on replica sets, full error: {'ok': 0.0, 'errmsg': 'The $changeStream stage is only supported on replica sets', 'code': 40573, 'codeName': 'Location40573'}
+2025-10-03 05:38:10,801 - analysis_service - ERROR - Change Stream 錯誤 (重試 2/3): The $changeStream stage is only supported on replica sets, full error: {'ok': 0.0, 'errmsg': 'The $changeStream stage is only supported on replica sets', 'code': 40573, 'codeName': 'Location40573'}
+2025-10-03 05:38:12,801 - analysis_service - INFO - 開始監聽 Change Stream...
+2025-10-03 05:38:12,805 - analysis_service - INFO - 開始監聽 MongoDB Change Stream...
+2025-10-03 05:38:12,810 - analysis_service - ERROR - Change Stream 監聽失敗: The $changeStream stage is only supported on replica sets, full error: {'ok': 0.0, 'errmsg': 'The $changeStream stage is only supported on replica sets', 'code': 40573, 'codeName': 'Location40573'}
+2025-10-03 05:38:12,811 - analysis_service - ERROR - Change Stream 錯誤 (重試 3/3): The $changeStream stage is only supported on replica sets, full error: {'ok': 0.0, 'errmsg': 'The $changeStream stage is only supported on replica sets', 'code': 40573, 'codeName': 'Location40573'}
+2025-10-03 05:38:12,811 - analysis_service - ERROR - 達到最大重試次數，切換到輪詢模式
+2025-10-03 05:38:12,815 - analysis_service - INFO - 開始輪詢模式，間隔: 5 秒
+2025-10-03 05:38:29,574 - analysis_service - INFO - 
+收到終止信號 (2)，正在關閉服務...
+2025-10-03 05:38:29,575 - analysis_service - INFO - 正在停止服務...
+2025-10-03 05:38:29,575 - analysis_service - INFO - MongoDB 監聽器已停止
+2025-10-03 05:38:29,575 - analysis_service - INFO - 等待工作執行緒完成...
+2025-10-03 05:38:29,965 - analysis_service - INFO - Worker-2 已停止
+2025-10-03 05:38:29,981 - analysis_service - INFO - Worker-3 已停止
+2025-10-03 05:38:34,587 - analysis_service - INFO - LEAF 提取器資源已清理
+2025-10-03 05:38:34,587 - analysis_service - INFO - 分析流程資源已清理
+2025-10-03 05:38:34,593 - analysis_service - INFO - MongoDB 連接已關閉
+2025-10-03 05:38:34,593 - analysis_service - INFO - 服務已停止
+2025-10-03 05:38:55,898 - analysis_service - INFO - ============================================================
+2025-10-03 05:38:55,899 - analysis_service - INFO - 音訊分析服務初始化
+2025-10-03 05:38:55,899 - analysis_service - INFO - ============================================================
+2025-10-03 05:38:55,899 - analysis_service - INFO - 初始化 MongoDB 連接...
+2025-10-03 05:38:55,997 - analysis_service - INFO - ✓ MongoDB 連接成功
+2025-10-03 05:38:56,009 - analysis_service - INFO - 初始化分析流程...
+2025-10-03 05:38:56,009 - analysis_service - INFO - AudioSlicer 初始化: duration=0.16s, interval=0.2s
+2025-10-03 05:38:56,032 - analysis_service - INFO - LEAF 提取器初始化成功 (device=cpu)
+2025-10-03 05:38:56,032 - analysis_service - INFO - 分類器初始化: method=random
+2025-10-03 05:38:56,033 - analysis_service - INFO - ✓ 所有處理器初始化成功
+2025-10-03 05:38:56,033 - analysis_service - INFO - 初始化 MongoDB 監聽器...
+2025-10-03 05:38:56,033 - analysis_service - INFO - MongoDB 監聽器初始化完成
+2025-10-03 05:38:56,033 - analysis_service - INFO - ✓ 所有組件初始化完成
+2025-10-03 05:38:56,034 - analysis_service - INFO - 啟動 3 個工作執行緒...
+2025-10-03 05:38:56,035 - analysis_service - INFO - Worker-1 已啟動
+2025-10-03 05:38:56,037 - analysis_service - INFO - Worker-2 已啟動
+2025-10-03 05:38:56,038 - analysis_service - INFO - Worker-3 已啟動
+2025-10-03 05:38:56,038 - analysis_service - INFO - 處理現有待處理記錄...
+2025-10-03 05:38:56,039 - analysis_service - INFO - 檢查現有待處理記錄...
+2025-10-03 05:38:56,043 - analysis_service - INFO - 沒有待處理記錄
+2025-10-03 05:38:56,043 - analysis_service - INFO - ============================================================
+2025-10-03 05:38:56,044 - analysis_service - INFO - 服務啟動成功，開始監聽新記錄...
+2025-10-03 05:38:56,044 - analysis_service - INFO - 按 Ctrl+C 停止服務
+2025-10-03 05:38:56,044 - analysis_service - INFO - ============================================================
+2025-10-03 05:38:56,044 - analysis_service - INFO - 使用輪詢模式監聽 MongoDB
+2025-10-03 05:38:56,044 - analysis_service - INFO - 開始輪詢模式，間隔: 5 秒
+2025-10-03 05:39:59,964 - analysis_service - INFO - 
+收到終止信號 (2)，正在關閉服務...
+2025-10-03 05:39:59,964 - analysis_service - INFO - 正在停止服務...
+2025-10-03 05:39:59,964 - analysis_service - INFO - MongoDB 監聽器已停止
+2025-10-03 05:39:59,964 - analysis_service - INFO - 等待工作執行緒完成...
+2025-10-03 05:40:00,598 - analysis_service - INFO - Worker-2 已停止
+2025-10-03 05:40:00,599 - analysis_service - INFO - Worker-3 已停止
+2025-10-03 05:40:00,600 - analysis_service - INFO - Worker-1 已停止
+2025-10-03 05:40:00,600 - analysis_service - INFO - LEAF 提取器資源已清理
+2025-10-03 05:40:00,601 - analysis_service - INFO - 分析流程資源已清理
+2025-10-03 05:40:00,607 - analysis_service - INFO - MongoDB 連接已關閉
+2025-10-03 05:40:00,607 - analysis_service - INFO - 服務已停止

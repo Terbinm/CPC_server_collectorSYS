@@ -58,7 +58,7 @@ CLASSIFICATION_CONFIG = {
 # ==================== 服務配置 ====================
 SERVICE_CONFIG = {
     # Change Stream 配置
-    'use_change_stream': True,
+    'use_change_stream': False,
     'polling_interval': 5,  # 輪詢間隔（秒），當 Change Stream 不可用時
 
     # 處理配置

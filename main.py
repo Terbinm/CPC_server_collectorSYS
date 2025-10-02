@@ -7,7 +7,7 @@ import os
 from models import MongoDBHandler
 
 # 設置日誌
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 # 初始化 Flask 應用
