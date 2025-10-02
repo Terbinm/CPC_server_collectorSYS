@@ -124,56 +124,6 @@
                     </div>
                 </div>
 
-                {% if recording.analysis_status == 'completed' and recording.analysis_summary %}
-                <!-- 分析結果卡片 -->
-                <div class="analysis-card mb-6">
-                    <div class="flex items-center justify-between mb-4">
-                        <h3 class="text-2xl font-bold">🔬 智能分析結果</h3>
-                        <span class="prediction-badge badge-{{ recording.analysis_summary.final_prediction }}">
-                            {{ recording.analysis_summary.final_prediction | upper }}
-                        </span>
-                    </div>
-
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div class="stat-box text-center">
-                            <div class="text-3xl font-bold">{{ recording.analysis_summary.total_segments }}</div>
-                            <div class="text-sm opacity-80 mt-1">總切片數</div>
-                        </div>
-                        <div class="stat-box text-center">
-                            <div class="text-3xl font-bold text-green-300">{{ recording.analysis_summary.normal_count
-                                }}
-                            </div>
-                            <div class="text-sm opacity-80 mt-1">正常切片</div>
-                        </div>
-                        <div class="stat-box text-center">
-                            <div class="text-3xl font-bold text-red-300">{{ recording.analysis_summary.abnormal_count
-                                }}
-                            </div>
-                            <div class="text-sm opacity-80 mt-1">異常切片</div>
-                        </div>
-                        <div class="stat-box text-center">
-                            <div class="text-3xl font-bold">{{
-                                "%.1f"|format(recording.analysis_summary.average_confidence * 100) }}%
-                            </div>
-                            <div class="text-sm opacity-80 mt-1">平均信心度</div>
-                        </div>
-                    </div>
-
-                    <div class="mt-4 p-3 bg-white/10 rounded-lg">
-                        <div class="grid grid-cols-2 gap-2 text-sm">
-                            <div>
-                                <span class="opacity-80">正常比例:</span>
-                                <span class="font-bold ml-2">{{ "%.1f"|format(recording.analysis_summary.normal_percentage) }}%</span>
-                            </div>
-                            <div>
-                                <span class="opacity-80">異常比例:</span>
-                                <span class="font-bold ml-2">{{ "%.1f"|format(recording.analysis_summary.abnormal_percentage) }}%</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                {% endif %}
-
                 <!-- 主要操作按鈕 -->
                 <div class="flex flex-col sm:flex-row gap-3 justify-center">
                     <a href="{{ url_for('download_recording', id=recording.id) }}"

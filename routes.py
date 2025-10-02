@@ -1,4 +1,4 @@
-from flask import request, jsonify, send_file, render_template, redirect, url_for
+from flask import request, jsonify, send_file, render_template, Response
 from main import app, db, socketio, mongodb_handler
 from models import AudioRecording, RecordingRepository
 from utils import calculate_file_hash
@@ -8,6 +8,8 @@ from shared_state import device_schedules, recording_devices, RecordingSchedule
 import logging
 import soundfile as sf
 from io import BytesIO
+from datetime import datetime, timedelta
+from config import Config
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +56,6 @@ def dashboard():
                 logger.debug(f"錄音 {idx + 1} 轉換成功: {rec_dict.get('filename')}")
             except Exception as e:
                 logger.error(f"錄音 {idx + 1} 轉換失敗: {e}")
-                # 跳過有問題的記錄
                 continue
 
         logger.info(f"成功轉換 {len(recordings_dict)} 筆錄音記錄")
@@ -67,7 +68,7 @@ def dashboard():
 @app.route('/upload_recording', methods=['POST'])
 def upload_recording():
     """
-    處理錄音檔案上傳（支援邊緣設備和網路上傳）
+    處理錄音檔案上傳（支援邊緣設備和網路上傳）- 使用 GridFS
     """
     try:
         if 'file' not in request.files:
@@ -78,27 +79,17 @@ def upload_recording():
 
         if file:
             filename = secure_filename(file.filename)
-            file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            file.save(file_path)
 
             # 判斷是網路上傳還是設備上傳
             device_id = request.form.get('device_id', 'WEB_UPLOAD')
 
-            # 獲取或計算 duration
-            duration = request.form.get('duration')
-            if duration:
-                duration = float(duration)
-            else:
-                # 網路上傳時自動計算音檔時長
-                try:
-                    audio_info = sf.info(file_path)
-                    duration = audio_info.duration
-                except Exception as e:
-                    logger.warning(f"無法讀取音檔時長: {str(e)}")
-                    duration = 0.0
+            # 讀取檔案內容
+            file_data = file.read()
+            file_size = len(file_data)
 
-            file_size = os.path.getsize(file_path)
-            file_hash = calculate_file_hash(file_path)
+            # 計算檔案 hash
+            import hashlib
+            file_hash = hashlib.sha256(file_data).hexdigest()
 
             # 如果是設備上傳，驗證檔案完整性
             upload_complete = True
@@ -107,13 +98,25 @@ def upload_recording():
                 expected_hash = request.form.get('file_hash', '')
 
                 if file_size != expected_size or file_hash != expected_hash:
-                    os.remove(file_path)
                     return jsonify({'error': '檔案上傳不完整或已被修改'}), 400
+
+            # 獲取或計算 duration
+            duration = request.form.get('duration')
+            if duration:
+                duration = float(duration)
+            else:
+                # 網路上傳時自動計算音檔時長
+                try:
+                    audio_info = sf.info(BytesIO(file_data))
+                    duration = audio_info.duration
+                except Exception as e:
+                    logger.warning(f"無法讀取音檔時長: {str(e)}")
+                    duration = 0.0
 
             # 獲取音頻元數據
             metadata = {}
             try:
-                audio_info = sf.info(file_path)
+                audio_info = sf.info(BytesIO(file_data))
                 metadata = {
                     'sample_rate': audio_info.samplerate,
                     'channels': audio_info.channels,
@@ -122,6 +125,23 @@ def upload_recording():
             except Exception as e:
                 logger.warning(f"無法讀取音頻元數據: {str(e)}")
 
+            # 上傳到 GridFS
+            try:
+                file_id = mongodb_handler.gridfs_handler.upload_file(
+                    file_data=file_data,
+                    filename=filename,
+                    content_type='audio/wav',
+                    metadata={
+                        'device_id': device_id,
+                        'upload_time': datetime.now(Config.TAIPEI_TZ).isoformat(),
+                        'file_hash': file_hash
+                    }
+                )
+                logger.info(f"檔案上傳至 GridFS 成功: {filename} (ID: {file_id})")
+            except Exception as e:
+                logger.error(f"上傳至 GridFS 失敗: {str(e)}")
+                return jsonify({'error': '檔案儲存失敗'}), 500
+
             # 建立錄音記錄
             new_recording = AudioRecording(
                 filename=filename,
@@ -129,6 +149,7 @@ def upload_recording():
                 device_id=device_id,
                 file_size=file_size,
                 file_hash=file_hash,
+                file_id=file_id,  # GridFS 文件 ID
                 upload_complete=upload_complete,
                 metadata=metadata
             )
@@ -139,7 +160,7 @@ def upload_recording():
             # 發送 Socket.IO 事件
             socketio.emit('new_recording', new_recording.to_dict(), namespace='/')
 
-            logger.info(f"成功上傳錄音: {filename} (來源: {device_id})")
+            logger.info(f"成功上傳錄音: {filename} (來源: {device_id}, GridFS ID: {file_id})")
             return jsonify({'message': '檔案上傳成功', 'id': new_recording.analyze_uuid})
     except Exception as e:
         logger.error(f"上傳錄音時出錯: {str(e)}")
@@ -162,7 +183,7 @@ def get_recordings():
 @app.route('/download/<id>', methods=['GET'])
 def download_recording(id):
     """
-    下載指定ID的錄音檔案
+    從 GridFS 下載指定ID的錄音檔案
 
     :param id: 錄音 UUID
     """
@@ -174,11 +195,21 @@ def download_recording(id):
         if not recording.upload_complete:
             return jsonify({'error': '錄音尚未完成上傳，請稍後再試'}), 400
 
-        file_path = os.path.join(app.config['UPLOAD_FOLDER'], recording.filename)
-        if not os.path.exists(file_path):
-            return jsonify({'error': '檔案不存在'}), 404
+        if not recording.file_id:
+            return jsonify({'error': 'GridFS 文件 ID 不存在'}), 404
 
-        return send_file(file_path, as_attachment=True)
+        # 從 GridFS 下載文件
+        file_data = mongodb_handler.gridfs_handler.download_file(recording.file_id)
+        if not file_data:
+            return jsonify({'error': 'GridFS 文件不存在或已損壞'}), 404
+
+        # 返回文件
+        return send_file(
+            BytesIO(file_data),
+            mimetype='audio/wav',
+            as_attachment=True,
+            download_name=recording.filename
+        )
     except Exception as e:
         logger.error(f"下載錄音時出錯: {str(e)}")
         return jsonify({'error': '下載錄音失敗'}), 500
@@ -239,7 +270,7 @@ def play_recording(id):
 @app.route('/delete/<id>', methods=['POST'])
 def delete_recording(id):
     """
-    刪除指定ID的錄音
+    刪除指定ID的錄音（包含 GridFS 文件）
 
     :param id: 錄音 UUID
     """
@@ -248,14 +279,15 @@ def delete_recording(id):
         if not recording:
             return jsonify({'error': '找不到錄音記錄'}), 404
 
-        file_path = os.path.join(app.config['UPLOAD_FOLDER'], recording.filename)
-        if os.path.exists(file_path):
-            os.remove(file_path)
+        # 刪除記錄（會自動刪除 GridFS 文件）
+        success = recording_repo.delete_by_uuid(id)
 
-        recording_repo.delete_by_uuid(id)
-        socketio.emit('recording_deleted', {'id': id})
-        logger.info(f"成功刪除錄音: {recording.filename}")
-        return jsonify({'message': '錄音已刪除', 'success': True})
+        if success:
+            socketio.emit('recording_deleted', {'id': id})
+            logger.info(f"成功刪除錄音: {recording.filename}")
+            return jsonify({'message': '錄音已刪除', 'success': True})
+        else:
+            return jsonify({'error': '刪除失敗'}), 500
     except Exception as e:
         logger.error(f"刪除錄音時出錯: {str(e)}")
         return jsonify({'error': '刪除錄音失敗'}), 500

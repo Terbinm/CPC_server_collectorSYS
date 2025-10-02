@@ -1,9 +1,10 @@
 from pymongo import MongoClient, ASCENDING
+from bson.objectid import ObjectId
 from config import Config
 from datetime import datetime
 import uuid
 import logging
-import os
+from gridfs_handler import GridFSHandler
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +17,7 @@ class MongoDBHandler:
         self.mongo_client = None
         self.db = None
         self.collection = None
+        self.gridfs_handler = None
         self._connect()
 
     def _connect(self):
@@ -28,6 +30,9 @@ class MongoDBHandler:
             self.mongo_client = MongoClient(connection_string)
             self.db = self.mongo_client[self.config['database']]
             self.collection = self.db[self.config['collection']]
+
+            # 初始化 GridFS Handler
+            self.gridfs_handler = GridFSHandler(self.mongo_client)
 
             # 測試連接
             self.mongo_client.admin.command('ping')
@@ -50,43 +55,52 @@ class MongoDBHandler:
 
     def close(self):
         """關閉連接"""
+        if self.gridfs_handler:
+            self.gridfs_handler.close()
         if self.mongo_client:
             self.mongo_client.close()
             logger.info("MongoDB 連接已關閉")
 
 
 class AudioRecording:
-    """音頻錄音文檔結構（參考 V3_multi_dataset）"""
+    """音頻錄音文檔結構（使用 GridFS 儲存檔案）"""
 
     def __init__(self, filename, duration, device_id, file_size, file_hash,
-                 upload_complete=True, metadata=None):
+                 file_id: ObjectId = None, upload_complete=True, metadata=None):
         self.analyze_uuid = str(uuid.uuid4())
         self.filename = filename
         self.duration = duration
         self.device_id = device_id
         self.file_size = file_size
         self.file_hash = file_hash
+        self.file_id = file_id  # GridFS 文件 ID
         self.upload_complete = upload_complete
         self.metadata = metadata or {}
         self.timestamp = datetime.now(Config.TAIPEI_TZ)
 
     def to_mongodb_document(self):
-        """轉換為 MongoDB 文檔格式（參考 V3_multi_dataset 結構）"""
+        """轉換為 MongoDB 文檔格式（使用 GridFS）"""
         current_time = datetime.utcnow()
+
+        # 獲取文件類型
+        file_type = self.metadata.get('format', Config.AUDIO_CONFIG['default_format'])
+        if file_type == 'WAV':
+            file_type = 'wav'
+        file_type = file_type.lower()
 
         document = {
             "AnalyzeUUID": self.analyze_uuid,
-            "current_step": 0,  # Web UI 上傳，無後續處理步驟
+            "current_step": 0,
             "created_at": current_time,
             "updated_at": current_time,
             "files": {
                 "raw": {
+                    "fileId": self.file_id,  # GridFS ObjectId
                     "filename": self.filename,
-                    "type": self.metadata.get('format', Config.AUDIO_CONFIG['default_format']),
-                    "size_mb": round(self.file_size / (1024 * 1024), 2)
+                    "type": file_type
                 }
             },
-            "analyze_features": [],  # Web UI 無特徵提取
+            "analyze_features": [],
             "info_features": {
                 "dataset_UUID": Config.DATASET_CONFIG['dataset_UUID'],
                 "device_id": self.device_id,
@@ -94,14 +108,13 @@ class AudioRecording:
                 "obj_ID": Config.DATASET_CONFIG['obj_ID'],
                 "upload_time": self.timestamp.isoformat(),
                 "upload_complete": self.upload_complete,
-                "filepath": os.path.join(Config.UPLOAD_FOLDER, self.filename),
                 "file_hash": self.file_hash,
                 "file_size": self.file_size,
                 "duration": self.duration,
                 "web_ui_metadata": {
                     "sample_rate": self.metadata.get('sample_rate', Config.AUDIO_CONFIG['sample_rate']),
                     "channels": self.metadata.get('channels', Config.AUDIO_CONFIG['channels']),
-                    "format": self.metadata.get('format', Config.AUDIO_CONFIG['default_format']),
+                    "format": file_type,
                     "source": "WEB_UPLOAD" if self.device_id == "WEB_UPLOAD" else "EDGE_DEVICE"
                 }
             }
@@ -117,12 +130,17 @@ class AudioRecording:
             files = document.get('files', {}).get('raw', {})
             web_meta = info.get('web_ui_metadata', {})
 
-            # 獲取檔案大小（可能在不同位置）
-            file_size = info.get('file_size', 0)
-            if file_size == 0 and 'size_mb' in files:
-                file_size = int(files.get('size_mb', 0) * 1024 * 1024)
+            # 獲取 GridFS 文件 ID
+            file_id = files.get('fileId')
+            if isinstance(file_id, dict) and '$oid' in file_id:
+                file_id = ObjectId(file_id['$oid'])
+            elif isinstance(file_id, str):
+                file_id = ObjectId(file_id)
 
-            # 獲取設備 ID（可能是 device_id 或 equ_UUID）
+            # 獲取檔案大小
+            file_size = info.get('file_size', 0)
+
+            # 獲取設備 ID
             device_id = info.get('device_id') or info.get('equ_UUID', 'UNKNOWN')
 
             recording = AudioRecording(
@@ -131,21 +149,20 @@ class AudioRecording:
                 device_id=device_id,
                 file_size=file_size,
                 file_hash=info.get('file_hash', ''),
+                file_id=file_id,
                 upload_complete=info.get('upload_complete', True),
                 metadata=web_meta
             )
 
             recording.analyze_uuid = document.get('AnalyzeUUID', '')
 
-            # 解析時間戳（處理多種格式）
+            # 解析時間戳
             upload_time = info.get('upload_time')
             if upload_time:
                 try:
-                    # 移除時區資訊後解析
                     if isinstance(upload_time, str):
                         upload_time_str = upload_time.split('+')[0].split('Z')[0]
                         recording.timestamp = datetime.fromisoformat(upload_time_str)
-                        # 設定為台北時區
                         if recording.timestamp.tzinfo is None:
                             recording.timestamp = Config.TAIPEI_TZ.localize(recording.timestamp)
                     else:
@@ -158,7 +175,6 @@ class AudioRecording:
                     else:
                         recording.timestamp = datetime.now(Config.TAIPEI_TZ)
             else:
-                # 使用 created_at 或 timestamp 欄位
                 timestamp_field = info.get('timestamp') or document.get('created_at')
                 if timestamp_field:
                     recording.timestamp = timestamp_field
@@ -171,9 +187,8 @@ class AudioRecording:
             raise
 
     def to_dict(self):
-        """轉換為字典格式（用於 API 回應，保持向後相容）"""
+        """轉換為字典格式（用於 API 回應）"""
         try:
-            # 確保 timestamp 是 datetime 物件
             if isinstance(self.timestamp, datetime):
                 timestamp_str = self.timestamp.isoformat()
             else:
@@ -187,11 +202,11 @@ class AudioRecording:
                 'device_id': str(self.device_id),
                 'upload_complete': bool(self.upload_complete),
                 'file_size': int(self.file_size),
-                'file_hash': str(self.file_hash)
+                'file_hash': str(self.file_hash),
+                'file_id': str(self.file_id) if self.file_id else None
             }
         except Exception as e:
             logger.error(f"轉換為字典失敗: {e}")
-            # 返回最小可用結構
             return {
                 'id': str(self.analyze_uuid) if self.analyze_uuid else '',
                 'filename': str(self.filename) if self.filename else '',
@@ -200,7 +215,8 @@ class AudioRecording:
                 'device_id': str(self.device_id) if self.device_id else '',
                 'upload_complete': False,
                 'file_size': 0,
-                'file_hash': ''
+                'file_hash': '',
+                'file_id': None
             }
 
     def __repr__(self):
@@ -208,11 +224,12 @@ class AudioRecording:
 
 
 class RecordingRepository:
-    """錄音資料存取層"""
+    """錄音資料存取層（支援 GridFS）"""
 
     def __init__(self, db_handler: MongoDBHandler):
         self.db_handler = db_handler
         self.collection = db_handler.collection
+        self.gridfs_handler = db_handler.gridfs_handler
 
     def insert(self, recording: AudioRecording):
         """新增錄音記錄"""
@@ -257,8 +274,24 @@ class RecordingRepository:
             return None
 
     def delete_by_uuid(self, analyze_uuid):
-        """根據 UUID 刪除錄音記錄"""
+        """根據 UUID 刪除錄音記錄（包含 GridFS 文件）"""
         try:
+            # 先獲取記錄以取得 file_id
+            document = self.collection.find_one({"AnalyzeUUID": analyze_uuid})
+            if document:
+                file_id = document.get('files', {}).get('raw', {}).get('fileId')
+
+                # 刪除 GridFS 文件
+                if file_id:
+                    if isinstance(file_id, dict) and '$oid' in file_id:
+                        file_id = ObjectId(file_id['$oid'])
+                    elif isinstance(file_id, str):
+                        file_id = ObjectId(file_id)
+
+                    self.gridfs_handler.delete_file(file_id)
+                    logger.info(f"已刪除 GridFS 文件: {file_id}")
+
+            # 刪除 MongoDB 記錄
             result = self.collection.delete_one({"AnalyzeUUID": analyze_uuid})
             if result.deleted_count > 0:
                 logger.info(f"成功刪除錄音記錄: {analyze_uuid}")

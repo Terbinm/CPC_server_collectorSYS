@@ -1,4 +1,4 @@
-# config.py - 分析服務統一配置
+# a_sub_system/analysis_service/config.py - 分析服務統一配置
 
 import os
 
@@ -90,7 +90,11 @@ PROCESSING_STEPS = {
     4: {'name': 'Completed', 'description': '處理完成'}
 }
 
-# ==================== 檔案路徑配置 ====================
+# ==================== GridFS 配置 ====================
+# 分析服務使用 GridFS 讀取音頻文件
+USE_GRIDFS = True  # 啟用 GridFS 模式
+
+# ==================== 檔案路徑配置（已棄用，保留用於向後相容） ====================
 UPLOAD_FOLDER = os.getenv('UPLOAD_FOLDER', 'uploads')
 
 # ==================== 資料庫索引 ====================
