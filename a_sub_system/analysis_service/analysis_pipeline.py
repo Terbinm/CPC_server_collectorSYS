@@ -64,6 +64,11 @@ class AnalysisPipeline:
             logger.info(f"開始處理記錄: {analyze_uuid}")
             logger.info(f"=" * 60)
 
+            # ✅ 先嘗試認領記錄
+            if not self.mongodb.try_claim_record(analyze_uuid):
+                logger.info(f"記錄已被其他 Worker 處理,跳過: {analyze_uuid}")
+                return True  # 不算失敗
+
             # 檢查記錄是否已處理
             if self._is_already_processed(record):
                 logger.info(f"記錄已處理，跳過: {analyze_uuid}")

@@ -49,7 +49,40 @@ class MongoDBHandler:
                 logger.debug(f"索引建立成功: {index_field}")
             except Exception as e:
                 logger.warning(f"索引建立失敗 {index_field}: {e}")
-    
+
+
+    def try_claim_record(self, analyze_uuid: str) -> bool:
+        """
+        嘗試認領記錄進行處理(原子操作)
+
+        Returns:
+            True: 認領成功,可以處理
+            False: 已被其他 Worker 認領
+        """
+        try:
+            result = self.collection.update_one(
+                {
+                    'AnalyzeUUID': analyze_uuid,
+                    'current_step': 0,  # 只更新尚未處理的
+                    'analysis_status': {'$in': ['pending', None]}
+                },
+                {
+                    '$set': {
+                        'current_step': 1,
+                        'analysis_status': 'processing',
+                        'processing_started_at': datetime.utcnow(),
+                        'updated_at': datetime.utcnow()
+                    }
+                }
+            )
+
+            # modified_count > 0 表示成功認領
+            return result.modified_count > 0
+
+        except Exception as e:
+            logger.error(f"認領記錄失敗 {analyze_uuid}: {e}")
+            return False
+
     def find_pending_records(self, limit: int = 10) -> List[Dict[str, Any]]:
         """
         查找待處理的記錄
@@ -64,9 +97,9 @@ class MongoDBHandler:
             query = {
                 '$or': [
                     {'current_step': {'$exists': False}},
-                    {'current_step': 0},
-                    {'analysis_status': 'pending'}
-                ]
+                    {'current_step': 0}
+                ],
+                'analysis_status': {'$nin': ['processing', 'completed', 'error']}
             }
             records = list(self.collection.find(query).limit(limit))
             logger.debug(f"找到 {len(records)} 筆待處理記錄")

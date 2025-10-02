@@ -11,6 +11,7 @@ from utils.logger import logger
 from utils.mongodb_handler import MongoDBHandler
 from mongodb_watcher import MongoDBWatcher
 from analysis_pipeline import AnalysisPipeline
+from threading import Lock
 
 
 class AnalysisService:
@@ -24,6 +25,8 @@ class AnalysisService:
         self.pipeline = None
         self.task_queue = Queue()
         self.worker_threads = []
+        self.processing_records = set()  # 正在處理的記錄
+        self.processing_lock = Lock()
         
         # 註冊信號處理器
         signal.signal(signal.SIGINT, self._signal_handler)
@@ -152,35 +155,45 @@ class AnalysisService:
             )
             thread.start()
             self.worker_threads.append(thread)
-    
+
     def _worker(self):
-        """工作執行緒"""
         thread_name = threading.current_thread().name
         logger.info(f"{thread_name} 已啟動")
-        
+
         while self.is_running:
             try:
-                # 從佇列取得任務（等待 1 秒）
                 record = self.task_queue.get(timeout=1)
-                
-                # 處理記錄
                 analyze_uuid = record.get('AnalyzeUUID', 'UNKNOWN')
-                logger.info(f"{thread_name} 開始處理: {analyze_uuid}")
-                
-                success = self.pipeline.process_record(record)
-                
-                if success:
-                    logger.info(f"{thread_name} 處理成功: {analyze_uuid}")
-                else:
-                    logger.error(f"{thread_name} 處理失敗: {analyze_uuid}")
-                
-                # 標記任務完成
-                self.task_queue.task_done()
-                
+
+                # ✅ 檢查是否已在處理
+                with self.processing_lock:
+                    if analyze_uuid in self.processing_records:
+                        logger.info(f"{thread_name} 跳過重複記錄: {analyze_uuid}")
+                        self.task_queue.task_done()
+                        continue
+
+                    self.processing_records.add(analyze_uuid)
+
+                try:
+                    logger.info(f"{thread_name} 開始處理: {analyze_uuid}")
+                    success = self.pipeline.process_record(record)
+
+                    if success:
+                        logger.info(f"{thread_name} 處理成功: {analyze_uuid}")
+                    else:
+                        logger.error(f"{thread_name} 處理失敗: {analyze_uuid}")
+                finally:
+                    # ✅ 處理完成後移除
+                    with self.processing_lock:
+                        self.processing_records.discard(analyze_uuid)
+
+                    self.task_queue.task_done()
+
+
             except Exception as e:
                 if self.is_running:  # 避免在關閉時記錄錯誤
                     pass  # Queue.Empty 是正常的，不需要記錄
-        
+
         logger.info(f"{thread_name} 已停止")
 
 
