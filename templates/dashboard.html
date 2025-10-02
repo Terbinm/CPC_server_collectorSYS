@@ -174,6 +174,9 @@
                 <thead class="bg-gray-50">
                 <tr>
                     <th class="px-2 lg:px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        #
+                    </th>
+                    <th class="px-2 lg:px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         UUID
                     </th>
                     <th class="px-2 lg:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -409,6 +412,7 @@
 
         var tbody = document.querySelector('#recordingsTable tbody');
         var newRow = tbody.insertRow(0);
+        var index = tbody.rows.length;
 
         // 格式化時間戳（處理 ISO 格式）
         var timestamp = recording.timestamp;
@@ -434,6 +438,7 @@
         const analysisSummary = recording.analysis_summary || {};
 
         newRow.innerHTML = `
+        <td class="px-2 lg:px-3 py-2 text-sm text-gray-600">${index}</td>
         <td class="px-2 lg:px-3 py-2 text-sm font-mono" title="${recording.id}">${shortId}...</td>
         <td class="px-2 lg:px-4 py-2 text-sm font-medium break-all">${recording.filename}</td>
         <td class="px-2 lg:px-3 py-2 text-sm">${duration.toFixed(2)}</td>
