@@ -28,7 +28,7 @@ RUN pip install --no-cache-dir \
 RUN pip install --no-cache-dir speechbrain
 
 # 複製應用程式檔案
-COPY a_sub_system/analysis_service/ ./
+COPY ./ ./
 
 # 建立日誌目錄
 RUN mkdir -p /app/logs
