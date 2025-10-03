@@ -26,7 +26,6 @@ services:
   flask_frontend:
     build:
       context: .
-      dockerfile: Dockerfile.flask
     container_name: flask_frontend
     restart: unless-stopped
     ports:
@@ -46,7 +45,6 @@ services:
   analysis_backend:
     build:
       context: .
-      dockerfile: Dockerfile.analysis
     container_name: analysis_backend
     restart: unless-stopped
     volumes:
