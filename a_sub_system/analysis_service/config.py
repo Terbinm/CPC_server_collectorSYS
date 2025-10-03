@@ -51,7 +51,7 @@ CLASSIFICATION_CONFIG = {
     'normal_probability': 0.7,  # 隨機分類時正常的機率
 
     # 未來模型配置（預留）
-    'model_path': None,
+    'model_path': 'models',
     'threshold': 0.5
 }
 
