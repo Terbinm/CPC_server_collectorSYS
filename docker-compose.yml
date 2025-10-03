@@ -1,77 +1,47 @@
+# 在 MongoDB 服務中加入初始化腳本
 version: '3.8'
 
 services:
-  # MongoDB 資料庫
   mongodb:
-    image: mongo:6.0
-    container_name: mongodb_web_ui
-    restart: unless-stopped
+    image: mongo:latest
+    container_name: mongodb
+    restart: always
     ports:
       - "27020:27017"
-    volumes:
-      - mongodb_data:/data/db
     environment:
       MONGO_INITDB_ROOT_USERNAME: admin
-      MONGO_INITDB_ROOT_PASSWORD: admin_password
+      MONGO_INITDB_ROOT_PASSWORD: admin_password_here
       MONGO_INITDB_DATABASE: web_db
+    volumes:
+      - mongodb_data:/data/db
+      - ./mongoDB_init/init-mongo.sh:/docker-entrypoint-initdb.d/init-mongo.sh:ro
+    command: mongod --auth
     networks:
       - app_network
-    healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
 
-  # Flask 前端
   flask_frontend:
-    build:
-      context: ./a_sub_system/frontend
-      dockerfile: Dockerfile
-    container_name: flask_frontend
-    restart: unless-stopped
-    ports:
-      - "5000:5000"
-    volumes:
-      - uploads:/app/uploads
+    # ... 其他配置 ...
     environment:
-      - MONGODB_HOST=mongodb
-      - MONGODB_PORT=27017
-      - MONGODB_USERNAME=web_ui
-      - MONGODB_PASSWORD=hod2iddfsgsrl
-      - PYTHONUNBUFFERED=1
+      MONGODB_HOST: mongodb
+      MONGODB_PORT: 27017
+      MONGODB_USERNAME: web_ui
+      MONGODB_PASSWORD: hod2iddfsgsrl
     depends_on:
-      mongodb:
-        condition: service_healthy
-    networks:
-      - app_network
+      - mongodb
 
-  # 分析後端
-  analysis_backend:
-    build:
-      context: ./a_sub_system/analysis_service
-      dockerfile: Dockerfile
-    container_name: analysis_backend
-    restart: unless-stopped
-    volumes:
-      - uploads:/app/uploads
-      - logs:/app/logs
+  analysis_service:
+    # ... 其他配置 ...
     environment:
-      - MONGODB_HOST=mongodb
-      - MONGODB_PORT=27017
-      - MONGODB_USERNAME=web_ui
-      - MONGODB_PASSWORD=hod2iddfsgsrl
-      - PYTHONUNBUFFERED=1
+      MONGODB_HOST: mongodb
+      MONGODB_PORT: 27017
+      MONGODB_USERNAME: web_ui
+      MONGODB_PASSWORD: hod2iddfsgsrl
     depends_on:
-      mongodb:
-        condition: service_healthy
-    networks:
-      - app_network
+      - mongodb
+
+volumes:
+  mongodb_data:
 
 networks:
   app_network:
     driver: bridge
-
-volumes:
-  mongodb_data:
-  uploads:
-  logs:
