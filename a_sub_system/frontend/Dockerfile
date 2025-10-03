@@ -29,8 +29,8 @@ COPY utils.py .
 COPY gridfs_handler.py .
 
 # 複製靜態檔案和模板(如果有)
-COPY static/ ./static/ 2>/dev/null || true
-COPY templates/ ./templates/ 2>/dev/null || true
+COPY static/ ./static/
+COPY templates/ ./templates/
 
 # 建立上傳目錄
 RUN mkdir -p /app/uploads
