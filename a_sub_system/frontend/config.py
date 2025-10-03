@@ -1,3 +1,5 @@
+import os
+
 import pytz
 
 
@@ -11,11 +13,12 @@ class Config:
     TAIPEI_TZ = pytz.timezone('Asia/Taipei')  # 設定時區為台北時區
 
     # MongoDB 配置（用於錄音數據）
+
     MONGODB_CONFIG = {
-        'host': 'localhost',
-        'port': 27020,
-        'username': 'web_ui',
-        'password': 'hod2iddfsgsrl',
+        'host': os.getenv('MONGODB_HOST', 'localhost'),
+        'port': int(os.getenv('MONGODB_PORT', '27020')),
+        'username': os.getenv('MONGODB_USERNAME', 'web_ui'),
+        'password': os.getenv('MONGODB_PASSWORD', 'hod2iddfsgsrl'),
         'database': 'web_db',
         'collection': 'recordings'
     }

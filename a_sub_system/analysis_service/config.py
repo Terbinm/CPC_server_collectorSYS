@@ -3,15 +3,15 @@
 import os
 
 # ==================== MongoDB 配置 ====================
+
 MONGODB_CONFIG = {
-    'host': 'localhost',
-    'port': 27020,
-    'username': 'web_ui',
-    'password': 'hod2iddfsgsrl',
+    'host': os.getenv('MONGODB_HOST', 'localhost'),
+    'port': int(os.getenv('MONGODB_PORT', '27020')),
+    'username': os.getenv('MONGODB_USERNAME', 'web_ui'),
+    'password': os.getenv('MONGODB_PASSWORD', 'hod2iddfsgsrl'),
     'database': 'web_db',
     'collection': 'recordings'
 }
-
 # ==================== 音訊處理配置 ====================
 AUDIO_CONFIG = {
     # 切割參數（參考 V3_multi_dataset）
