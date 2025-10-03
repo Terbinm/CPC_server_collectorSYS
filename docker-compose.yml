@@ -9,7 +9,8 @@ services:
     ports:
       - "27020:27017"
     volumes:
-      - ./mongodb_data:/data/db
+      - mongodb_data:/data/db
+      - ./init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
     environment:
       MONGO_INITDB_ROOT_USERNAME: admin
       MONGO_INITDB_ROOT_PASSWORD: admin_password
@@ -25,17 +26,20 @@ services:
   # Flask 前端
   flask_frontend:
     build:
-      context: .
+      context: ./a_sub_system/frontend
       dockerfile: Dockerfile
     container_name: flask_frontend
     restart: unless-stopped
     ports:
       - "5000:5000"
     volumes:
-      - ./uploads:/app/uploads
+      - uploads:/app/uploads
     environment:
       - MONGODB_HOST=mongodb
       - MONGODB_PORT=27017
+      - MONGODB_USERNAME=web_ui
+      - MONGODB_PASSWORD=hod2iddfsgsrl
+      - PYTHONUNBUFFERED=1
     depends_on:
       mongodb:
         condition: service_healthy
@@ -45,16 +49,19 @@ services:
   # 分析後端
   analysis_backend:
     build:
-      context: .
+      context: ./a_sub_system/analysis_service
       dockerfile: Dockerfile
     container_name: analysis_backend
     restart: unless-stopped
     volumes:
-      - ./uploads:/app/uploads
-      - ./logs:/app/logs
+      - uploads:/app/uploads
+      - logs:/app/logs
     environment:
       - MONGODB_HOST=mongodb
       - MONGODB_PORT=27017
+      - MONGODB_USERNAME=web_ui
+      - MONGODB_PASSWORD=hod2iddfsgsrl
+      - PYTHONUNBUFFERED=1
     depends_on:
       mongodb:
         condition: service_healthy
