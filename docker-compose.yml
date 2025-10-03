@@ -1,0 +1,71 @@
+version: '3.8'
+
+services:
+  # MongoDB 資料庫
+  mongodb:
+    image: mongo:6.0
+    container_name: mongodb_web_ui
+    restart: unless-stopped
+    ports:
+      - "27020:27017"
+    volumes:
+      - ./mongodb_data:/data/db
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: admin_password
+      MONGO_INITDB_DATABASE: web_db
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Flask 前端
+  flask_frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.flask
+    container_name: flask_frontend
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./uploads:/app/uploads
+    environment:
+      - MONGODB_HOST=mongodb
+      - MONGODB_PORT=27017
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - app_network
+
+  # 分析後端
+  analysis_backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.analysis
+    container_name: analysis_backend
+    restart: unless-stopped
+    volumes:
+      - ./uploads:/app/uploads
+      - ./logs:/app/logs
+    environment:
+      - MONGODB_HOST=mongodb
+      - MONGODB_PORT=27017
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - app_network
+
+networks:
+  app_network:
+    driver: bridge
+
+volumes:
+  mongodb_data:
+  uploads:
+  logs:
