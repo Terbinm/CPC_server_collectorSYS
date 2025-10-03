@@ -46,7 +46,7 @@ LEAF_CONFIG = {
 
 # ==================== 分類配置 ====================
 CLASSIFICATION_CONFIG = {
-    'method': 'random',  # 目前使用隨機分類
+    'method': 'rf_model',  # 目前使用隨機分類
     'classes': ['normal', 'abnormal'],
     'normal_probability': 0.7,  # 隨機分類時正常的機率
 

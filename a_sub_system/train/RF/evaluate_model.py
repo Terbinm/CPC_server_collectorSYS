@@ -72,48 +72,55 @@ class ModelEvaluator:
         except Exception as e:
             logger.error(f"模型載入失敗: {e}")
             raise
-    
-    def evaluate_on_new_data(self, X: np.ndarray, y: np.ndarray, 
-                            label_names: list = None) -> Dict:
+
+    def evaluate_on_new_data(self, X: np.ndarray, y: np.ndarray,
+                             label_names: list = None) -> Dict:
         """
         在新資料上評估模型
-        
+
         Args:
             X: 特徵矩陣
             y: 標籤陣列（0=normal, 1=abnormal）
             label_names: 標籤名稱列表
-        
+
         Returns:
             評估結果字典
         """
         logger.info("=" * 60)
         logger.info("開始評估模型")
         logger.info("=" * 60)
-        
+
         # 標準化特徵
         if self.scaler is not None:
             X = self.scaler.transform(X)
             logger.info("✓ 特徵已標準化")
-        
+
         # 預測
         y_pred = self.model.predict(X)
         y_pred_proba = self.model.predict_proba(X)
-        
-        # 計算指標
+
+        # 計算指標 - 修正：使用 average=None 來取得 support 陣列
         accuracy = accuracy_score(y, y_pred)
-        precision, recall, f1, support = precision_recall_fscore_support(
+
+        # 取得每個類別的詳細指標
+        precision_per_class, recall_per_class, f1_per_class, support_per_class = precision_recall_fscore_support(
+            y, y_pred, average=None
+        )
+
+        # 取得 binary 平均值用於顯示
+        precision, recall, f1, _ = precision_recall_fscore_support(
             y, y_pred, average='binary'
         )
-        
+
         # 混淆矩陣
         cm = confusion_matrix(y, y_pred)
-        
+
         # ROC-AUC
         try:
             auc = roc_auc_score(y, y_pred_proba[:, 1])
         except:
             auc = None
-        
+
         # 顯示結果
         logger.info(f"\n準確率: {accuracy:.4f}")
         logger.info(f"精確率: {precision:.4f}")
@@ -121,19 +128,19 @@ class ModelEvaluator:
         logger.info(f"F1 分數: {f1:.4f}")
         if auc is not None:
             logger.info(f"ROC-AUC: {auc:.4f}")
-        
+
         logger.info(f"\n混淆矩陣:")
         logger.info(f"              預測 Normal  預測 Abnormal")
         logger.info(f"實際 Normal      {cm[0][0]:6d}      {cm[0][1]:6d}")
         logger.info(f"實際 Abnormal    {cm[1][0]:6d}      {cm[1][1]:6d}")
-        
+
         # 詳細報告
         if label_names is None:
             label_names = ['normal', 'abnormal']
-        
+
         logger.info(f"\n詳細分類報告:")
         logger.info("\n" + classification_report(y, y_pred, target_names=label_names))
-        
+
         # 組織結果
         evaluation = {
             'accuracy': float(accuracy),
@@ -142,13 +149,16 @@ class ModelEvaluator:
             'f1_score': float(f1),
             'auc': float(auc) if auc is not None else None,
             'confusion_matrix': cm.tolist(),
-            'support': support.tolist(),
+            'support': support_per_class.tolist(),  # ✓ 使用 support_per_class
+            'precision_per_class': precision_per_class.tolist(),  # 新增
+            'recall_per_class': recall_per_class.tolist(),  # 新增
+            'f1_per_class': f1_per_class.tolist(),  # 新增
             'predictions': {
                 'y_pred': y_pred.tolist(),
                 'y_pred_proba': y_pred_proba.tolist()
             }
         }
-        
+
         return evaluation
     
     def cross_dataset_evaluation(self, output_dir: str = 'evaluation_results'):

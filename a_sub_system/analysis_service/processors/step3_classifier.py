@@ -1,34 +1,73 @@
-# processors/step3_classifier.py - 分類器（目前使用隨機分類）
+# processors/step3_classifier_updated.py - 更新的分類器（支援 RF 模型）
 
 import numpy as np
-from typing import List, Dict, Any
+import pickle
+import json
+import os
+from typing import List, Dict, Any, Optional
+from pathlib import Path
 from config import CLASSIFICATION_CONFIG
 from utils.logger import logger
 
 
 class AudioClassifier:
-    """音訊分類器"""
+    """音訊分類器（支援 RF 模型）"""
     
     def __init__(self):
         """初始化分類器"""
         self.config = CLASSIFICATION_CONFIG
         self.method = self.config['method']
+        self.model = None
+        self.scaler = None
+        self.metadata = None
         
         logger.info(f"分類器初始化: method={self.method}")
         
-        # 未來可在此載入真實模型
-        if self.config['model_path']:
+        # 載入模型（如果路徑已設定）
+        if self.config['model_path'] and os.path.exists(self.config['model_path']):
             self._load_model(self.config['model_path'])
+            self.method = 'rf_model'  # 自動切換為模型模式
+        elif self.config['model_path']:
+            logger.warning(f"模型路徑無效: {self.config['model_path']}，使用隨機分類")
     
-    def _load_model(self, model_path: str):
+    def _load_model(self, model_dir: str):
         """
-        載入分類模型（預留介面）
+        載入 RF 分類模型
         
         Args:
-            model_path: 模型檔案路徑
+            model_dir: 模型目錄路徑
         """
-        # TODO: 實作真實模型載入
-        logger.warning(f"模型載入功能尚未實作: {model_path}")
+        try:
+            model_dir = Path(model_dir)
+            
+            # 載入模型
+            model_path = model_dir / 'rf_classifier.pkl'
+            with open(model_path, 'rb') as f:
+                self.model = pickle.load(f)
+            logger.info(f"✓ 模型載入成功: {model_path}")
+            
+            # 載入 Scaler
+            scaler_path = model_dir / 'feature_scaler.pkl'
+            if scaler_path.exists():
+                with open(scaler_path, 'rb') as f:
+                    self.scaler = pickle.load(f)
+                logger.info(f"✓ Scaler 載入成功: {scaler_path}")
+            
+            # 載入元資料
+            metadata_path = model_dir / 'model_metadata.json'
+            if metadata_path.exists():
+                with open(metadata_path, 'r', encoding='utf-8') as f:
+                    self.metadata = json.load(f)
+                logger.info(f"✓ 元資料載入成功")
+                logger.info(f"  - 訓練日期: {self.metadata.get('training_date', 'Unknown')}")
+                logger.info(f"  - 特徵聚合: {self.metadata.get('aggregation', 'Unknown')}")
+            
+        except Exception as e:
+            logger.error(f"模型載入失敗: {e}")
+            logger.warning("將使用隨機分類模式")
+            self.model = None
+            self.scaler = None
+            self.metadata = None
     
     def classify(self, features_data: List[Dict]) -> Dict[str, Any]:
         """
@@ -38,58 +77,16 @@ class AudioClassifier:
             features_data: LEAF 特徵資料列表
             
         Returns:
-            分類結果字典，包含：
-            {
-                'predictions': [每個切片的預測結果],
-                'summary': {
-                    'total_segments': 總切片數,
-                    'normal_count': 正常切片數,
-                    'abnormal_count': 異常切片數,
-                    'normal_percentage': 正常比例,
-                    'abnormal_percentage': 異常比例,
-                    'final_prediction': 最終判斷結果
-                },
-                'method': 使用的分類方法
-            }
+            分類結果字典
         """
         try:
             logger.info(f"開始分類: {len(features_data)} 個切片")
             
-            predictions = []
-            
-            for feature_data in features_data:
-                # 檢查特徵是否有效
-                if feature_data.get('feature_vector') is None:
-                    prediction = {
-                        'segment_id': feature_data.get('segment_id', -1),
-                        'prediction': 'unknown',
-                        'confidence': 0.0,
-                        'error': '特徵無效'
-                    }
-                else:
-                    # 執行分類
-                    if self.method == 'random':
-                        prediction = self._random_classify(feature_data)
-                    else:
-                        # 未來可添加其他分類方法
-                        prediction = self._random_classify(feature_data)
+            if self.method == 'rf_model' and self.model is not None:
+                return self._model_classify(features_data)
+            else:
+                return self._random_classify_all(features_data)
                 
-                predictions.append(prediction)
-            
-            # 統計結果
-            summary = self._calculate_summary(predictions)
-            
-            result = {
-                'predictions': predictions,
-                'summary': summary,
-                'method': self.method
-            }
-            
-            logger.info(f"分類完成: {summary['final_prediction']} "
-                       f"(正常: {summary['normal_count']}, 異常: {summary['abnormal_count']})")
-            
-            return result
-            
         except Exception as e:
             logger.error(f"分類失敗: {e}")
             return {
@@ -100,9 +97,167 @@ class AudioClassifier:
                 'method': self.method
             }
     
-    def _random_classify(self, feature_data: Dict) -> Dict[str, Any]:
+    def _model_classify(self, features_data: List[Dict]) -> Dict[str, Any]:
         """
-        隨機分類（用於測試）
+        使用 RF 模型進行分類
+        
+        Args:
+            features_data: LEAF 特徵資料列表
+            
+        Returns:
+            分類結果
+        """
+        try:
+            # 提取特徵向量
+            feature_vectors = []
+            valid_indices = []
+            
+            for idx, feature_data in enumerate(features_data):
+                feature_vector = feature_data.get('feature_vector')
+                if feature_vector is not None:
+                    feature_vectors.append(feature_vector)
+                    valid_indices.append(idx)
+            
+            if not feature_vectors:
+                logger.error("沒有有效的特徵向量")
+                return self._random_classify_all(features_data)
+            
+            # 聚合特徵（根據訓練時的設定）
+            aggregation = self.metadata.get('aggregation', 'mean') if self.metadata else 'mean'
+            feature_vectors = np.array(feature_vectors)
+            aggregated_feature = self._aggregate_features(feature_vectors, aggregation)
+            
+            # 重塑為 (1, n_features)
+            aggregated_feature = aggregated_feature.reshape(1, -1)
+            
+            # 標準化（如果有 scaler）
+            if self.scaler is not None:
+                aggregated_feature = self.scaler.transform(aggregated_feature)
+            
+            # 預測
+            prediction_class = self.model.predict(aggregated_feature)[0]
+            prediction_proba = self.model.predict_proba(aggregated_feature)[0]
+            
+            # 解碼標籤
+            label_decoder = self.metadata.get('label_decoder', {0: 'normal', 1: 'abnormal'})
+            if isinstance(label_decoder, dict):
+                # 處理 JSON 中字串鍵的情況
+                label_decoder = {int(k) if k.isdigit() else k: v for k, v in label_decoder.items()}
+            
+            predicted_label = label_decoder.get(int(prediction_class), 'unknown')
+            confidence = float(prediction_proba[int(prediction_class)])
+            
+            # 為每個切片建立預測結果
+            predictions = []
+            for idx, feature_data in enumerate(features_data):
+                if idx in valid_indices:
+                    prediction = {
+                        'segment_id': feature_data.get('segment_id', idx),
+                        'prediction': predicted_label,
+                        'confidence': confidence,
+                        'method': 'rf_model',
+                        'proba_normal': float(prediction_proba[0]),
+                        'proba_abnormal': float(prediction_proba[1])
+                    }
+                else:
+                    prediction = {
+                        'segment_id': feature_data.get('segment_id', idx),
+                        'prediction': 'unknown',
+                        'confidence': 0.0,
+                        'error': '特徵無效'
+                    }
+                predictions.append(prediction)
+            
+            # 統計結果
+            summary = self._calculate_summary(predictions)
+            summary['model_info'] = {
+                'model_type': 'RandomForest',
+                'aggregation': aggregation,
+                'feature_normalized': self.scaler is not None
+            }
+            
+            result = {
+                'predictions': predictions,
+                'summary': summary,
+                'method': 'rf_model'
+            }
+            
+            logger.info(f"分類完成: {summary['final_prediction']} (信心度: {confidence:.3f})")
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"模型分類失敗: {e}")
+            logger.warning("降級至隨機分類")
+            return self._random_classify_all(features_data)
+    
+    def _aggregate_features(self, features: np.ndarray, method: str) -> np.ndarray:
+        """
+        聚合多個切片的特徵
+        
+        Args:
+            features: (n_segments, feature_dim)
+            method: 聚合方式
+        
+        Returns:
+            聚合後的特徵向量
+        """
+        if method == 'mean':
+            return np.mean(features, axis=0)
+        elif method == 'max':
+            return np.max(features, axis=0)
+        elif method == 'median':
+            return np.median(features, axis=0)
+        elif method == 'all':
+            mean_feat = np.mean(features, axis=0)
+            std_feat = np.std(features, axis=0)
+            max_feat = np.max(features, axis=0)
+            min_feat = np.min(features, axis=0)
+            return np.concatenate([mean_feat, std_feat, max_feat, min_feat])
+        else:
+            return np.mean(features, axis=0)
+    
+    def _random_classify_all(self, features_data: List[Dict]) -> Dict[str, Any]:
+        """
+        隨機分類所有切片（向後相容）
+        
+        Args:
+            features_data: 特徵資料列表
+            
+        Returns:
+            分類結果
+        """
+        predictions = []
+        
+        for feature_data in features_data:
+            if feature_data.get('feature_vector') is None:
+                prediction = {
+                    'segment_id': feature_data.get('segment_id', -1),
+                    'prediction': 'unknown',
+                    'confidence': 0.0,
+                    'error': '特徵無效'
+                }
+            else:
+                prediction = self._random_classify_single(feature_data)
+            
+            predictions.append(prediction)
+        
+        summary = self._calculate_summary(predictions)
+        
+        result = {
+            'predictions': predictions,
+            'summary': summary,
+            'method': 'random'
+        }
+        
+        logger.info(f"分類完成: {summary['final_prediction']} "
+                   f"(正常: {summary['normal_count']}, 異常: {summary['abnormal_count']})")
+        
+        return result
+    
+    def _random_classify_single(self, feature_data: Dict) -> Dict[str, Any]:
+        """
+        隨機分類單個切片
         
         Args:
             feature_data: 特徵資料
@@ -110,31 +265,16 @@ class AudioClassifier:
         Returns:
             預測結果
         """
-        # 根據設定的機率隨機分類
         is_normal = np.random.random() < self.config['normal_probability']
         
         prediction = {
             'segment_id': feature_data.get('segment_id', -1),
             'prediction': 'normal' if is_normal else 'abnormal',
-            'confidence': np.random.uniform(0.6, 0.95),  # 隨機信心分數
+            'confidence': np.random.uniform(0.6, 0.95),
             'method': 'random'
         }
         
         return prediction
-    
-    def _model_classify(self, feature_data: Dict) -> Dict[str, Any]:
-        """
-        使用模型進行分類（預留介面）
-        
-        Args:
-            feature_data: 特徵資料
-            
-        Returns:
-            預測結果
-        """
-        # TODO: 實作真實模型預測
-        logger.warning("模型分類功能尚未實作，使用隨機分類")
-        return self._random_classify(feature_data)
     
     def _calculate_summary(self, predictions: List[Dict]) -> Dict[str, Any]:
         """
@@ -168,7 +308,7 @@ class AudioClassifier:
         normal_percentage = (normal_count / total) * 100
         abnormal_percentage = (abnormal_count / total) * 100
         
-        # 決定最終判斷（以多數為準）
+        # 決定最終判斷
         if abnormal_count > normal_count:
             final_prediction = 'abnormal'
         elif normal_count > abnormal_count:
@@ -177,8 +317,8 @@ class AudioClassifier:
             final_prediction = 'uncertain'
         
         # 計算平均信心度
-        avg_confidence = np.mean([p['confidence'] for p in predictions 
-                                 if 'confidence' in p])
+        confidences = [p['confidence'] for p in predictions if 'confidence' in p and p['confidence'] > 0]
+        avg_confidence = np.mean(confidences) if confidences else 0.0
         
         summary = {
             'total_segments': total,
@@ -195,11 +335,13 @@ class AudioClassifier:
     
     def set_model(self, model_path: str):
         """
-        設定模型路徑（預留介面）
+        設定模型路徑並重新載入
         
         Args:
-            model_path: 模型檔案路徑
+            model_path: 模型目錄路徑
         """
         self.config['model_path'] = model_path
         self._load_model(model_path)
-        logger.info(f"已設定模型: {model_path}")
+        if self.model is not None:
+            self.method = 'rf_model'
+        logger.info(f"模型已更新: {model_path}")

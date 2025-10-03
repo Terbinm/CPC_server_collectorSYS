@@ -436,10 +436,13 @@ class ModelTrainer:
         
         # 計算各項指標
         accuracy = accuracy_score(y_test, y_pred)
-        precision, recall, f1, support = precision_recall_fscore_support(
+        precision_per_class, recall_per_class, f1_per_class, support_per_class = precision_recall_fscore_support(
+            y_test, y_pred, average=None
+        )
+        precision, recall, f1, _ = precision_recall_fscore_support(
             y_test, y_pred, average='binary'
         )
-        
+
         # 混淆矩陣
         cm = confusion_matrix(y_test, y_pred)
         
@@ -475,12 +478,15 @@ class ModelTrainer:
             'f1_score': float(f1),
             'auc': float(auc) if auc is not None else None,
             'confusion_matrix': cm.tolist(),
-            'support': support.tolist(),
+            'support': support_per_class.tolist(),  # ✓ 使用 support_per_class
+            'precision_per_class': precision_per_class.tolist(),  # 新增：每個類別的詳細資訊
+            'recall_per_class': recall_per_class.tolist(),
+            'f1_per_class': f1_per_class.tolist(),
             'classification_report': classification_report(
                 y_test, y_pred, target_names=target_names, output_dict=True
             )
         }
-        
+
         return evaluation
     
     def get_feature_importance(self) -> np.ndarray:
