@@ -166,7 +166,7 @@ class MongoDBHandler:
                 'error_message': None,
                 'started_at': current_time,
                 'completed_at': current_time,
-                'processing_stats': {
+                'processor_metadata': {
                     'segments_count': len(features_data),
                     'total_duration': round(sum(fd['end'] - fd['start'] for fd in features_data), 3)
                 }
@@ -190,15 +190,15 @@ class MongoDBHandler:
             logger.error(f"儲存切割結果失敗 {analyze_uuid}: {e}")
             return False
     
-    def save_leaf_features(self, analyze_uuid: str, features_data: List[Dict], 
-                          extraction_info: Dict) -> bool:
+    def save_leaf_features(self, analyze_uuid: str, features_data: List[Dict],
+                           processor_metadata: Dict) -> bool:
         """
         儲存 LEAF 特徵
         
         Args:
             analyze_uuid: 記錄 UUID
             features_data: LEAF 特徵資料
-            extraction_info: 提取資訊
+            processor_metadata: 提取資訊
             
         Returns:
             是否儲存成功
@@ -211,7 +211,7 @@ class MongoDBHandler:
                 'features_state': 'completed',
                 'features_name': 'LEAF Features',
                 'features_data': features_data,
-                'extraction_info': extraction_info,
+                'processor_metadata': processor_metadata,
                 'error_message': None,
                 'started_at': current_time,
                 'completed_at': current_time

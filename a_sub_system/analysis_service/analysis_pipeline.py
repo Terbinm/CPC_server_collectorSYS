@@ -285,9 +285,9 @@ class AnalysisPipeline:
                 return False
 
             # 儲存特徵
-            extraction_info = self.leaf_extractor.get_feature_info()
+            processor_metadata = self.leaf_extractor.get_feature_info()
             success = self.mongodb.save_leaf_features(
-                analyze_uuid, features_data, extraction_info
+                analyze_uuid, features_data, processor_metadata
             )
 
             if success:
