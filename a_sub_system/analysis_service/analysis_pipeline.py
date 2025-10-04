@@ -1,4 +1,4 @@
-# analysis_pipeline.py - 分析流程管理器（支援 GridFS）
+# analysis_pipeline.py - 分析流程管理器（支援 GridFS + 統一格式）
 
 from typing import Dict, Any, Optional
 from datetime import datetime
@@ -16,7 +16,7 @@ from gridfs_handler import AnalysisGridFSHandler
 
 
 class AnalysisPipeline:
-    """分析流程管理器（支援 GridFS）"""
+    """分析流程管理器（支援 GridFS + 統一格式）"""
 
     def __init__(self, mongodb_handler: MongoDBHandler):
         """
@@ -304,7 +304,7 @@ class AnalysisPipeline:
 
     def _execute_step3(self, analyze_uuid: str) -> bool:
         """
-        執行 Step 3: 分類
+        執行 Step 3: 分類（統一格式）
 
         Args:
             analyze_uuid: 記錄 UUID
@@ -332,20 +332,20 @@ class AnalysisPipeline:
                 logger.error(f"[Step 3] LEAF 特徵資料為空")
                 return False
 
-            # 執行分類
+            # 執行分類（返回統一格式：features_data + processor_metadata）
             classification_results = self.classifier.classify(leaf_data)
 
-            # 儲存分類結果
+            # 儲存分類結果（統一格式）
             success = self.mongodb.save_classification_results(
                 analyze_uuid, classification_results
             )
 
             if success:
-                summary = classification_results.get('summary', {})
+                processor_metadata = classification_results.get('processor_metadata', {})
                 logger.info(
-                    f"[Step 3] ✓ 分類完成: {summary.get('final_prediction', 'unknown')} "
-                    f"(正常: {summary.get('normal_count', 0)}, "
-                    f"異常: {summary.get('abnormal_count', 0)})"
+                    f"[Step 3] ✓ 分類完成: {processor_metadata.get('final_prediction', 'unknown')} "
+                    f"(正常: {processor_metadata.get('normal_count', 0)}, "
+                    f"異常: {processor_metadata.get('abnormal_count', 0)})"
                 )
                 return True
             else:

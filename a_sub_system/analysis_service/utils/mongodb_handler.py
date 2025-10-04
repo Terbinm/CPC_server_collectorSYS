@@ -10,7 +10,7 @@ from utils.logger import logger
 
 class MongoDBHandler:
     """MongoDB 操作處理器"""
-    
+
     def __init__(self):
         """初始化 MongoDB 連接"""
         self.config = MONGODB_CONFIG
@@ -18,7 +18,7 @@ class MongoDBHandler:
         self.db = None
         self.collection = None
         self._connect()
-    
+
     def _connect(self):
         """建立 MongoDB 連接"""
         try:
@@ -29,18 +29,18 @@ class MongoDBHandler:
             self.mongo_client = MongoClient(connection_string)
             self.db = self.mongo_client[self.config['database']]
             self.collection = self.db[self.config['collection']]
-            
+
             # 測試連接
             self.mongo_client.admin.command('ping')
             logger.info("✓ MongoDB 連接成功")
-            
+
             # 建立索引
             self._create_indexes()
-            
+
         except Exception as e:
             logger.error(f"✗ MongoDB 連接失敗: {e}")
             raise
-    
+
     def _create_indexes(self):
         """建立資料庫索引"""
         for index_field in DATABASE_INDEXES:
@@ -49,7 +49,6 @@ class MongoDBHandler:
                 logger.debug(f"索引建立成功: {index_field}")
             except Exception as e:
                 logger.warning(f"索引建立失敗 {index_field}: {e}")
-
 
     def try_claim_record(self, analyze_uuid: str) -> bool:
         """
@@ -86,10 +85,10 @@ class MongoDBHandler:
     def find_pending_records(self, limit: int = 10) -> List[Dict[str, Any]]:
         """
         查找待處理的記錄
-        
+
         Args:
             limit: 最大返回數量
-            
+
         Returns:
             待處理記錄列表
         """
@@ -107,19 +106,19 @@ class MongoDBHandler:
         except Exception as e:
             logger.error(f"查詢待處理記錄失敗: {e}")
             return []
-    
-    def update_record_step(self, analyze_uuid: str, step: int, 
-                          status: str = 'processing', 
-                          error_message: Optional[str] = None) -> bool:
+
+    def update_record_step(self, analyze_uuid: str, step: int,
+                           status: str = 'processing',
+                           error_message: Optional[str] = None) -> bool:
         """
         更新記錄的處理步驟
-        
+
         Args:
             analyze_uuid: 記錄 UUID
             step: 當前步驟
             status: 處理狀態
             error_message: 錯誤訊息（如果有）
-            
+
         Returns:
             是否更新成功
         """
@@ -129,35 +128,35 @@ class MongoDBHandler:
                 'analysis_status': status,
                 'updated_at': datetime.utcnow()
             }
-            
+
             if error_message:
                 update_data['error_message'] = error_message
-            
+
             result = self.collection.update_one(
                 {'AnalyzeUUID': analyze_uuid},
                 {'$set': update_data}
             )
-            
+
             return result.modified_count > 0
-            
+
         except Exception as e:
             logger.error(f"更新記錄步驟失敗 {analyze_uuid}: {e}")
             return False
-    
+
     def save_slice_results(self, analyze_uuid: str, features_data: List[Dict]) -> bool:
         """
         儲存切割結果
-        
+
         Args:
             analyze_uuid: 記錄 UUID
             features_data: 切割特徵資料
-            
+
         Returns:
             是否儲存成功
         """
         try:
             current_time = datetime.utcnow()
-            
+
             slice_step = {
                 'features_step': 1,
                 'features_state': 'completed',
@@ -171,7 +170,7 @@ class MongoDBHandler:
                     'total_duration': round(sum(fd['end'] - fd['start'] for fd in features_data), 3)
                 }
             }
-            
+
             result = self.collection.update_one(
                 {'AnalyzeUUID': analyze_uuid},
                 {
@@ -183,29 +182,29 @@ class MongoDBHandler:
                     }
                 }
             )
-            
+
             return result.modified_count > 0
-            
+
         except Exception as e:
             logger.error(f"儲存切割結果失敗 {analyze_uuid}: {e}")
             return False
-    
+
     def save_leaf_features(self, analyze_uuid: str, features_data: List[Dict],
                            processor_metadata: Dict) -> bool:
         """
         儲存 LEAF 特徵
-        
+
         Args:
             analyze_uuid: 記錄 UUID
             features_data: LEAF 特徵資料
             processor_metadata: 提取資訊
-            
+
         Returns:
             是否儲存成功
         """
         try:
             current_time = datetime.utcnow()
-            
+
             leaf_step = {
                 'features_step': 2,
                 'features_state': 'completed',
@@ -216,7 +215,7 @@ class MongoDBHandler:
                 'started_at': current_time,
                 'completed_at': current_time
             }
-            
+
             result = self.collection.update_one(
                 {'AnalyzeUUID': analyze_uuid},
                 {
@@ -228,38 +227,43 @@ class MongoDBHandler:
                     }
                 }
             )
-            
+
             return result.modified_count > 0
-            
+
         except Exception as e:
             logger.error(f"儲存 LEAF 特徵失敗 {analyze_uuid}: {e}")
             return False
-    
-    def save_classification_results(self, analyze_uuid: str, 
-                                   classification_results: Dict) -> bool:
+
+    def save_classification_results(self, analyze_uuid: str,
+                                    classification_results: Dict) -> bool:
         """
-        儲存分類結果
-        
+        儲存分類結果（統一格式）
+
         Args:
             analyze_uuid: 記錄 UUID
-            classification_results: 分類結果
-            
+            classification_results: 分類結果 (包含 features_data 和 processor_metadata)
+
         Returns:
             是否儲存成功
         """
         try:
             current_time = datetime.utcnow()
-            
+
+            # 統一格式：與 Step 1, Step 2 一致
             classify_step = {
                 'features_step': 3,
                 'features_state': 'completed',
                 'features_name': 'Classification',
-                'classification_results': classification_results,
+                'features_data': classification_results.get('features_data', []),
+                'processor_metadata': classification_results.get('processor_metadata', {}),
                 'error_message': None,
                 'started_at': current_time,
                 'completed_at': current_time
             }
-            
+
+            # 從 processor_metadata 提取摘要資訊
+            processor_metadata = classification_results.get('processor_metadata', {})
+
             result = self.collection.update_one(
                 {'AnalyzeUUID': analyze_uuid},
                 {
@@ -268,24 +272,31 @@ class MongoDBHandler:
                         'current_step': 4,
                         'analysis_status': 'completed',
                         'updated_at': current_time,
-                        'analysis_summary': classification_results['summary']
+                        'analysis_summary': {
+                            'final_prediction': processor_metadata.get('final_prediction', 'unknown'),
+                            'total_segments': processor_metadata.get('total_segments', 0),
+                            'normal_count': processor_metadata.get('normal_count', 0),
+                            'abnormal_count': processor_metadata.get('abnormal_count', 0),
+                            'average_confidence': processor_metadata.get('average_confidence', 0.0),
+                            'method': processor_metadata.get('method', 'unknown')
+                        }
                     }
                 }
             )
-            
+
             return result.modified_count > 0
-            
+
         except Exception as e:
             logger.error(f"儲存分類結果失敗 {analyze_uuid}: {e}")
             return False
-    
+
     def get_record_by_uuid(self, analyze_uuid: str) -> Optional[Dict]:
         """
         根據 UUID 獲取記錄
-        
+
         Args:
             analyze_uuid: 記錄 UUID
-            
+
         Returns:
             記錄資料或 None
         """
@@ -294,30 +305,30 @@ class MongoDBHandler:
         except Exception as e:
             logger.error(f"獲取記錄失敗 {analyze_uuid}: {e}")
             return None
-    
+
     def watch_changes(self):
         """
         監聽 MongoDB Change Stream
-        
+
         Yields:
             變更事件
         """
         try:
             logger.info("開始監聽 MongoDB Change Stream...")
-            
+
             # 只監聽插入事件
             pipeline = [
                 {'$match': {'operationType': 'insert'}}
             ]
-            
+
             with self.collection.watch(pipeline) as stream:
                 for change in stream:
                     yield change
-                    
+
         except Exception as e:
             logger.error(f"Change Stream 監聽失敗: {e}")
             raise
-    
+
     def close(self):
         """關閉連接"""
         if self.mongo_client:
