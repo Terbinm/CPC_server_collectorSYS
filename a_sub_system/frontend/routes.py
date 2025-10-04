@@ -1,5 +1,5 @@
 from flask import request, jsonify, send_file, render_template, Response
-from main import app, db, socketio, mongodb_handler
+from flask_main import app, db, socketio, mongodb_handler
 from models import AudioRecording, RecordingRepository
 from utils import calculate_file_hash
 from werkzeug.utils import secure_filename

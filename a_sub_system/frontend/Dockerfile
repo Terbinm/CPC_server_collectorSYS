@@ -20,7 +20,7 @@ RUN pip install --no-cache-dir flask flask-socketio flask-sqlalchemy pymongo pyt
 
 # 複製應用程式檔案
 COPY config.py .
-COPY main.py .
+COPY flask_main.py .
 COPY models.py .
 COPY routes.py .
 COPY socket_events.py .

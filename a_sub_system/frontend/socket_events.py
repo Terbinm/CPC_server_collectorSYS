@@ -1,5 +1,5 @@
 from flask import request
-from main import socketio
+from flask_main import socketio
 from shared_state import connected_clients, recording_devices, device_schedules
 import uuid
 import logging

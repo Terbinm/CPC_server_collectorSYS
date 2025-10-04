@@ -1,4 +1,4 @@
-# analysis_pipeline.py - 分析流程管理器（支援 GridFS + 統一格式）
+# analysis_pipeline.py - 分析流程管理器（簡化特徵格式版本）
 
 from typing import Dict, Any, Optional
 from datetime import datetime
@@ -16,7 +16,7 @@ from gridfs_handler import AnalysisGridFSHandler
 
 
 class AnalysisPipeline:
-    """分析流程管理器（支援 GridFS + 統一格式）"""
+    """分析流程管理器（支援 GridFS + 簡化格式）"""
 
     def __init__(self, mongodb_handler: MongoDBHandler):
         """
@@ -245,7 +245,7 @@ class AnalysisPipeline:
 
     def _execute_step2(self, analyze_uuid: str, audio_data: bytes, filepath: str) -> bool:
         """
-        執行 Step 2: LEAF 特徵提取
+        執行 Step 2: LEAF 特徵提取（簡化格式）
 
         Args:
             analyze_uuid: 記錄 UUID
@@ -275,7 +275,7 @@ class AnalysisPipeline:
                 logger.error(f"[Step 2] 切割資料為空")
                 return False
 
-            # 提取特徵（使用檔案路徑）
+            # 提取特徵（使用檔案路徑）- 返回簡化格式 [[feat1], [feat2], ...]
             features_data = self.leaf_extractor.extract_features(filepath, slice_data)
 
             if not features_data:
@@ -284,7 +284,7 @@ class AnalysisPipeline:
                 self._mark_error(analyze_uuid, error_msg, step=2)
                 return False
 
-            # 儲存特徵
+            # 儲存特徵（簡化格式）
             processor_metadata = self.leaf_extractor.get_feature_info()
             success = self.mongodb.save_leaf_features(
                 analyze_uuid, features_data, processor_metadata
@@ -304,7 +304,7 @@ class AnalysisPipeline:
 
     def _execute_step3(self, analyze_uuid: str) -> bool:
         """
-        執行 Step 3: 分類（統一格式）
+        執行 Step 3: 分類（適配簡化格式）
 
         Args:
             analyze_uuid: 記錄 UUID
@@ -327,12 +327,13 @@ class AnalysisPipeline:
                 logger.error(f"[Step 3] 無 LEAF 特徵資料")
                 return False
 
+            # 簡化格式: features_data 直接是 [[feat1], [feat2], ...]
             leaf_data = analyze_features[1].get('features_data', [])
             if not leaf_data:
                 logger.error(f"[Step 3] LEAF 特徵資料為空")
                 return False
 
-            # 執行分類（返回統一格式：features_data + processor_metadata）
+            # 執行分類（傳入簡化格式）
             classification_results = self.classifier.classify(leaf_data)
 
             # 儲存分類結果（統一格式）

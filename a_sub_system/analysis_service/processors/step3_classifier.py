@@ -1,4 +1,4 @@
-# processors/step3_classifier.py - 分類器（統一資料結構版本）
+# processors/step3_classifier.py - 分類器（適配簡化格式）
 
 import numpy as np
 import pickle
@@ -12,7 +12,7 @@ from utils.logger import logger
 
 class AudioClassifier:
     """音訊分類器（支援 RF 模型）"""
-    
+
     def __init__(self):
         """初始化分類器"""
         self.config = CLASSIFICATION_CONFIG
@@ -69,15 +69,15 @@ class AudioClassifier:
             self.scaler = None
             self.metadata = None
 
-    def classify(self, features_data: List[Dict]) -> Dict[str, Any]:
+    def classify(self, features_data: List[List[float]]) -> Dict[str, Any]:
         """
-        對所有切片進行分類
+        對所有切片進行分類（適配新格式）
 
         Args:
-            features_data: LEAF 特徵資料列表
+            features_data: LEAF 特徵向量列表 [[feat1], [feat2], ...]
 
         Returns:
-            分類結果字典
+            分類結果字典（統一格式）
         """
         try:
             logger.info(f"開始分類: {len(features_data)} 個切片")
@@ -97,34 +97,34 @@ class AudioClassifier:
                 }
             }
 
-    def _model_classify(self, features_data: List[Dict]) -> Dict[str, Any]:
+    def _model_classify(self, features_data: List[List[float]]) -> Dict[str, Any]:
         """
         使用 RF 模型進行分類
 
         Args:
-            features_data: LEAF 特徵資料列表
+            features_data: LEAF 特徵向量列表
 
         Returns:
             分類結果（統一格式）
         """
         try:
-            # 提取特徵向量
-            feature_vectors = []
+            # 過濾有效特徵（非零向量）
+            valid_features = []
             valid_indices = []
 
-            for idx, feature_data in enumerate(features_data):
-                feature_vector = feature_data.get('feature_vector')
-                if feature_vector is not None:
-                    feature_vectors.append(feature_vector)
+            for idx, feature_vector in enumerate(features_data):
+                # 檢查是否為零向量
+                if feature_vector and sum(abs(x) for x in feature_vector) > 0:
+                    valid_features.append(feature_vector)
                     valid_indices.append(idx)
 
-            if not feature_vectors:
+            if not valid_features:
                 logger.error("沒有有效的特徵向量")
                 return self._random_classify_all(features_data)
 
             # 聚合特徵（根據訓練時的設定）
             aggregation = self.metadata.get('aggregation', 'mean') if self.metadata else 'mean'
-            feature_vectors = np.array(feature_vectors)
+            feature_vectors = np.array(valid_features)
             aggregated_feature = self._aggregate_features(feature_vectors, aggregation)
 
             # 重塑為 (1, n_features)
@@ -147,12 +147,12 @@ class AudioClassifier:
             predicted_label = label_decoder.get(int(prediction_class), 'unknown')
             confidence = float(prediction_proba[int(prediction_class)])
 
-            # 為每個切片建立預測結果（統一格式：類似 Step 1 的格式）
+            # 為每個切片建立預測結果
             predictions = []
-            for idx, feature_data in enumerate(features_data):
+            for idx in range(len(features_data)):
                 if idx in valid_indices:
                     prediction = {
-                        'segment_id': feature_data.get('segment_id', idx),
+                        'segment_id': idx + 1,
                         'prediction': predicted_label,
                         'confidence': confidence,
                         'proba_normal': float(prediction_proba[0]),
@@ -160,13 +160,13 @@ class AudioClassifier:
                     }
                 else:
                     prediction = {
-                        'segment_id': feature_data.get('segment_id', idx),
+                        'segment_id': idx + 1,
                         'prediction': 'unknown',
                         'confidence': 0.0,
                         'error': '特徵無效'
                     }
                 predictions.append(prediction)
-            
+
             # 統計結果
             summary = self._calculate_summary(predictions)
 
@@ -226,28 +226,29 @@ class AudioClassifier:
         else:
             return np.mean(features, axis=0)
 
-    def _random_classify_all(self, features_data: List[Dict]) -> Dict[str, Any]:
+    def _random_classify_all(self, features_data: List[List[float]]) -> Dict[str, Any]:
         """
-        隨機分類所有切片（向後相容）
+        隨機分類所有切片
 
         Args:
-            features_data: 特徵資料列表
+            features_data: 特徵向量列表
 
         Returns:
             分類結果（統一格式）
         """
         predictions = []
 
-        for feature_data in features_data:
-            if feature_data.get('feature_vector') is None:
+        for idx, feature_vector in enumerate(features_data):
+            # 檢查是否為零向量
+            if not feature_vector or sum(abs(x) for x in feature_vector) == 0:
                 prediction = {
-                    'segment_id': feature_data.get('segment_id', -1),
+                    'segment_id': idx + 1,
                     'prediction': 'unknown',
                     'confidence': 0.0,
                     'error': '特徵無效'
                 }
             else:
-                prediction = self._random_classify_single(feature_data)
+                prediction = self._random_classify_single(idx + 1)
 
             predictions.append(prediction)
 
@@ -276,12 +277,12 @@ class AudioClassifier:
 
         return result
 
-    def _random_classify_single(self, feature_data: Dict) -> Dict[str, Any]:
+    def _random_classify_single(self, segment_id: int) -> Dict[str, Any]:
         """
         隨機分類單個切片
 
         Args:
-            feature_data: 特徵資料
+            segment_id: 切片 ID
 
         Returns:
             預測結果
@@ -289,7 +290,7 @@ class AudioClassifier:
         is_normal = np.random.random() < self.config['normal_probability']
 
         prediction = {
-            'segment_id': feature_data.get('segment_id', -1),
+            'segment_id': segment_id,
             'prediction': 'normal' if is_normal else 'abnormal',
             'confidence': np.random.uniform(0.6, 0.95)
         }
