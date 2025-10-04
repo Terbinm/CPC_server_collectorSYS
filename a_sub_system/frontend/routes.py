@@ -28,14 +28,14 @@ def index():
 @app.route('/dashboard')
 def dashboard():
     """
-    管理儀表板，顯示所有錄音和設備列表
+    管理儀表板,顯示所有錄音和設備列表
     """
     try:
         logger.info("正在載入儀表板...")
         recordings = recording_repo.find_all()
         logger.info(f"查詢到 {len(recordings)} 筆錄音記錄")
 
-        # 轉換為字典格式以便模板使用，包含分析狀態
+        # 轉換為字典格式以便模板使用,包含分析狀態
         recordings_dict = []
         for idx, rec in enumerate(recordings):
             try:
@@ -46,7 +46,24 @@ def dashboard():
                 if original_doc:
                     rec_dict['analysis_status'] = original_doc.get('analysis_status', 'pending')
                     rec_dict['current_step'] = original_doc.get('current_step', 0)
-                    rec_dict['analysis_summary'] = original_doc.get('analysis_summary', {})
+
+                    # 獲取分析摘要,並計算百分比
+                    analysis_summary = original_doc.get('analysis_summary', {})
+                    if analysis_summary and 'total_segments' in analysis_summary:
+                        total = analysis_summary.get('total_segments', 0)
+                        normal = analysis_summary.get('normal_count', 0)
+                        abnormal = analysis_summary.get('abnormal_count', 0)
+
+                        # 確保所有計數欄位都存在
+                        analysis_summary['normal_count'] = normal
+                        analysis_summary['abnormal_count'] = abnormal
+                        analysis_summary['total_segments'] = total
+
+                        # 計算百分比
+                        analysis_summary['normal_percentage'] = (normal / total * 100) if total > 0 else 0
+                        analysis_summary['abnormal_percentage'] = (abnormal / total * 100) if total > 0 else 0
+
+                    rec_dict['analysis_summary'] = analysis_summary
                 else:
                     rec_dict['analysis_status'] = 'pending'
                     rec_dict['current_step'] = 0
@@ -68,7 +85,7 @@ def dashboard():
 @app.route('/upload_recording', methods=['POST'])
 def upload_recording():
     """
-    處理錄音檔案上傳（支援邊緣設備和網路上傳）- 使用 GridFS
+    處理錄音檔案上傳(支援邊緣設備和網路上傳) - 使用 GridFS
     """
     try:
         if 'file' not in request.files:
@@ -91,7 +108,7 @@ def upload_recording():
             import hashlib
             file_hash = hashlib.sha256(file_data).hexdigest()
 
-            # 如果是設備上傳，驗證檔案完整性
+            # 如果是設備上傳,驗證檔案完整性
             upload_complete = True
             if device_id != 'WEB_UPLOAD':
                 expected_size = int(request.form.get('file_size', 0))
@@ -193,7 +210,7 @@ def download_recording(id):
             return jsonify({'error': '找不到錄音記錄'}), 404
 
         if not recording.upload_complete:
-            return jsonify({'error': '錄音尚未完成上傳，請稍後再試'}), 400
+            return jsonify({'error': '錄音尚未完成上傳,請稍後再試'}), 400
 
         if not recording.file_id:
             return jsonify({'error': 'GridFS 文件 ID 不存在'}), 404
@@ -253,7 +270,27 @@ def play_recording(id):
         if original_doc:
             recording_dict['analysis_status'] = original_doc.get('analysis_status', 'pending')
             recording_dict['current_step'] = original_doc.get('current_step', 0)
-            recording_dict['analysis_summary'] = original_doc.get('analysis_summary', {})
+
+            # 獲取分析摘要,並計算百分比
+            analysis_summary = original_doc.get('analysis_summary', {})
+            if analysis_summary and 'total_segments' in analysis_summary:
+                total = analysis_summary.get('total_segments', 0)
+                normal = analysis_summary.get('normal_count', 0)
+                abnormal = analysis_summary.get('abnormal_count', 0)
+                unknown = analysis_summary.get('unknown_count', 0)
+
+                # 確保所有計數欄位都存在
+                analysis_summary['normal_count'] = normal
+                analysis_summary['abnormal_count'] = abnormal
+                analysis_summary['unknown_count'] = unknown
+                analysis_summary['total_segments'] = total
+
+                # 計算百分比
+                analysis_summary['normal_percentage'] = (normal / total * 100) if total > 0 else 0
+                analysis_summary['abnormal_percentage'] = (abnormal / total * 100) if total > 0 else 0
+                analysis_summary['unknown_percentage'] = (unknown / total * 100) if total > 0 else 0
+
+            recording_dict['analysis_summary'] = analysis_summary
             recording_dict['analyze_features'] = original_doc.get('analyze_features', [])
         else:
             recording_dict['analysis_status'] = 'pending'
@@ -270,7 +307,7 @@ def play_recording(id):
 @app.route('/delete/<id>', methods=['POST'])
 def delete_recording(id):
     """
-    刪除指定ID的錄音（包含 GridFS 文件）
+    刪除指定ID的錄音(包含 GridFS 文件)
 
     :param id: 錄音 UUID
     """
@@ -279,7 +316,7 @@ def delete_recording(id):
         if not recording:
             return jsonify({'error': '找不到錄音記錄'}), 404
 
-        # 刪除記錄（會自動刪除 GridFS 文件）
+        # 刪除記錄(會自動刪除 GridFS 文件)
         success = recording_repo.delete_by_uuid(id)
 
         if success:
@@ -316,15 +353,15 @@ def create_schedule():
     try:
         data = request.json
         device_id = data.get('device_id')
-        interval = float(data.get('interval'))  # 間隔時間（分鐘）
-        duration = int(data.get('duration'))  # 單次錄製時長（秒）
-        count = data.get('count')  # 錄製次數（可選）
+        interval = float(data.get('interval'))  # 間隔時間(分鐘)
+        duration = int(data.get('duration'))  # 單次錄製時長(秒)
+        count = data.get('count')  # 錄製次數(可選)
 
         if device_id not in recording_devices:
             return jsonify({'error': '設備未找到'}), 404
 
         if device_id in device_schedules:
-            return jsonify({'error': '該設備已有排程，請先刪除原有排程'}), 400
+            return jsonify({'error': '該設備已有排程,請先刪除原有排程'}), 400
 
         schedule = RecordingSchedule(interval, duration, count)
         device_schedules[device_id] = schedule
