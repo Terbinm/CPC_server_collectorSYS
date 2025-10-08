@@ -32,14 +32,68 @@ def dashboard():
     """
     try:
         logger.info("正在載入儀表板...")
-        recordings = recording_repo.find_all()
-        logger.info(f"查詢到 {len(recordings)} 筆錄音記錄")
+
+        # 獲取查詢參數
+        page = int(request.args.get('page', 1))
+        per_page = int(request.args.get('per_page', 50))
+        sort_by = request.args.get('sort_by',
+                                   'time_desc')  # time_desc, time_asc, name_asc, name_desc, duration_desc, duration_asc
+
+        # 限制 per_page 的範圍
+        if per_page not in [10, 50, 100, 200, 1000]:
+            per_page = 50
+
+        # 確保 page 至少為 1
+        if page < 1:
+            page = 1
+
+        # 設定排序方式
+        sort_field = 'info_features.upload_time'
+        sort_direction = -1  # -1 為降序（新到舊），1 為升序（舊到新）
+
+        if sort_by == 'time_desc':
+            sort_field = 'info_features.upload_time'
+            sort_direction = -1
+        elif sort_by == 'time_asc':
+            sort_field = 'info_features.upload_time'
+            sort_direction = 1
+        elif sort_by == 'name_asc':
+            sort_field = 'files.raw.filename'
+            sort_direction = 1
+        elif sort_by == 'name_desc':
+            sort_field = 'files.raw.filename'
+            sort_direction = -1
+        elif sort_by == 'duration_desc':
+            sort_field = 'info_features.duration'
+            sort_direction = -1
+        elif sort_by == 'duration_asc':
+            sort_field = 'info_features.duration'
+            sort_direction = 1
+
+        # 計算總數
+        total_count = recording_repo.count()
+        total_pages = (total_count + per_page - 1) // per_page  # 向上取整
+
+        # 計算跳過的記錄數
+        skip = (page - 1) * per_page
+
+        # 從資料庫獲取分頁資料
+        try:
+            documents = recording_repo.collection.find().sort(sort_field, sort_direction).skip(skip).limit(per_page)
+            recordings = [AudioRecording.from_mongodb_document(doc) for doc in documents]
+            logger.info(f"查詢到 {len(recordings)} 筆錄音記錄 (第 {page} 頁，共 {total_pages} 頁，總計 {total_count} 筆)")
+        except Exception as e:
+            logger.error(f"查詢錄音記錄失敗: {e}")
+            recordings = []
 
         # 轉換為字典格式以便模板使用,包含分析狀態
         recordings_dict = []
         for idx, rec in enumerate(recordings):
             try:
                 rec_dict = rec.to_dict()
+
+                # 計算當前記錄在整體列表中的索引位置
+                rec_dict['display_index'] = skip + idx + 1
 
                 # 獲取分析狀態和摘要
                 original_doc = recording_repo.collection.find_one({"AnalyzeUUID": rec.analyze_uuid})
@@ -76,7 +130,26 @@ def dashboard():
                 continue
 
         logger.info(f"成功轉換 {len(recordings_dict)} 筆錄音記錄")
-        return render_template('dashboard.html', recordings=recordings_dict, devices=list(recording_devices.values()))
+
+        # 計算分頁資訊
+        pagination = {
+            'page': page,
+            'per_page': per_page,
+            'total_count': total_count,
+            'total_pages': total_pages,
+            'has_prev': page > 1,
+            'has_next': page < total_pages,
+            'prev_page': page - 1 if page > 1 else None,
+            'next_page': page + 1 if page < total_pages else None,
+            'start_index': skip + 1,
+            'end_index': min(skip + per_page, total_count),
+            'sort_by': sort_by
+        }
+
+        return render_template('dashboard.html',
+                               recordings=recordings_dict,
+                               devices=list(recording_devices.values()),
+                               pagination=pagination)
     except Exception as e:
         logger.error(f"儀表板路由出錯: {str(e)}", exc_info=True)
         return jsonify({"error": "內部伺服器錯誤", "detail": str(e)}), 500

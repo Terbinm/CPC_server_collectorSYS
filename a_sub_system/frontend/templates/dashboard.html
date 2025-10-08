@@ -63,6 +63,19 @@
         color: #F59E0B;
         font-weight: 600;
     }
+
+    .pagination-btn {
+        min-width: 2.5rem;
+        height: 2.5rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .pagination-btn.active {
+        background-color: #4F46E5;
+        color: white;
+    }
 </style>
 {% endblock %}
 
@@ -161,14 +174,48 @@
     <!-- 錄音列表 -->
     <div class="bg-white rounded-xl shadow-sm border border-gray-200">
         <div class="px-4 lg:px-6 py-4 border-b border-gray-200">
-            <h2 class="text-lg lg:text-xl font-semibold text-gray-800 flex items-center">
-                <svg class="w-5 h-5 text-indigo-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                          d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
-                </svg>
-                錄音檔案管理
-            </h2>
+            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                <h2 class="text-lg lg:text-xl font-semibold text-gray-800 flex items-center">
+                    <svg class="w-5 h-5 text-indigo-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
+                    </svg>
+                    錄音檔案管理
+                    <span class="ml-2 text-sm font-normal text-gray-500">
+                        (共 {{ pagination.total_count }} 筆，顯示第 {{ pagination.start_index }}-{{ pagination.end_index }} 筆)
+                    </span>
+                </h2>
+
+                <!-- 排序和分頁控制 -->
+                <div class="flex flex-col sm:flex-row gap-2">
+                    <div class="flex items-center gap-2">
+                        <label class="text-sm text-gray-600 whitespace-nowrap">排序：</label>
+                        <select id="sortSelect" onchange="changeSortAndPerPage()"
+                                class="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                            <option value="time_desc" {% if pagination.sort_by=='time_desc' %}selected{% endif %}>時間 ↓ (新→舊)</option>
+                            <option value="time_asc" {% if pagination.sort_by=='time_asc' %}selected{% endif %}>時間 ↑ (舊→新)</option>
+                            <option value="name_asc" {% if pagination.sort_by=='name_asc' %}selected{% endif %}>名稱 ↑ (A→Z)</option>
+                            <option value="name_desc" {% if pagination.sort_by=='name_desc' %}selected{% endif %}>名稱 ↓ (Z→A)</option>
+                            <option value="duration_desc" {% if pagination.sort_by=='duration_desc' %}selected{% endif %}>時長 ↓ (長→短)</option>
+                            <option value="duration_asc" {% if pagination.sort_by=='duration_asc' %}selected{% endif %}>時長 ↑ (短→長)</option>
+                        </select>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <label class="text-sm text-gray-600 whitespace-nowrap">每頁：</label>
+                        <select id="perPageSelect" onchange="changeSortAndPerPage()"
+                                class="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                            <option value="10" {% if pagination.per_page== 10 %}selected{% endif %}>10</option>
+                            <option value="50" {% if pagination.per_page== 50 %}selected{% endif %}>50</option>
+                            <option value="100" {% if pagination.per_page== 100 %}selected{% endif %}>100</option>
+                            <option value="200" {% if pagination.per_page== 200 %}selected{% endif %}>200</option>
+                            <option value="1000" {% if pagination.per_page== 1000 %}selected{% endif %}>1000</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
         </div>
+
         <div class="overflow-x-auto">
             <table class="w-full" id="recordingsTable">
                 <thead class="bg-gray-50">
@@ -206,12 +253,79 @@
                 </tbody>
             </table>
         </div>
+
+        <!-- 分頁控制 -->
+        {% if pagination.total_pages > 1 %}
+        <div class="px-4 lg:px-6 py-4 border-t border-gray-200">
+            <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div class="text-sm text-gray-600">
+                    顯示第 {{ pagination.start_index }}-{{ pagination.end_index }} 筆，共 {{ pagination.total_count }} 筆
+                </div>
+
+                <div class="flex items-center gap-1">
+                    <!-- 第一頁 -->
+                    <a href="?page=1&per_page={{ pagination.per_page }}&sort_by={{ pagination.sort_by }}"
+                       class="pagination-btn px-3 py-1 border border-gray-300 rounded-lg text-sm {% if not pagination.has_prev %}opacity-50 cursor-not-allowed{% else %}hover:bg-gray-100{% endif %}"
+                       {% if not pagination.has_prev %}onclick="return false;" {% endif %}>
+                        «
+                    </a>
+
+                    <!-- 上一頁 -->
+                    <a href="?page={{ pagination.prev_page }}&per_page={{ pagination.per_page }}&sort_by={{ pagination.sort_by }}"
+                       class="pagination-btn px-3 py-1 border border-gray-300 rounded-lg text-sm {% if not pagination.has_prev %}opacity-50 cursor-not-allowed{% else %}hover:bg-gray-100{% endif %}"
+                       {% if not pagination.has_prev %}onclick="return false;" {% endif %}>
+                        ‹
+                    </a>
+
+                    <!-- 頁碼 -->
+                    {% set start_page = [1, pagination.page - 2]|max %}
+                    {% set end_page = [pagination.total_pages, pagination.page + 2]|min %}
+
+                    {% if start_page > 1 %}
+                    <span class="px-2 text-gray-500">...</span>
+                    {% endif %}
+
+                    {% for p in range(start_page, end_page + 1) %}
+                    <a href="?page={{ p }}&per_page={{ pagination.per_page }}&sort_by={{ pagination.sort_by }}"
+                       class="pagination-btn px-3 py-1 border border-gray-300 rounded-lg text-sm hover:bg-gray-100 {% if p == pagination.page %}active{% endif %}">
+                        {{ p }}
+                    </a>
+                    {% endfor %}
+
+                    {% if end_page < pagination.total_pages %}
+                    <span class="px-2 text-gray-500">...</span>
+                    {% endif %}
+
+                    <!-- 下一頁 -->
+                    <a href="?page={{ pagination.next_page }}&per_page={{ pagination.per_page }}&sort_by={{ pagination.sort_by }}"
+                       class="pagination-btn px-3 py-1 border border-gray-300 rounded-lg text-sm {% if not pagination.has_next %}opacity-50 cursor-not-allowed{% else %}hover:bg-gray-100{% endif %}"
+                       {% if not pagination.has_next %}onclick="return false;" {% endif %}>
+                        ›
+                    </a>
+
+                    <!-- 最後一頁 -->
+                    <a href="?page={{ pagination.total_pages }}&per_page={{ pagination.per_page }}&sort_by={{ pagination.sort_by }}"
+                       class="pagination-btn px-3 py-1 border border-gray-300 rounded-lg text-sm {% if not pagination.has_next %}opacity-50 cursor-not-allowed{% else %}hover:bg-gray-100{% endif %}"
+                       {% if not pagination.has_next %}onclick="return false;" {% endif %}>
+                        »
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
+    // 排序和分頁控制
+    function changeSortAndPerPage() {
+        const sort = document.getElementById('sortSelect').value;
+        const perPage = document.getElementById('perPageSelect').value;
+        window.location.href = `?page=1&per_page=${perPage}&sort_by=${sort}`;
+    }
+
     // 網路上傳相關函數
     let selectedFile = null;
 
@@ -274,6 +388,8 @@
                 document.getElementById('fileInfo').classList.add('hidden');
                 document.getElementById('uploadProgress').classList.add('hidden');
                 selectedFile = null;
+                // 重新載入頁面以顯示新上傳的檔案
+                window.location.reload();
             } else {
                 alert('上傳失敗: ' + result.error);
                 document.getElementById('uploadBtnContainer').classList.remove('hidden');
@@ -335,7 +451,8 @@
     });
 
     socket.on('new_recording', function (data) {
-        addRecordingToTable(data);
+        // 新上傳時重新載入頁面以保持分頁正確
+        window.location.reload();
     });
 
     socket.on('recording_deleted', function (data) {
@@ -405,14 +522,13 @@
         return `<span class="${prediction.class}">${prediction.text}${confidence}</span>`;
     }
 
-    function addRecordingToTable(recording) {
+    function addRecordingToTable(recording, index) {
         if (recording.id === undefined) {
             return;
         }
 
         var tbody = document.querySelector('#recordingsTable tbody');
-        var newRow = tbody.insertRow(0);
-        var index = tbody.rows.length;
+        var newRow = tbody.insertRow();
 
         // 格式化時間戳（處理 ISO 格式）
         var timestamp = recording.timestamp;
@@ -438,7 +554,7 @@
         const analysisSummary = recording.analysis_summary || {};
 
         newRow.innerHTML = `
-        <td class="px-2 lg:px-3 py-2 text-sm text-gray-600">${index}</td>
+        <td class="px-2 lg:px-3 py-2 text-sm text-gray-600">${recording.display_index}</td>
         <td class="px-2 lg:px-3 py-2 text-sm font-mono" title="${recording.id}">${shortId}...</td>
         <td class="px-2 lg:px-4 py-2 text-sm font-medium break-all">${recording.filename}</td>
         <td class="px-2 lg:px-3 py-2 text-sm">${duration.toFixed(2)}</td>
@@ -467,11 +583,6 @@
             </div>
         </td>
     `;
-
-        newRow.classList.add('flash');
-        setTimeout(() => {
-            newRow.classList.remove('flash');
-        }, 1000);
     }
 
     function downloadRecording(id) {
@@ -491,14 +602,8 @@
     }
 
     function removeRecordingFromTable(id) {
-        var tbody = document.querySelector('#recordingsTable tbody');
-        for (var i = 0; i < tbody.rows.length; i++) {
-            var cellContent = tbody.rows[i].cells[0].getAttribute('title') || tbody.rows[i].cells[0].textContent.replace('...', '');
-            if (cellContent === id || cellContent.startsWith(id.substring(0, 8))) {
-                tbody.deleteRow(i);
-                break;
-            }
-        }
+        // 刪除後重新載入頁面以保持分頁正確
+        window.location.reload();
     }
 
     function startRecording(deviceId) {
@@ -518,18 +623,18 @@
     }
 
     function deleteRecording(id) {
-        if (confirm('確定要刪除這個錄音嗎？')) {
+        if (confirm('確定要刪除這個錄音嗎?')) {
             fetch('/delete/' + id, {method: 'POST'})
                     .then(response => response.json())
                     .then(data => {
-                        alert(data.message);
-                        removeRecordingFromTable(id);
+                        window.location.reload();  // ← 直接重新載入,不顯示訊息
                     })
                     .catch((error) => {
                         console.error('Error:', error);
                     });
         }
     }
+
 
     function editDeviceName(deviceId) {
         var currentName = document.getElementById('device-name-' + deviceId).textContent;
@@ -542,16 +647,17 @@
     // 初始化設備列表和錄音列表
     updateDevicesTable({{ devices | tojson | safe}});
     {%for recording in recordings %}
-    addRecordingToTable({
-        id: "{{ recording.id }}",
-        filename: "{{ recording.filename }}",
-        duration: {{ recording.duration }},
-        timestamp: "{{ recording.timestamp }}",
-        device_id: "{{ recording.device_id }}",
-        analysis_status:    "{{ recording.analysis_status }}",
-        current_step:    {{ recording.current_step }},
-        analysis_summary: {{ recording.analysis_summary | tojson | safe }}
-    });
+        addRecordingToTable({
+            display_index: {{ recording.display_index }},
+            id: "{{ recording.id }}",
+            filename: "{{ recording.filename }}",
+            duration: {{ recording.duration }},
+            timestamp: "{{ recording.timestamp }}",
+            device_id: "{{ recording.device_id }}",
+            analysis_status:    "{{ recording.analysis_status }}",
+            current_step:    {{ recording.current_step }},
+            analysis_summary: {{ recording.analysis_summary | tojson | safe }}
+        });
     {% endfor %}
 </script>
 {% endblock %}

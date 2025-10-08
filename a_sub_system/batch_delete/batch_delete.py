@@ -294,9 +294,9 @@ class BatchDeleter:
 
     def preview_deletion(self):
         """預覽將被刪除的記錄"""
-        logger.info("=" * 60)
+        logger.info("=" * 50)
         logger.info("預覽模式 - 查看將被刪除的記錄")
-        logger.info("=" * 60)
+        logger.info("=" * 50)
 
         # 建立查詢
         query = self.deleter.build_query()
@@ -340,9 +340,9 @@ class BatchDeleter:
 
     def execute_deletion(self):
         """執行刪除操作"""
-        logger.info("\n" + "=" * 60)
+        logger.info("\n" + "=" * 50)
         logger.info("執行刪除")
-        logger.info("=" * 60)
+        logger.info("=" * 50)
 
         # 建立查詢
         query = self.deleter.build_query()
@@ -400,9 +400,9 @@ class BatchDeleter:
 
     def _print_summary(self, stats: Dict, backup_file: Optional[str] = None):
         """顯示刪除摘要"""
-        logger.info("\n" + "=" * 60)
+        logger.info("\n" + "=" * 50)
         logger.info("刪除完成")
-        logger.info("=" * 60)
+        logger.info("=" * 50)
 
         mode = "標記" if DeleteConfig.DELETE_BEHAVIOR['soft_delete'] else "刪除"
 
@@ -471,12 +471,12 @@ def main():
 ║      批量刪除工具 v1.0                                     ║
 ║                                                          ║
 ║  功能:                                                    ║
-║  1. 根據多種條件批量刪除記錄                               ║
-║  2. 支援軟刪除（標記）或硬刪除                             ║
-║  3. 自動備份被刪除的記錄                                   ║
-║  4. 同步刪除 GridFS 中的檔案                              ║
+║  1. 根據多種條件批量刪除記錄                                  ║
+║  2. 支援軟刪除（標記）或硬刪除                                ║
+║  3. 自動備份被刪除的記錄                                     ║
+║  4. 同步刪除 GridFS 中的檔案                                ║
 ║                                                          ║
-║  配置檔案: batch_delete_config.py                         ║
+║  配置檔案: batch_delete_config.py                          ║
 ║                                                          ║
 ╚══════════════════════════════════════════════════════════╝
     """)
