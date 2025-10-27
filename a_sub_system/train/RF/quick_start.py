@@ -51,24 +51,37 @@ class QuickStart:
             logger.info("✓ scikit-learn 已安裝")
         except ImportError:
             errors.append("scikit-learn 未安裝")
+        except Exception as e:
+            logger.warning(f"scikit-learn 載入警告: {e}")
+            logger.info("✓ scikit-learn 已安裝（但可能有配置問題）")
 
         try:
             import matplotlib
+            matplotlib.use('Agg')  # 使用非互動式後端，避免 GUI 相關問題
             logger.info("✓ matplotlib 已安裝")
         except ImportError:
             errors.append("matplotlib 未安裝")
+        except Exception as e:
+            logger.warning(f"matplotlib 載入警告: {e}")
+            logger.info("✓ matplotlib 已安裝（但可能有配置問題）")
 
         try:
             import seaborn
             logger.info("✓ seaborn 已安裝")
         except ImportError:
             errors.append("seaborn 未安裝")
+        except Exception as e:
+            logger.warning(f"seaborn 載入警告: {e}")
+            logger.info("✓ seaborn 已安裝（但可能有配置問題）")
 
         try:
             from pymongo import MongoClient
             logger.info("✓ pymongo 已安裝")
         except ImportError:
             errors.append("pymongo 未安裝")
+        except Exception as e:
+            logger.warning(f"pymongo 載入警告: {e}")
+            logger.info("✓ pymongo 已安裝（但可能有配置問題）")
 
         # 檢查必要檔案（在當前目錄）
         required_files = [

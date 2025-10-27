@@ -185,7 +185,7 @@ class DataLoader:
                 # 提取特徵向量
                 segment_features = []
                 for segment in leaf_features:
-                    feature_vector = segment.get('feature_vector')
+                    feature_vector = segment
                     if feature_vector is not None and len(feature_vector) > 0:
                         segment_features.append(feature_vector)
                 
