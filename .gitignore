@@ -18,3 +18,4 @@ uploads/
 /a_sub_system/batch_upload/upload_progress.json
 /a_sub_system/train/RF/training_reports/
 /a_sub_system/train/RF/evaluation_results/
+/debug_tools/batch_upload/mafaulda/mafaulda_data/
