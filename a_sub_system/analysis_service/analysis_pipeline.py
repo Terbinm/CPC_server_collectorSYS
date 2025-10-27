@@ -1,4 +1,4 @@
-# analysis_pipeline.py - 分析流程管理器（簡化特徵格式版本）
+# analysis_pipeline.py - 分析流程管理器（加入 Step 0 轉檔）
 
 from typing import Dict, Any, Optional
 from datetime import datetime
@@ -9,6 +9,7 @@ from bson.objectid import ObjectId
 from config import SERVICE_CONFIG, USE_GRIDFS
 from utils.logger import logger
 from utils.mongodb_handler import MongoDBHandler
+from processors.step0_converter import AudioConverter
 from processors.step1_slicer import AudioSlicer
 from processors.step2_leaf import LEAFFeatureExtractor
 from processors.step3_classifier import AudioClassifier
@@ -16,7 +17,7 @@ from gridfs_handler import AnalysisGridFSHandler
 
 
 class AnalysisPipeline:
-    """分析流程管理器（支援 GridFS + 簡化格式）"""
+    """分析流程管理器（支援 GridFS + 簡化格式 + Step 0 轉檔）"""
 
     def __init__(self, mongodb_handler: MongoDBHandler):
         """
@@ -39,6 +40,7 @@ class AnalysisPipeline:
 
         # 初始化處理器
         try:
+            self.converter = AudioConverter()
             self.slicer = AudioSlicer()
             self.leaf_extractor = LEAFFeatureExtractor()
             self.classifier = AudioClassifier()
@@ -58,6 +60,7 @@ class AnalysisPipeline:
             是否處理成功
         """
         analyze_uuid = record.get('AnalyzeUUID', 'UNKNOWN')
+        converted_file_path = None  # 轉檔後的檔案路徑（用於最後清理）
 
         try:
             logger.info(f"=" * 60)
@@ -74,19 +77,45 @@ class AnalysisPipeline:
                 logger.info(f"記錄已處理，跳過: {analyze_uuid}")
                 return True
 
-            # Step 0: 獲取檔案（從 GridFS 或本地）
+            # Step 0: 獲取檔案並判斷是否需要轉檔
             audio_data, temp_file_path = self._get_audio_file(record)
             if audio_data is None and temp_file_path is None:
                 self._mark_error(analyze_uuid, "無法獲取音頻檔案")
                 return False
 
+            # 判斷是否需要轉檔
+            needs_conversion = self.converter.needs_conversion(temp_file_path)
+
+            if needs_conversion:
+                if not self._execute_step0(analyze_uuid, temp_file_path):
+                    return False
+
+                # 取得轉檔後的檔案路徑
+                record_updated = self.mongodb.get_record_by_uuid(analyze_uuid)
+                conversion_info = record_updated.get('analyze_features', [{}])[0].get('processor_metadata', {})
+                converted_file_path = conversion_info.get('converted_path')
+
+                if not converted_file_path or not os.path.exists(converted_file_path):
+                    self._mark_error(analyze_uuid, "轉檔後的檔案不存在")
+                    return False
+
+                # 使用轉檔後的檔案繼續處理
+                working_file_path = converted_file_path
+            else:
+                # 不需轉檔，直接使用原始檔案
+                working_file_path = temp_file_path
+
             try:
-                # Step 1: 音訊切割
-                if not self._execute_step1(analyze_uuid, audio_data, temp_file_path):
+                # 從 info_features 獲取 target_channel
+                info_features = record.get('info_features', {})
+                target_channels = info_features.get('target_channel', [])
+
+                # Step 1: 音訊切割（傳入 target_channels）
+                if not self._execute_step1(analyze_uuid, working_file_path, target_channels):
                     return False
 
                 # Step 2: LEAF 特徵提取
-                if not self._execute_step2(analyze_uuid, audio_data, temp_file_path):
+                if not self._execute_step2(analyze_uuid, working_file_path):
                     return False
 
                 # Step 3: 分類
@@ -97,13 +126,17 @@ class AnalysisPipeline:
                 return True
 
             finally:
-                # 清理臨時檔案
+                # 清理原始臨時檔案
                 if temp_file_path and os.path.exists(temp_file_path):
                     try:
                         os.remove(temp_file_path)
-                        logger.debug(f"已清理臨時檔案: {temp_file_path}")
+                        logger.debug(f"已清理原始臨時檔案: {temp_file_path}")
                     except Exception as e:
-                        logger.warning(f"清理臨時檔案失敗: {e}")
+                        logger.warning(f"清理原始臨時檔案失敗: {e}")
+
+                # 清理轉檔後的臨時檔案
+                if converted_file_path and converted_file_path != temp_file_path:
+                    self.converter.cleanup_temp_file(converted_file_path)
 
         except Exception as e:
             logger.error(f"✗ 記錄處理失敗 {analyze_uuid}: {e}")
@@ -168,9 +201,14 @@ class AnalysisPipeline:
                     logger.error(f"從 GridFS 下載檔案失敗 (ID: {file_id})")
                     return None, None
 
-                # 創建臨時檔案
+                # 獲取原始檔案名稱和副檔名
+                file_info = self.gridfs_handler.get_file_info(file_id)
+                original_filename = file_info.get('filename', 'audio.wav')
+                file_extension = os.path.splitext(original_filename)[1] or '.wav'
+
+                # 創建臨時檔案（保留原始副檔名）
                 import tempfile
-                temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.wav')
+                temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=file_extension)
                 temp_file.write(audio_data)
                 temp_file.close()
 
@@ -203,24 +241,67 @@ class AnalysisPipeline:
             logger.error(traceback.format_exc())
             return None, None
 
-    def _execute_step1(self, analyze_uuid: str, audio_data: bytes, filepath: str) -> bool:
+    def _execute_step0(self, analyze_uuid: str, filepath: str) -> bool:
+        """
+        執行 Step 0: 音訊轉檔（CSV -> WAV）
+
+        Args:
+            analyze_uuid: 記錄 UUID
+            filepath: 原始檔案路徑
+
+        Returns:
+            是否成功
+        """
+        try:
+            logger.info(f"[Step 0] 開始音訊轉檔...")
+            self.mongodb.update_record_step(analyze_uuid, 0, 'processing')
+
+            # 執行轉檔
+            converted_path = self.converter.convert_to_wav(filepath)
+
+            if not converted_path:
+                error_msg = "音訊轉檔失敗"
+                logger.error(f"[Step 0] {error_msg}")
+                self._mark_error(analyze_uuid, error_msg, step=0)
+                return False
+
+            # 獲取轉檔資訊
+            conversion_info = self.converter.get_conversion_info(filepath, converted_path)
+
+            # 儲存轉檔結果
+            success = self.mongodb.save_conversion_results(analyze_uuid, conversion_info)
+
+            if success:
+                logger.info(f"[Step 0] ✓ 音訊轉檔完成: {conversion_info.get('original_format')} -> WAV")
+                return True
+            else:
+                logger.error(f"[Step 0] ✗ 儲存轉檔結果失敗")
+                return False
+
+        except Exception as e:
+            logger.error(f"[Step 0] 執行失敗: {e}")
+            self._mark_error(analyze_uuid, f"Step 0 異常: {str(e)}", step=0)
+            return False
+
+    def _execute_step1(self, analyze_uuid: str, filepath: str, target_channels: list) -> bool:
         """
         執行 Step 1: 音訊切割
 
         Args:
             analyze_uuid: 記錄 UUID
-            audio_data: 音頻數據
-            filepath: 音頻檔案路徑（可能是臨時檔案）
+            filepath: 音頻檔案路徑（可能是原始檔案或轉檔後檔案）
+            target_channels: 目標音軌列表
 
         Returns:
             是否成功
         """
         try:
             logger.info(f"[Step 1] 開始音訊切割...")
+            logger.info(f"[Step 1] 目標音軌: {target_channels if target_channels else '預設'}")
             self.mongodb.update_record_step(analyze_uuid, 1, 'processing')
 
-            # 執行切割（使用檔案路徑）
-            segments = self.slicer.slice_audio(filepath)
+            # 執行切割（傳入 target_channels）
+            segments = self.slicer.slice_audio(filepath, target_channels)
 
             if not segments:
                 error_msg = "音訊切割失敗或無有效切片"
@@ -243,14 +324,13 @@ class AnalysisPipeline:
             self._mark_error(analyze_uuid, f"Step 1 異常: {str(e)}", step=1)
             return False
 
-    def _execute_step2(self, analyze_uuid: str, audio_data: bytes, filepath: str) -> bool:
+    def _execute_step2(self, analyze_uuid: str, filepath: str) -> bool:
         """
         執行 Step 2: LEAF 特徵提取（簡化格式）
 
         Args:
             analyze_uuid: 記錄 UUID
-            audio_data: 音頻數據
-            filepath: 音頻檔案路徑（可能是臨時檔案）
+            filepath: 音頻檔案路徑（可能是轉檔後的臨時檔案）
 
         Returns:
             是否成功
@@ -266,11 +346,19 @@ class AnalysisPipeline:
                 return False
 
             analyze_features = record.get('analyze_features', [])
-            if not analyze_features:
+
+            # 找到 Step 1 的結果（features_step == 1）
+            slice_step = None
+            for feature in analyze_features:
+                if feature.get('features_step') == 1:
+                    slice_step = feature
+                    break
+
+            if not slice_step:
                 logger.error(f"[Step 2] 無切割資料")
                 return False
 
-            slice_data = analyze_features[0].get('features_data', [])
+            slice_data = slice_step.get('features_data', [])
             if not slice_data:
                 logger.error(f"[Step 2] 切割資料為空")
                 return False
@@ -323,12 +411,20 @@ class AnalysisPipeline:
                 return False
 
             analyze_features = record.get('analyze_features', [])
-            if len(analyze_features) < 2:
+
+            # 找到 Step 2 的結果（features_step == 2）
+            leaf_step = None
+            for feature in analyze_features:
+                if feature.get('features_step') == 2:
+                    leaf_step = feature
+                    break
+
+            if not leaf_step:
                 logger.error(f"[Step 3] 無 LEAF 特徵資料")
                 return False
 
             # 簡化格式: features_data 直接是 [[feat1], [feat2], ...]
-            leaf_data = analyze_features[1].get('features_data', [])
+            leaf_data = leaf_step.get('features_data', [])
             if not leaf_data:
                 logger.error(f"[Step 3] LEAF 特徵資料為空")
                 return False

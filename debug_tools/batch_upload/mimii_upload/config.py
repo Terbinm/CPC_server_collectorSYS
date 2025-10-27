@@ -79,6 +79,17 @@ class UploadConfig:
         'report_format': 'json',  # json, csv, txt
     }
 
+    # ==================== Dry Run 預覽輸出 ====================
+    DRY_RUN_PREVIEW = {
+        'enable_preview': True,
+        'output_directory': os.path.join('reports', 'dry_run_previews')
+    }
+
+    # ==================== 分析服務配置 ====================
+    ANALYSIS_CONFIG = {
+        'target_channel': [5]
+    }
+
 
 # 驗證配置
 def validate_config():

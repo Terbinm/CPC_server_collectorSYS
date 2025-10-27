@@ -3,12 +3,13 @@
 import os
 import sys
 from pathlib import Path
-from typing import List, Dict, Tuple, Optional
+from typing import List, Dict, Tuple, Optional, Any
 import logging
 from logging.handlers import RotatingFileHandler
 from datetime import datetime
 import hashlib
 import uuid
+import random
 import soundfile as sf
 from pymongo import MongoClient
 from gridfs import GridFS
@@ -163,6 +164,9 @@ class MongoDBUploader:
         # 獲取音頻元數據
         file_type = Path(filename).suffix[1:].lower()
 
+        analysis_config = getattr(UploadConfig, 'ANALYSIS_CONFIG', {})
+        target_channel = analysis_config.get('target_channel') if isinstance(analysis_config, dict) else None
+
         document = {
             "AnalyzeUUID": analyze_uuid,
             "current_step": 0,
@@ -195,6 +199,9 @@ class MongoDBUploader:
                 }
             }
         }
+
+        if target_channel is not None:
+            document['info_features']['target_channel'] = target_channel
 
         return document
 
@@ -247,6 +254,90 @@ class BatchUploader:
                 json.dump(self.progress, f, indent=2, ensure_ascii=False)
         except Exception as e:
             logger.warning(f"無法儲存進度檔案: {e}")
+
+    @staticmethod
+    def _to_json_serializable(data: Any) -> Any:
+        """遞迴轉換資料為可序列化的 JSON 格式"""
+        if isinstance(data, dict):
+            return {k: BatchUploader._to_json_serializable(v) for k, v in data.items()}
+        if isinstance(data, list):
+            return [BatchUploader._to_json_serializable(item) for item in data]
+        if isinstance(data, datetime):
+            return data.isoformat()
+        if isinstance(data, ObjectId):
+            return str(data)
+        return data
+
+    def _generate_dry_run_samples(self, audio_files: List[Tuple[Path, str]]) -> None:
+        """為 Dry Run 模式輸出各標籤的樣本 JSON"""
+        preview_config = getattr(UploadConfig, 'DRY_RUN_PREVIEW', {})
+        if not preview_config.get('enable_preview', True):
+            logger.info("[DRY RUN] 預覽輸出已停用")
+            return
+
+        label_entries: Dict[str, List[Path]] = {}
+        for file_path, label in audio_files:
+            label_entries.setdefault(label, []).append(file_path)
+
+        if not label_entries:
+            logger.info("[DRY RUN] 沒有可輸出的標籤樣本")
+            return
+
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        preview_root = Path(preview_config.get('output_directory', 'dry_run_previews'))
+        if not preview_root.is_absolute():
+            preview_root = Path(__file__).parent / preview_root
+        preview_directory = preview_root / f"dry_run_{timestamp}"
+        preview_directory.mkdir(parents=True, exist_ok=True)
+
+        base_path = Path(UploadConfig.UPLOAD_DIRECTORY)
+
+        for label, paths in sorted(label_entries.items()):
+            try:
+                sample_path = random.choice(paths)
+                try:
+                    relative_path = sample_path.relative_to(base_path)
+                    relative_path_str = str(relative_path).replace("\\", "/")
+                except ValueError:
+                    relative_path_str = str(sample_path)
+
+                file_size = sample_path.stat().st_size
+                duration = self.get_audio_duration(sample_path)
+                file_hash = self.calculate_file_hash(sample_path)
+                analyze_uuid = str(uuid.uuid4())
+
+                document = self.uploader._create_document(
+                    analyze_uuid=analyze_uuid,
+                    filename=sample_path.name,
+                    duration=duration,
+                    file_size=file_size,
+                    file_hash=file_hash,
+                    file_id=None,
+                    label=label
+                )
+
+                preview_payload = {
+                    'label': label,
+                    'source_file': str(sample_path),
+                    'relative_path': relative_path_str,
+                    'file_hash': file_hash,
+                    'file_size': file_size,
+                    'duration': duration,
+                    'document': self._to_json_serializable(document)
+                }
+
+                output_filename = f"{label}_{sample_path.stem}_{analyze_uuid[:8]}.json"
+                output_path = preview_directory / output_filename
+
+                with open(output_path, 'w', encoding='utf-8') as f:
+                    json.dump(preview_payload, f, indent=2, ensure_ascii=False)
+
+                logger.info(f"[DRY RUN] 樣本已輸出: {output_path}")
+
+            except Exception as e:
+                logger.error(f"[DRY RUN] 產生標籤 {label} 的樣本失敗: {e}")
+
+        logger.info(f"[DRY RUN] 預覽輸出目錄: {preview_directory}")
 
     @staticmethod
     def calculate_file_hash(file_path: Path) -> str:
@@ -375,6 +466,7 @@ class BatchUploader:
 
         if dry_run:
             logger.info("\n[DRY RUN 模式] 不會實際上傳")
+            self._generate_dry_run_samples(audio_files)
             return
 
         # 確認上傳

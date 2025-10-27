@@ -1,4 +1,4 @@
-# utils/mongodb_handler.py - MongoDB 操作工具
+# utils/mongodb_handler.py - MongoDB 操作工具（加入 Step 0 支援）
 
 from pymongo import MongoClient, ASCENDING
 from pymongo.errors import PyMongoError
@@ -143,6 +143,49 @@ class MongoDBHandler:
             logger.error(f"更新記錄步驟失敗 {analyze_uuid}: {e}")
             return False
 
+    def save_conversion_results(self, analyze_uuid: str, conversion_info: Dict) -> bool:
+        """
+        儲存轉檔結果（Step 0）
+
+        Args:
+            analyze_uuid: 記錄 UUID
+            conversion_info: 轉檔資訊
+
+        Returns:
+            是否儲存成功
+        """
+        try:
+            current_time = datetime.utcnow()
+
+            conversion_step = {
+                'features_step': 0,
+                'features_state': 'completed',
+                'features_name': 'Audio Conversion',
+                'features_data': [],  # 轉檔步驟無特徵資料
+                'error_message': None,
+                'started_at': current_time,
+                'completed_at': current_time,
+                'processor_metadata': conversion_info
+            }
+
+            result = self.collection.update_one(
+                {'AnalyzeUUID': analyze_uuid},
+                {
+                    '$push': {'analyze_features': conversion_step},
+                    '$set': {
+                        'current_step': 0,
+                        'analysis_status': 'converted',
+                        'updated_at': current_time
+                    }
+                }
+            )
+
+            return result.modified_count > 0
+
+        except Exception as e:
+            logger.error(f"儲存轉檔結果失敗 {analyze_uuid}: {e}")
+            return False
+
     def save_slice_results(self, analyze_uuid: str, features_data: List[Dict]) -> bool:
         """
         儲存切割結果
@@ -249,7 +292,7 @@ class MongoDBHandler:
         try:
             current_time = datetime.utcnow()
 
-            # 統一格式：與 Step 1, Step 2 一致
+            # 統一格式：與 Step 0, Step 1, Step 2 一致
             classify_step = {
                 'features_step': 3,
                 'features_state': 'completed',

@@ -1,4 +1,4 @@
-# a_sub_system/analysis_service/config.py - 分析服務統一配置
+# a_sub_system/analysis_service/config.py - 分析服務統一配置（加入 Step 0）
 
 import os
 
@@ -12,14 +12,29 @@ MONGODB_CONFIG = {
     'database': 'web_db',
     'collection': 'recordings'
 }
+
 # ==================== 音訊處理配置 ====================
 AUDIO_CONFIG = {
     # 切割參數（參考 V3_multi_dataset）
     'slice_duration': 0.16,  # 切割時長（秒）
     'slice_interval': 0.20,  # 切割間隔（秒）
-    'channels': [6],  # 處理的通道列表
+    'channels': [1],  # 預設處理的通道列表（當 target_channel 未指定時使用）
     'sample_rate': 16000,  # 採樣率（Hz）
     'min_segment_duration': 0.05  # 最小切片長度（秒）
+}
+
+# ==================== 轉檔配置（Step 0）====================
+CONVERSION_CONFIG = {
+    # 支援的輸入格式
+    'supported_input_formats': ['.wav', '.csv'],
+
+    # CSV 轉檔設定
+    'csv_header': None,  # CSV 檔案是否有標題行（None 表示無標題）
+    'csv_normalize': True,  # 是否自動正規化超出範圍的數值
+
+    # 輸出設定
+    'output_format': '.wav',
+    'output_sample_rate': 16000  # 使用與 AUDIO_CONFIG 相同的採樣率
 }
 
 # ==================== LEAF 特徵提取配置 ====================
@@ -67,6 +82,7 @@ SERVICE_CONFIG = {
     'retry_delay': 2,  # 重試延遲（秒）
 
     # 超時配置
+    'conversion_timeout': 60,  # 轉檔超時（秒）
     'slice_timeout': 60,  # 切割超時（秒）
     'leaf_timeout': 120,  # LEAF 提取超時（秒）
     'classify_timeout': 30  # 分類超時（秒）
@@ -83,7 +99,7 @@ LOGGING_CONFIG = {
 
 # ==================== 處理步驟定義 ====================
 PROCESSING_STEPS = {
-    0: {'name': 'Pending', 'description': '等待處理'},
+    0: {'name': 'Audio Conversion', 'description': '音訊轉檔（CSV->WAV）'},
     1: {'name': 'Audio Slicing', 'description': '音訊切割'},
     2: {'name': 'LEAF Features', 'description': 'LEAF 特徵提取'},
     3: {'name': 'Classification', 'description': '分類預測'},
