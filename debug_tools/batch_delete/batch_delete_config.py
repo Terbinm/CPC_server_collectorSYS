@@ -9,7 +9,7 @@ class DeleteConfig:
     # ==================== MongoDB 配置 ====================
     MONGODB_CONFIG = {
         'host': 'localhost',
-        'port': 27020,
+        'port': 27021,
         'username': 'web_ui',
         'password': 'hod2iddfsgsrl',
         'database': 'web_db',
