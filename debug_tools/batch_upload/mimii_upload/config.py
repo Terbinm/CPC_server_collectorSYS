@@ -18,20 +18,26 @@ class UploadConfig:
 
     # ==================== 上傳資料夾配置 ====================
     # 要上傳的資料夾路徑(請修改為您的實際路徑)
-    UPLOAD_DIRECTORY = r"C:\Users\sixsn\PycharmProjects\CPC_server_collectorSYS\debug_tools\batch_upload\mimii_upload\mimii_data\6_dB_pump\pump\id_02"  # Windows 範例
-    # UPLOAD_DIRECTORY = "/path/to/audio/dataset"  # Linux 範例
+    # 建議設定到 mimii_data 根目錄，以便掃描所有 SNR、機器類型和 obj_ID
+    UPLOAD_DIRECTORY = r"C:\Users\sixsn\PycharmProjects\CPC_server_collectorSYS\debug_tools\batch_upload\mimii_upload\mimii_data"  # Windows 範例
+    # UPLOAD_DIRECTORY = "/path/to/mimii_data"  # Linux 範例
 
     # ==================== 資料夾結構 ====================
-    # 資料夾結構範例:
+    # MIMII 資料夾結構範例:
     # UPLOAD_DIRECTORY/
-    # ├── normal/
-    # │   ├── audio1.wav
-    # │   ├── audio2.wav
-    # │   └── ...
-    # └── abnormal/
-    #     ├── audio1.wav
-    #     ├── audio2.wav
-    #     └── ...
+    # ├── 6_dB_pump/
+    # │   └── pump/
+    # │       ├── id_00/
+    # │       │   ├── normal/
+    # │       │   │   ├── 00000000.wav
+    # │       │   │   └── ...
+    # │       │   └── abnormal/
+    # │       │       └── ...
+    # │       ├── id_02/
+    # │       └── id_04/
+    # ├── -6_dB_pump/
+    # ├── 0_dB_pump/
+    # └── ... (其他 SNR 和機器類型組合)
 
     # 標籤對應資料夾名稱(小寫)
     LABEL_FOLDERS = {
@@ -39,13 +45,16 @@ class UploadConfig:
         'abnormal': 'abnormal',  # 異常音檔資料夾名稱
     }
 
+    # 支援的機器類型
+    MACHINE_TYPES = ['pump', 'fan', 'slider', 'valve']
+
     # ==================== 支援的音頻格式 ====================
     SUPPORTED_FORMATS = ['.wav']
 
     # ==================== 資料集配置 ====================
     DATASET_CONFIG = {
         'dataset_UUID': 'mimii_batch_upload',
-        'obj_ID': '-1',  # 批量上傳專用代碼
+        # obj_ID 將從路徑中自動提取 (id_00, id_02, id_04 等)
     }
 
     # ==================== 分析服務配置 ====================
@@ -60,7 +69,7 @@ class UploadConfig:
         'concurrent_uploads': 3,  # 並行上傳數量(1 表示單線程)
         'retry_attempts': 3,  # 失敗重試次數
         'retry_delay': 2,  # 重試延遲(秒)
-        'per_label_limit': 2,  # 限制每個label上傳數量，0為不限制
+        'per_label_limit': 50,  # 限制每個label上傳數量，0為不限制
     }
 
     # ==================== 看不懂別動 ====================
@@ -112,12 +121,8 @@ def validate_config():
         if key not in UploadConfig.MONGODB_CONFIG:
             errors.append(f"MongoDB 配置缺少 {key}")
 
-    # 檢查標籤資料夾
-    if UploadConfig.LABEL_FOLDERS:
-        for label, folder_name in UploadConfig.LABEL_FOLDERS.items():
-            folder_path = os.path.join(UploadConfig.UPLOAD_DIRECTORY, folder_name)
-            if not os.path.exists(folder_path):
-                errors.append(f"標籤資料夾不存在: {folder_path}")
+    # MIMII 資料集的標籤資料夾在深層目錄中，不需要檢查
+    # 標籤資料夾結構：{snr}_{machine_type}/{machine_type}/{obj_ID}/{label}/
 
     return errors
 
