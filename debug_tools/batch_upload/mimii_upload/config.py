@@ -9,7 +9,7 @@ class UploadConfig:
     # ==================== MongoDB 配置 ====================
     MONGODB_CONFIG = {
         'host': 'localhost',
-        'port': 27021,
+        'port': 27020,
         'username': 'web_ui',
         'password': 'hod2iddfsgsrl',
         'database': 'web_db',

@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import List, Dict, Optional
 import logging
 from logging.handlers import RotatingFileHandler
-from datetime import datetime
+from datetime import datetime, UTC
 from pymongo import MongoClient
 from gridfs import GridFS
 from bson.objectid import ObjectId
@@ -242,7 +242,7 @@ class MongoDBDeleter:
                             {
                                 '$set': {
                                     behavior['soft_delete_field']: True,
-                                    'deleted_at': datetime.utcnow()
+                                    'deleted_at': datetime.now(UTC)
                                 }
                             }
                         )

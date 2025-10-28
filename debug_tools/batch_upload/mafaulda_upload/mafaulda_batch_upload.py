@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import List, Dict, Optional, Any
 import logging
 from logging.handlers import RotatingFileHandler
-from datetime import datetime
+from datetime import datetime, UTC
 import hashlib
 import uuid
 import random
@@ -129,7 +129,7 @@ class MongoDBUploader:
                     filename=file_path.name,
                     metadata={
                         'device_id': f'BATCH_UPLOAD_{label.upper()}',
-                        'upload_time': datetime.utcnow().isoformat(),
+                        'upload_time': datetime.now(UTC).isoformat(),
                         'file_hash': file_hash,
                         'label': label
                     }
@@ -160,7 +160,7 @@ class MongoDBUploader:
                          file_hash: str, file_id: ObjectId, label: str,
                          file_metadata: Dict[str, Any]) -> Dict:
         """創建 MongoDB 文檔(符合 V3 格式)"""
-        current_time = datetime.utcnow()
+        current_time = datetime.now(UTC)
 
         # 獲取檔案元數據
         file_type = Path(filename).suffix[1:].lower()
