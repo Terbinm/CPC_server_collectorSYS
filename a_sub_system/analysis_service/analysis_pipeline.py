@@ -87,7 +87,7 @@ class AnalysisPipeline:
             needs_conversion = self.converter.needs_conversion(temp_file_path)
 
             if needs_conversion:
-                if not self._execute_step0(analyze_uuid, temp_file_path):
+                if not self._execute_step0(analyze_uuid, temp_file_path, record):
                     return False
 
                 # 取得轉檔後的檔案路徑
@@ -241,13 +241,60 @@ class AnalysisPipeline:
             logger.error(traceback.format_exc())
             return None, None
 
-    def _execute_step0(self, analyze_uuid: str, filepath: str) -> bool:
+    @staticmethod
+    def _extract_source_sample_rate(record: Dict[str, Any]) -> Optional[int]:
+        """
+        從記錄中推斷來源採樣率
+
+        Args:
+            record: MongoDB 記錄
+
+        Returns:
+            採樣率（Hz）或 None
+        """
+        info_features = record.get('info_features', {}) if isinstance(record, dict) else {}
+
+        candidates = [
+            info_features.get('sample_rate'),
+            info_features.get('sample_rate_hz'),
+        ]
+
+        nested_keys = [
+            ('mafaulda_metadata', 'sample_rate_hz'),
+            ('audio_metadata', 'sample_rate'),
+            ('metadata', 'sample_rate'),
+        ]
+
+        for path in nested_keys:
+            current = info_features
+            for key in path:
+                if not isinstance(current, dict):
+                    current = None
+                    break
+                current = current.get(key)
+            candidates.append(current)
+
+        for candidate in candidates:
+            if isinstance(candidate, (int, float)) and candidate > 0:
+                return int(candidate)
+            if isinstance(candidate, str):
+                try:
+                    value = float(candidate.strip())
+                    if value > 0:
+                        return int(value)
+                except (ValueError, AttributeError):
+                    continue
+
+        return None
+
+    def _execute_step0(self, analyze_uuid: str, filepath: str, record: Dict[str, Any]) -> bool:
         """
         執行 Step 0: 音訊轉檔（CSV -> WAV）
 
         Args:
             analyze_uuid: 記錄 UUID
             filepath: 原始檔案路徑
+            record: MongoDB 記錄（用於推斷來源採樣率）
 
         Returns:
             是否成功
@@ -256,8 +303,15 @@ class AnalysisPipeline:
             logger.info(f"[Step 0] 開始音訊轉檔...")
             self.mongodb.update_record_step(analyze_uuid, 0, 'processing')
 
+            source_sample_rate = self._extract_source_sample_rate(record)
+            if source_sample_rate:
+                logger.info(f"[Step 0] 偵測來源採樣率: {source_sample_rate}Hz")
+
             # 執行轉檔
-            converted_path = self.converter.convert_to_wav(filepath)
+            converted_path = self.converter.convert_to_wav(
+                filepath,
+                sample_rate=source_sample_rate
+            )
 
             if not converted_path:
                 error_msg = "音訊轉檔失敗"
@@ -266,7 +320,13 @@ class AnalysisPipeline:
                 return False
 
             # 獲取轉檔資訊
-            conversion_info = self.converter.get_conversion_info(filepath, converted_path)
+            conversion_info = self.converter.get_conversion_info(
+                filepath,
+                converted_path,
+                sample_rate=source_sample_rate
+            )
+            if source_sample_rate:
+                conversion_info['source_sample_rate'] = int(source_sample_rate)
 
             # 儲存轉檔結果
             success = self.mongodb.save_conversion_results(analyze_uuid, conversion_info)

@@ -17,7 +17,7 @@ class AudioConverter:
     def __init__(self):
         """初始化轉檔器"""
         self.sample_rate = AUDIO_CONFIG['sample_rate']
-        logger.info(f"AudioConverter 初始化: sample_rate={self.sample_rate}Hz")
+        logger.info(f"AudioConverter 初始化: default_sample_rate={self.sample_rate}Hz")
 
     def needs_conversion(self, filepath: str) -> bool:
         """
@@ -48,12 +48,13 @@ class AudioConverter:
             logger.error(f"檢查檔案格式失敗 {filepath}: {e}")
             return False
 
-    def convert_to_wav(self, filepath: str) -> Optional[str]:
+    def convert_to_wav(self, filepath: str, sample_rate: Optional[int] = None) -> Optional[str]:
         """
         將檔案轉換為 WAV 格式
 
         Args:
             filepath: 原始檔案路徑
+            sample_rate: 目標採樣率（若未提供則使用預設值）
 
         Returns:
             轉換後的 WAV 檔案路徑，或 None（如果失敗或不需轉換）
@@ -68,7 +69,8 @@ class AudioConverter:
 
             # CSV 轉 WAV
             if file_ext == '.csv':
-                return self._convert_csv_to_wav(filepath)
+                target_sample_rate = self._resolve_sample_rate(sample_rate)
+                return self._convert_csv_to_wav(filepath, target_sample_rate)
 
             # 其他格式暫不支援
             logger.error(f"不支援的檔案格式: {file_ext}")
@@ -78,7 +80,16 @@ class AudioConverter:
             logger.error(f"轉檔失敗 {filepath}: {e}")
             return None
 
-    def _convert_csv_to_wav(self, csv_path: str) -> Optional[str]:
+    def _resolve_sample_rate(self, sample_rate: Optional[int]) -> int:
+        """解析目標採樣率，若未提供則使用預設值"""
+        if isinstance(sample_rate, (int, float)) and sample_rate > 0:
+            resolved = int(sample_rate)
+            if resolved != self.sample_rate:
+                logger.warning(f"無法推算採樣率，使用值: {resolved}Hz（預設 {self.sample_rate}Hz）")
+            return resolved
+        return self.sample_rate
+
+    def _convert_csv_to_wav(self, csv_path: str, sample_rate: int) -> Optional[str]:
         """
         將 CSV 檔案轉換為 WAV 格式
 
@@ -131,9 +142,9 @@ class AudioConverter:
             temp_wav.close()
 
             # 寫入 WAV 檔案
-            sf.write(temp_wav_path, audio_data, self.sample_rate)
+            sf.write(temp_wav_path, audio_data, sample_rate)
 
-            logger.info(f"✓ CSV 轉 WAV 成功: {temp_wav_path}")
+            logger.info(f"✓ CSV 轉 WAV 成功: {temp_wav_path} (sample_rate={sample_rate}Hz)")
 
             # 返回轉換後的資訊
             return temp_wav_path
@@ -144,13 +155,15 @@ class AudioConverter:
             logger.error(traceback.format_exc())
             return None
 
-    def get_conversion_info(self, original_path: str, converted_path: str) -> Dict[str, Any]:
+    def get_conversion_info(self, original_path: str, converted_path: str,
+                            sample_rate: Optional[int] = None) -> Dict[str, Any]:
         """
         獲取轉檔資訊
 
         Args:
             original_path: 原始檔案路徑
             converted_path: 轉換後檔案路徑
+            sample_rate: 轉檔時使用的採樣率
 
         Returns:
             轉檔資訊字典
@@ -160,14 +173,19 @@ class AudioConverter:
             converted_size = os.path.getsize(converted_path) if os.path.exists(converted_path) else 0
 
             # 讀取轉換後的音訊資訊
-            audio_info, sr = sf.read(converted_path, frames=0)
+            _, sr = sf.read(converted_path, frames=0)
+
+            if isinstance(sr, (int, float)) and sr > 0:
+                resolved_sample_rate = int(sr)
+            else:
+                resolved_sample_rate = self._resolve_sample_rate(sample_rate)
 
             return {
                 'original_format': Path(original_path).suffix.lower(),
                 'converted_format': '.wav',
                 'original_size_bytes': original_size,
                 'converted_size_bytes': converted_size,
-                'sample_rate': self.sample_rate,
+                'sample_rate': resolved_sample_rate,
                 'converted_path': converted_path
             }
 
