@@ -169,8 +169,9 @@ class MongoDBUploader:
         duration = file_metadata.get('duration')
         file_size = file_metadata.get('file_size')
 
-        # 構建 MIMII 元數據
+        # 構建 MIMII 元數據（添加 fault_type）
         mimii_metadata = {
+            'fault_type': label,  # 参考 mafaulda_metadata.fault_type
             'snr': file_metadata.get('snr'),
             'machine_type': file_metadata.get('machine_type'),
             'obj_ID': file_metadata.get('obj_ID'),
@@ -179,19 +180,17 @@ class MongoDBUploader:
         }
         mimii_metadata = {k: v for k, v in mimii_metadata.items() if v is not None}
 
-        # 構建批次上傳元數據
-        batch_metadata = {
-            "upload_method": "BATCH_UPLOAD",
-            "upload_timestamp": current_time.isoformat(),
-            "label": label,
-            "source": "mimii_batch_uploader_v2.0"
-        }
-
         analysis_config = getattr(UploadConfig, 'ANALYSIS_CONFIG', {})
         target_channel = analysis_config.get('target_channel') if isinstance(analysis_config, dict) else None
 
         # 從 MIMII metadata 中提取 obj_ID
         obj_id = file_metadata.get('obj_ID', '-1')
+
+        # 获取音频格式信息
+        sample_rate = file_metadata.get('sample_rate')
+        channels = file_metadata.get('channels')
+        frames = file_metadata.get('frames')
+        raw_format = file_metadata.get('raw_format')
 
         document = {
             "AnalyzeUUID": analyze_uuid,
@@ -211,13 +210,17 @@ class MongoDBUploader:
                 "device_id": f"BATCH_UPLOAD_{label.upper()}",
                 "testing": False,
                 "obj_ID": obj_id,
-                "upload_time": current_time.isoformat(),
                 "upload_complete": True,
                 "file_hash": file_hash,
                 "file_size": file_size,
                 "duration": duration,
-                "label": label,  # 標籤資訊
-                "batch_upload_metadata": batch_metadata,
+                "label": label,
+                # 添加 sample_rate/channels/frames/num_sample/raw_format
+                "sample_rate": sample_rate,
+                "channels": channels,
+                "frames": frames,
+                "num_sample": frames,  # frames 就是 num_sample
+                "raw_format": raw_format,
                 "mimii_metadata": mimii_metadata
             }
         }
@@ -442,9 +445,21 @@ class BatchUploader:
         }
         metadata.update(path_metadata)
 
-        # 獲取音頻時長
-        duration = self.get_audio_duration(file_path)
-        metadata['duration'] = duration
+        # 獲取音頻時長和格式信息
+        try:
+            info = sf.info(str(file_path))
+            metadata['duration'] = info.duration
+            metadata['sample_rate'] = info.samplerate
+            metadata['channels'] = info.channels
+            metadata['frames'] = info.frames
+            metadata['raw_format'] = info.format
+        except Exception as e:
+            logger.warning(f"無法讀取音頻資訊 {file_path.name}: {e}")
+            metadata['duration'] = 0.0
+            metadata['sample_rate'] = None
+            metadata['channels'] = None
+            metadata['frames'] = None
+            metadata['raw_format'] = None
 
         return metadata
 

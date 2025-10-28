@@ -156,29 +156,32 @@ class MongoDBUploader:
         cpc_metadata: Dict[str, Any],
     ) -> Dict[str, Any]:
         current_time = datetime.now(UTC)
-        analysis_config = getattr(UploadConfig, 'ANALYSIS_CONFIG', {})
         file_type = Path(filename).suffix.lstrip('.').lower()
 
         info_features: Dict[str, Any] = {
             "dataset_UUID": UploadConfig.DATASET_CONFIG['dataset_UUID'],
             "device_id": UploadConfig.DEVICE_ID,
             "testing": False,
+            "obj_ID": UploadConfig.DATASET_CONFIG['obj_ID'],
             "upload_complete": True,
             "file_hash": file_hash,
             "file_size": cpc_metadata.get('file_size'),
             "duration": cpc_metadata.get('duration'),
             "label": label,
+            "sample_rate": cpc_metadata.get('sample_rate'),
+            "channels": cpc_metadata.get('channels'),
+            "frames": cpc_metadata.get('frames'),
+            "num_sample": cpc_metadata.get('frames'),  # frames 就是 num_sample
+            "raw_format": cpc_metadata.get('format'),
             "cpc_metadata": {
-                "sample_rate": cpc_metadata.get('sample_rate'),
-                "channels": cpc_metadata.get('channels'),
-                "frames": cpc_metadata.get('frames'),
                 "subtype": cpc_metadata.get('subtype'),
-                "format": cpc_metadata.get('format'),
             },
         }
 
-        if analysis_config and isinstance(analysis_config, dict):
-            info_features['analysis_config'] = analysis_config
+        # 添加 target_channel
+        target_channel = getattr(UploadConfig, 'TARGET_CHANNEL', None)
+        if target_channel is not None:
+            info_features['target_channel'] = target_channel
 
         document = {
             "AnalyzeUUID": analyze_uuid,

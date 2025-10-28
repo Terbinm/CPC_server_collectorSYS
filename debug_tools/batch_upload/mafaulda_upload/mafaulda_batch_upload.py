@@ -167,6 +167,7 @@ class MongoDBUploader:
         duration = file_metadata.get('duration')
         file_size = file_metadata.get('file_size')
 
+        # 构建 mafaulda_metadata（移除 num_channels 和 sample_rate_hz）
         mafaulda_metadata = {
             'fault_type': file_metadata.get('fault_type'),
             'fault_variant': file_metadata.get('fault_variant'),
@@ -175,23 +176,12 @@ class MongoDBUploader:
             'relative_path': file_metadata.get('relative_path'),
             'rotational_frequency_hz': file_metadata.get('rotational_frequency_hz'),
             'rotational_speed_rpm': file_metadata.get('rotational_speed_rpm'),
-            'num_samples': file_metadata.get('num_samples'),
-            'num_channels': file_metadata.get('num_channels'),
-            'sample_rate_hz': file_metadata.get('sample_rate_hz'),
         }
         mafaulda_metadata = {k: v for k, v in mafaulda_metadata.items() if v is not None}
 
-        batch_metadata = {
-            "upload_method": "BATCH_UPLOAD",
-            "upload_timestamp": current_time.isoformat(),
-            "label": label,
-            "source": "mafaulda_batch_uploader_v1.0"
-        }
-        if file_metadata.get('fault_condition'):
-            batch_metadata['fault_condition'] = file_metadata['fault_condition']
-
         analysis_config = getattr(UploadConfig, 'ANALYSIS_CONFIG', {})
         target_channel = analysis_config.get('target_channel') if isinstance(analysis_config, dict) else None
+
         document = {
             "AnalyzeUUID": analyze_uuid,
             "current_step": 0,
@@ -210,13 +200,17 @@ class MongoDBUploader:
                 "device_id": f"BATCH_UPLOAD_{label.upper()}",
                 "testing": False,
                 "obj_ID": UploadConfig.DATASET_CONFIG['obj_ID'],
-                "upload_time": current_time.isoformat(),
                 "upload_complete": True,
                 "file_hash": file_hash,
                 "file_size": file_size,
                 "duration": duration,
-                "label": label,  # 標籤資訊
-                "batch_upload_metadata": batch_metadata,
+                "label": label,
+                # 添加 sample_rate/channels/frames/num_sample/raw_format
+                "sample_rate": file_metadata.get('sample_rate_hz'),
+                "channels": file_metadata.get('num_channels'),
+                "frames": file_metadata.get('num_samples'),
+                "num_sample": file_metadata.get('num_samples'),
+                "raw_format": "CSV",  # MAFAULDA 都是 CSV 格式
                 "mafaulda_metadata": mafaulda_metadata
             }
         }
@@ -405,8 +399,16 @@ class BatchUploader:
 
         if fault_hierarchy:
             metadata['fault_hierarchy'] = fault_hierarchy
-            metadata['fault_variant'] = fault_hierarchy[0]
-            metadata['fault_condition'] = "/".join(fault_hierarchy)
+            # 修正 fault_variant 逻辑：
+            # 只有 1 层时：fault_condition = 该层，不记录 fault_variant
+            # 有 2 层或更多时：fault_variant = 第一层，fault_condition = 最后一层
+            if len(fault_hierarchy) == 1:
+                # ex: horizontal-misalignment/0.5mm => fault_condition=0.5mm, 无 fault_variant
+                metadata['fault_condition'] = fault_hierarchy[0]
+            else:
+                # ex: overhang/ball_fault/0g => fault_variant=ball_fault, fault_condition=0g
+                metadata['fault_variant'] = fault_hierarchy[0]
+                metadata['fault_condition'] = fault_hierarchy[-1]
 
         metadata.update(self._extract_rotational_speed(file_path))
         return label, metadata
@@ -504,29 +506,82 @@ class BatchUploader:
         return dataset_files
 
     def _apply_label_limit(self, dataset_files: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """依設定限制每個標籤的檔案數量"""
+        """依設定限制每個標籤的檔案數量，並在不同 fault_variant 間均勻採樣"""
+        from collections import OrderedDict, deque
+
         limit = UploadConfig.UPLOAD_BEHAVIOR.get('per_label_limit', 0)
         if not isinstance(limit, int) or limit <= 0:
             return dataset_files
 
         logger.info(f"套用標籤上限: 每個標籤最多 {limit} 個檔案")
 
-        limited_files: List[Dict[str, Any]] = []
-        label_counts: Dict[str, int] = {}
-        skipped = 0
-
-        for entry in dataset_files:
+        # 依標籤建立 fault_variant -> 檔案索引的映射(維持原始順序)
+        label_variant_map: Dict[str, OrderedDict[str, List[int]]] = {}
+        for idx, entry in enumerate(dataset_files):
             label = entry['label']
-            count = label_counts.get(label, 0)
-            if count >= limit:
-                skipped += 1
+            # 使用 fault_variant 或 fault_condition 或 'default' 作為分組鍵
+            path_metadata = entry['path_metadata']
+            variant_key = path_metadata.get('fault_variant') or path_metadata.get('fault_condition') or 'default'
+
+            if label not in label_variant_map:
+                label_variant_map[label] = OrderedDict()
+
+            variant_entries = label_variant_map[label].setdefault(variant_key, [])
+            variant_entries.append(idx)
+
+        selected_indices = set()
+        total_skipped = 0
+
+        for label, variants in label_variant_map.items():
+            # 以原始順序列出當前標籤的所有檔案索引
+            all_indices: List[int] = [idx for variant_list in variants.values() for idx in variant_list]
+            total_files = len(all_indices)
+            effective_limit = min(limit, total_files)
+
+            variant_count = sum(1 for variant_list in variants.values() if variant_list)
+
+            # 檢查是否會出現資料夾數量大於限制的情況
+            if variant_count and effective_limit < variant_count:
+                average = effective_limit / variant_count if variant_count else 0
+                logger.warning(
+                    f"標籤 {label} 共有 {variant_count} 個 fault_variant，"
+                    f"依目前上限平均每個 variant 僅 {average:.2f} 個檔案，部分 variant 將不被採樣。"
+                )
+
+            # 如果不需要裁切，直接收錄所有檔案索引
+            if effective_limit >= total_files:
+                selected_indices.update(all_indices)
                 continue
 
-            label_counts[label] = count + 1
-            limited_files.append(entry)
+            # 以 fault_variant 為單位進行 round-robin 均勻採樣
+            variant_queues: Dict[str, deque[int]] = {
+                variant: deque(index_list) for variant, index_list in variants.items()
+            }
 
-        if skipped:
-            logger.info(f"依標籤上限排除 {skipped} 個資料檔案")
+            active_variants = deque(variant for variant, queue in variant_queues.items() if queue)
+            taken = 0
+
+            while active_variants and taken < effective_limit:
+                variant = active_variants.popleft()
+                queue = variant_queues[variant]
+                if not queue:
+                    continue
+
+                file_index = queue.popleft()
+                selected_indices.add(file_index)
+                taken += 1
+
+                if queue:
+                    active_variants.append(variant)
+
+            skipped_for_label = total_files - min(taken, total_files)
+            total_skipped += max(skipped_for_label, 0)
+
+        if total_skipped:
+            logger.info(f"依標籤上限排除 {total_skipped} 個資料檔案")
+
+        # 依原始順序輸出被選取的檔案
+        limited_files = [entry for idx, entry in enumerate(dataset_files) if idx in selected_indices]
 
         return limited_files
 

@@ -33,12 +33,11 @@ class UploadConfig:
     # ==================== 資料集固定欄位 ====================
     DATASET_CONFIG = {
         'dataset_UUID': 'cpc_batch_upload',
+        'obj_ID': '-1',  # CPC 工廠音訊統一使用 -1
     }
 
-    ANALYSIS_CONFIG = {
-        # CPC 音訊為單聲道，如有變更請調整此設定。
-        'target_channel': [0],
-    }
+    # CPC 音訊為單聲道，如有變更請調整此設定。
+    TARGET_CHANNEL = [0]
 
     AUDIO_CONFIG = {
         'expected_sample_rate_hz': 16000,  # CPC 錄音為 16 kHz
