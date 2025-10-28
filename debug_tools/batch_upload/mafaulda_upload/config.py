@@ -18,39 +18,55 @@ class UploadConfig:
 
     # ==================== 上傳資料夾配置 ====================
     # 要上傳的資料夾路徑(請修改為您的實際路徑)
-    UPLOAD_DIRECTORY = r"C:\Users\sixsn\PycharmProjects\CPC_server_collectorSYS\debug_tools\batch_upload\mimii_upload\mimii_data\6_dB_pump\pump\id_02"  # Windows 範例
-    # UPLOAD_DIRECTORY = "/path/to/audio/dataset"  # Linux 範例
+    UPLOAD_DIRECTORY = r"C:\Users\sixsn\PycharmProjects\CPC_server_collectorSYS\debug_tools\batch_upload\mafaulda_upload\mafaulda_data"
+    # UPLOAD_DIRECTORY = "/path/to/mafaulda/dataset"  # Linux 範例
 
     # ==================== 資料夾結構 ====================
     # 資料夾結構範例:
     # UPLOAD_DIRECTORY/
     # ├── normal/
-    # │   ├── audio1.wav
-    # │   ├── audio2.wav
+    # │   ├── 12.288.csv
     # │   └── ...
-    # └── abnormal/
-    #     ├── audio1.wav
-    #     ├── audio2.wav
-    #     └── ...
+    # ├── imbalance/
+    # │   ├── 6g/
+    # │   │   ├── 13.9264.csv
+    # │   │   └── ...
+    # │   └── ...
+    # ├── horizontal-misalignment/
+    # │   ├── 0.5mm/
+    # │   └── ...
+    # ├── vertical-misalignment/
+    # ├── underhang/
+    # └── overhang/
 
     # 標籤對應資料夾名稱(小寫)
     LABEL_FOLDERS = {
-        'normal': 'normal',  # 正常音檔資料夾名稱
-        'abnormal': 'abnormal',  # 異常音檔資料夾名稱
+        'normal': 'normal',
+        'imbalance': 'imbalance',
+        'horizontal_misalignment': 'horizontal-misalignment',
+        'vertical_misalignment': 'vertical-misalignment',
+        'underhang': 'underhang',
+        'overhang': 'overhang',
     }
 
-    # ==================== 支援的音頻格式 ====================
-    SUPPORTED_FORMATS = ['.wav']
+    # ==================== 支援的檔案格式 ====================
+    SUPPORTED_FORMATS = ['.csv']
 
     # ==================== 資料集配置 ====================
     DATASET_CONFIG = {
-        'dataset_UUID': 'mimii_batch_upload',
-        'obj_ID': '-1',  # 批量上傳專用代碼
+        'dataset_UUID': 'mafaulda_batch_upload',
+        'obj_ID': '-1',  # 依需求調整成對應的 obj_ID
     }
 
     # ==================== 分析服務配置 ====================
     ANALYSIS_CONFIG = {
-        'target_channel': [5]
+        'target_channel': [7]
+    }
+
+    # ==================== CSV 解析配置 ====================
+    CSV_CONFIG = {
+        'sample_rate_hz': 51200,  # 依據 MAFAULDA 數據手冊
+        'expected_channels': 8,  # 預期感測器數量(資料列欄位數)
     }
 
     # ==================== 上傳行為配置 ====================
@@ -60,7 +76,7 @@ class UploadConfig:
         'concurrent_uploads': 3,  # 並行上傳數量(1 表示單線程)
         'retry_attempts': 3,  # 失敗重試次數
         'retry_delay': 2,  # 重試延遲(秒)
-        'per_label_limit': 10,  # 限制每個label上傳數量，0為不限制
+        'per_label_limit': 10,  # 限制每個 label 上傳數量, 0 為不限制
     }
 
     # ==================== 看不懂別動 ====================
@@ -96,7 +112,6 @@ class UploadConfig:
     }
 
 
-
 # 驗證配置
 def validate_config():
     """驗證配置是否正確"""
@@ -116,7 +131,7 @@ def validate_config():
     if UploadConfig.LABEL_FOLDERS:
         for label, folder_name in UploadConfig.LABEL_FOLDERS.items():
             folder_path = os.path.join(UploadConfig.UPLOAD_DIRECTORY, folder_name)
-            if not os.path.exists(folder_path):
+            if not os.path.isdir(folder_path):
                 errors.append(f"標籤資料夾不存在: {folder_path}")
 
     return errors

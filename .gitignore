@@ -19,3 +19,11 @@ uploads/
 /a_sub_system/train/RF/training_reports/
 /a_sub_system/train/RF/evaluation_results/
 /debug_tools/batch_upload/mafaulda/mafaulda_data/
+/debug_tools/batch_upload/mimii_upload/reports/*
+/debug_tools/batch_upload/mimii_upload/mimii_data/*
+/debug_tools/batch_upload/mafaulda_upload/reports/*
+/debug_tools/batch_upload/mafaulda_upload/mafaulda_data/*
+/debug_tools/batch_delete/delete_backups/backup_20251023_172913.json
+/debug_tools/batch_delete/delete_backups/backup_20251023_174938.json
+/debug_tools/batch_delete/delete_reports/delete_report_20251023_172918.json
+/debug_tools/batch_delete/delete_reports/delete_report_20251023_174943.json

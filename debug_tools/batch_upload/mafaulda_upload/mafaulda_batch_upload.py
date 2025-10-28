@@ -3,14 +3,13 @@
 import os
 import sys
 from pathlib import Path
-from typing import List, Dict, Tuple, Optional, Any
+from typing import List, Dict, Optional, Any
 import logging
 from logging.handlers import RotatingFileHandler
 from datetime import datetime
 import hashlib
 import uuid
 import random
-import soundfile as sf
 from pymongo import MongoClient
 from gridfs import GridFS
 from bson.objectid import ObjectId
@@ -36,9 +35,12 @@ class BatchUploadLogger:
 
         formatter = logging.Formatter(UploadConfig.LOGGING_CONFIG['format'])
 
+        log_path = Path(UploadConfig.LOGGING_CONFIG['log_file'])
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+
         # 檔案處理器
         file_handler = RotatingFileHandler(
-            UploadConfig.LOGGING_CONFIG['log_file'],
+            str(log_path),
             maxBytes=UploadConfig.LOGGING_CONFIG['max_bytes'],
             backupCount=UploadConfig.LOGGING_CONFIG['backup_count'],
             encoding='utf-8'
@@ -105,7 +107,7 @@ class MongoDBUploader:
         return existing is not None
 
     def upload_file(self, file_path: Path, label: str, file_hash: str,
-                    duration: float, file_size: int) -> Optional[str]:
+                    file_metadata: Dict[str, Any]) -> Optional[str]:
         """
         上傳檔案到 MongoDB + GridFS
 
@@ -138,11 +140,10 @@ class MongoDBUploader:
             document = self._create_document(
                 analyze_uuid=analyze_uuid,
                 filename=file_path.name,
-                duration=duration,
-                file_size=file_size,
                 file_hash=file_hash,
                 file_id=file_id,
-                label=label
+                label=label,
+                file_metadata=file_metadata
             )
 
             # 插入 MongoDB
@@ -156,17 +157,41 @@ class MongoDBUploader:
             return None
 
     def _create_document(self, analyze_uuid: str, filename: str,
-                         duration: float, file_size: int, file_hash: str,
-                         file_id: ObjectId, label: str) -> Dict:
+                         file_hash: str, file_id: ObjectId, label: str,
+                         file_metadata: Dict[str, Any]) -> Dict:
         """創建 MongoDB 文檔(符合 V3 格式)"""
         current_time = datetime.utcnow()
 
-        # 獲取音頻元數據
+        # 獲取檔案元數據
         file_type = Path(filename).suffix[1:].lower()
+        duration = file_metadata.get('duration')
+        file_size = file_metadata.get('file_size')
+
+        mafaulda_metadata = {
+            'fault_type': file_metadata.get('fault_type'),
+            'fault_variant': file_metadata.get('fault_variant'),
+            'fault_condition': file_metadata.get('fault_condition'),
+            'fault_hierarchy': file_metadata.get('fault_hierarchy'),
+            'relative_path': file_metadata.get('relative_path'),
+            'rotational_frequency_hz': file_metadata.get('rotational_frequency_hz'),
+            'rotational_speed_rpm': file_metadata.get('rotational_speed_rpm'),
+            'num_samples': file_metadata.get('num_samples'),
+            'num_channels': file_metadata.get('num_channels'),
+            'sample_rate_hz': file_metadata.get('sample_rate_hz'),
+        }
+        mafaulda_metadata = {k: v for k, v in mafaulda_metadata.items() if v is not None}
+
+        batch_metadata = {
+            "upload_method": "BATCH_UPLOAD",
+            "upload_timestamp": current_time.isoformat(),
+            "label": label,
+            "source": "mafaulda_batch_uploader_v1.0"
+        }
+        if file_metadata.get('fault_condition'):
+            batch_metadata['fault_condition'] = file_metadata['fault_condition']
 
         analysis_config = getattr(UploadConfig, 'ANALYSIS_CONFIG', {})
         target_channel = analysis_config.get('target_channel') if isinstance(analysis_config, dict) else None
-
         document = {
             "AnalyzeUUID": analyze_uuid,
             "current_step": 0,
@@ -191,15 +216,10 @@ class MongoDBUploader:
                 "file_size": file_size,
                 "duration": duration,
                 "label": label,  # 標籤資訊
-                "batch_upload_metadata": {
-                    "upload_method": "BATCH_UPLOAD",
-                    "upload_timestamp": current_time.isoformat(),
-                    "label": label,
-                    "source": "batch_uploader_v1.0"
-                }
+                "batch_upload_metadata": batch_metadata,
+                "mafaulda_metadata": mafaulda_metadata
             }
         }
-
         if target_channel is not None:
             document['info_features']['target_channel'] = target_channel
 
@@ -226,10 +246,9 @@ class BatchUploader:
             'success': 0,
             'failed': 0,
             'skipped': 0,
-            'normal': 0,
-            'abnormal': 0,
-            'unknown': 0,
-            'failed_files': []
+            'labels': {},
+            'failed_files': [],
+            'filtered_invalid_label': 0
         }
 
         # 進度追蹤
@@ -239,9 +258,12 @@ class BatchUploader:
 
     def _load_progress(self) -> Dict:
         """載入上傳進度"""
-        if os.path.exists(UploadConfig.PROGRESS_FILE):
+        progress_path = Path(UploadConfig.PROGRESS_FILE)
+        progress_path.parent.mkdir(parents=True, exist_ok=True)
+
+        if progress_path.exists():
             try:
-                with open(UploadConfig.PROGRESS_FILE, 'r', encoding='utf-8') as f:
+                with progress_path.open('r', encoding='utf-8') as f:
                     return json.load(f)
             except Exception as e:
                 logger.warning(f"無法載入進度檔案: {e}")
@@ -250,7 +272,9 @@ class BatchUploader:
     def _save_progress(self):
         """儲存上傳進度"""
         try:
-            with open(UploadConfig.PROGRESS_FILE, 'w', encoding='utf-8') as f:
+            progress_path = Path(UploadConfig.PROGRESS_FILE)
+            progress_path.parent.mkdir(parents=True, exist_ok=True)
+            with progress_path.open('w', encoding='utf-8') as f:
                 json.dump(self.progress, f, indent=2, ensure_ascii=False)
         except Exception as e:
             logger.warning(f"無法儲存進度檔案: {e}")
@@ -268,65 +292,56 @@ class BatchUploader:
             return str(data)
         return data
 
-    def _generate_dry_run_samples(self, audio_files: List[Tuple[Path, str]]) -> None:
+    def _generate_dry_run_samples(self, dataset_files: List[Dict[str, Any]]) -> None:
         """為 Dry Run 模式輸出各標籤的樣本 JSON"""
         preview_config = getattr(UploadConfig, 'DRY_RUN_PREVIEW', {})
         if not preview_config.get('enable_preview', True):
             logger.info("[DRY RUN] 預覽輸出已停用")
             return
 
-        label_entries: Dict[str, List[Path]] = {}
-        for file_path, label in audio_files:
-            label_entries.setdefault(label, []).append(file_path)
+        label_entries: Dict[str, List[Dict[str, Any]]] = {}
+        for entry in dataset_files:
+            label_entries.setdefault(entry['label'], []).append(entry)
 
         if not label_entries:
             logger.info("[DRY RUN] 沒有可輸出的標籤樣本")
             return
 
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+
         preview_root = Path(preview_config.get('output_directory', 'dry_run_previews'))
         if not preview_root.is_absolute():
             preview_root = Path(__file__).parent / preview_root
         preview_directory = preview_root / f"dry_run_{timestamp}"
         preview_directory.mkdir(parents=True, exist_ok=True)
 
-        base_path = Path(UploadConfig.UPLOAD_DIRECTORY)
-
-        for label, paths in sorted(label_entries.items()):
+        for label, entries in sorted(label_entries.items()):
             try:
-                sample_path = random.choice(paths)
-                try:
-                    relative_path = sample_path.relative_to(base_path)
-                    relative_path_str = str(relative_path).replace("\\", "/")
-                except ValueError:
-                    relative_path_str = str(sample_path)
+                sample_entry = random.choice(entries)
+                file_path: Path = sample_entry['path']
+                path_metadata = sample_entry['path_metadata']
 
-                file_size = sample_path.stat().st_size
-                duration = self.get_audio_duration(sample_path)
-                file_hash = self.calculate_file_hash(sample_path)
+                file_metadata = self.get_file_metadata(file_path, path_metadata)
+                file_hash = self.calculate_file_hash(file_path)
                 analyze_uuid = str(uuid.uuid4())
-
                 document = self.uploader._create_document(
                     analyze_uuid=analyze_uuid,
-                    filename=sample_path.name,
-                    duration=duration,
-                    file_size=file_size,
+                    filename=file_path.name,
                     file_hash=file_hash,
                     file_id=None,
-                    label=label
+                    label=label,
+                    file_metadata=file_metadata
                 )
 
                 preview_payload = {
                     'label': label,
-                    'source_file': str(sample_path),
-                    'relative_path': relative_path_str,
-                    'file_hash': file_hash,
-                    'file_size': file_size,
-                    'duration': duration,
-                    'document': self._to_json_serializable(document)
+                    'source_file': str(file_path),
+                    'relative_path': file_metadata.get('relative_path'),
+                    'file_metadata': self._to_json_serializable(file_metadata),
+                    'document': self._to_json_serializable(document),
                 }
 
-                output_filename = f"{label}_{sample_path.stem}_{analyze_uuid[:8]}.json"
+                output_filename = f"{label}_{file_path.stem}_{analyze_uuid[:8]}.json"
                 output_path = preview_directory / output_filename
 
                 with open(output_path, 'w', encoding='utf-8') as f:
@@ -349,45 +364,179 @@ class BatchUploader:
         return sha256_hash.hexdigest()
 
     @staticmethod
-    def get_audio_duration(file_path: Path) -> float:
-        """獲取音頻時長"""
+    def _extract_rotational_speed(file_path: Path) -> Dict[str, Optional[float]]:
+        """從檔案名稱推算轉速資訊 (e.g. 13.5168 -> 811 rpm)"""
+        metadata: Dict[str, Optional[float]] = {}
+        stem = file_path.stem
         try:
-            info = sf.info(str(file_path))
-            return info.duration
+            frequency_hz = float(stem.replace('_', '.'))
+            metadata['rotational_frequency_hz'] = frequency_hz
+            metadata['rotational_speed_rpm'] = frequency_hz * 60.0
+        except ValueError:
+            # 檔名不是數值時忽略即可
+            pass
+        return metadata
+
+    def _analyze_file_path(self, file_path: Path) -> Dict[str, Any]:
+        """從路徑解析 MAFAULDA 資料的標籤與層級資訊"""
+        base_path = Path(UploadConfig.UPLOAD_DIRECTORY)
+        try:
+            relative = file_path.relative_to(base_path)
+        except ValueError:
+            relative = file_path
+
+        parts = relative.parts
+        folder_map = {
+            folder_name.lower(): label_key
+            for label_key, folder_name in UploadConfig.LABEL_FOLDERS.items()
+        }
+
+        label = 'unknown'
+        if parts:
+            label = folder_map.get(parts[0].lower(), 'unknown')
+
+        fault_hierarchy = list(parts[1:-1]) if len(parts) > 1 else []
+
+        metadata: Dict[str, Any] = {
+            'relative_path': str(relative).replace("\\", "/"),
+        }
+        if label != 'unknown':
+            metadata['fault_type'] = label
+
+        if fault_hierarchy:
+            metadata['fault_hierarchy'] = fault_hierarchy
+            metadata['fault_variant'] = fault_hierarchy[0]
+            metadata['fault_condition'] = "/".join(fault_hierarchy)
+
+        metadata.update(self._extract_rotational_speed(file_path))
+        return label, metadata
+
+    def _get_csv_metadata(self, file_path: Path) -> Dict[str, Any]:
+        """解析 CSV 檔案的取樣點數與欄位數"""
+        num_samples = 0
+        num_channels: Optional[int] = None
+
+        try:
+            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                for line in f:
+                    stripped = line.strip()
+                    if not stripped:
+                        continue
+                    if num_channels is None:
+                        num_channels = len(stripped.split(','))
+                    num_samples += 1
         except Exception as e:
-            logger.warning(f"無法讀取音頻時長 {file_path.name}: {e}")
-            return 0.0
+            logger.warning(f"無法解析 CSV 檔案 {file_path.name}: {e}")
+            return {
+                'num_samples': None,
+                'num_channels': num_channels,
+                'duration': None
+            }
 
-    def detect_label_from_path(self, file_path: Path) -> str:
-        """從檔案路徑偵測標籤"""
-        path_parts = [p.lower() for p in file_path.parts]
+        metadata: Dict[str, Any] = {
+            'num_samples': num_samples,
+            'num_channels': num_channels,
+        }
 
-        for label, folder_name in UploadConfig.LABEL_FOLDERS.items():
-            if folder_name.lower() in path_parts:
-                return label
+        sample_rate = UploadConfig.CSV_CONFIG.get('sample_rate_hz')
+        if sample_rate and num_samples:
+            metadata['duration'] = num_samples / sample_rate
+        else:
+            metadata['duration'] = None
 
-        return 'unknown'
+        expected_channels = UploadConfig.CSV_CONFIG.get('expected_channels')
+        if expected_channels and num_channels and num_channels != expected_channels:
+            logger.warning(
+                f"CSV 欄位數異常 {file_path.name}: 期望 {expected_channels}, 實際 {num_channels}"
+            )
 
-    def scan_directory(self) -> List[Tuple[Path, str]]:
-        """掃描資料夾,找出所有音頻檔案"""
+        return metadata
+
+    def get_file_metadata(self, file_path: Path, path_metadata: Dict[str, Any]) -> Dict[str, Any]:
+        """整合檔案與路徑取得的所有中繼資訊"""
+        metadata: Dict[str, Any] = {
+            'file_size': file_path.stat().st_size,
+            'sample_rate_hz': UploadConfig.CSV_CONFIG.get('sample_rate_hz'),
+        }
+        metadata.update(path_metadata)
+
+        ext = file_path.suffix.lower()
+        if ext == '.csv':
+            metadata.update(self._get_csv_metadata(file_path))
+        else:
+            metadata['duration'] = None
+
+        if metadata.get('duration') is None and metadata.get('num_samples') and metadata.get('sample_rate_hz'):
+            metadata['duration'] = metadata['num_samples'] / metadata['sample_rate_hz']
+
+        return metadata
+
+    def scan_directory(self) -> List[Dict[str, Any]]:
+        """掃描資料夾,找出所有待上傳的資料檔案"""
         logger.info(f"掃描資料夾: {UploadConfig.UPLOAD_DIRECTORY}")
 
         directory_path = Path(UploadConfig.UPLOAD_DIRECTORY)
-        audio_files = []
+        dataset_files: List[Dict[str, Any]] = []
 
         # 遞迴掃描
         for ext in self.supported_formats:
             for file_path in directory_path.rglob(f"*{ext}"):
                 if file_path.is_file():
-                    label = self.detect_label_from_path(file_path)
-                    audio_files.append((file_path, label))
+                    label, path_metadata = self._analyze_file_path(file_path)
+                    if label == 'unknown':
+                        try:
+                            rel_path = file_path.relative_to(directory_path)
+                        except ValueError:
+                            rel_path = file_path
+                        logger.warning(
+                            f"忽略未在 LABEL_FOLDERS 設定中的子資料夾檔案: {rel_path}"
+                        )
+                        self.stats['filtered_invalid_label'] += 1
+                        continue
 
-        logger.info(f"找到 {len(audio_files)} 個音頻檔案")
-        return audio_files
+                    dataset_files.append({
+                        'path': file_path,
+                        'label': label,
+                        'path_metadata': path_metadata
+                    })
 
-    def upload_single_file(self, file_path: Path, label: str) -> bool:
+        logger.info(f"找到 {len(dataset_files)} 個資料檔案")
+        return dataset_files
+
+    def _apply_label_limit(self, dataset_files: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """依設定限制每個標籤的檔案數量"""
+        limit = UploadConfig.UPLOAD_BEHAVIOR.get('per_label_limit', 0)
+        if not isinstance(limit, int) or limit <= 0:
+            return dataset_files
+
+        logger.info(f"套用標籤上限: 每個標籤最多 {limit} 個檔案")
+
+        limited_files: List[Dict[str, Any]] = []
+        label_counts: Dict[str, int] = {}
+        skipped = 0
+
+        for entry in dataset_files:
+            label = entry['label']
+            count = label_counts.get(label, 0)
+            if count >= limit:
+                skipped += 1
+                continue
+
+            label_counts[label] = count + 1
+            limited_files.append(entry)
+
+        if skipped:
+            logger.info(f"依標籤上限排除 {skipped} 個資料檔案")
+
+        return limited_files
+
+    def upload_single_file(self, file_entry: Dict[str, Any]) -> bool:
         """上傳單個檔案"""
         try:
+            file_path: Path = file_entry['path']
+            label: str = file_entry['label']
+            path_metadata: Dict[str, Any] = file_entry['path_metadata']
+
             # 檢查是否已上傳
             file_hash = self.calculate_file_hash(file_path)
 
@@ -405,19 +554,18 @@ class BatchUploader:
                     return True
 
             # 獲取檔案資訊
-            file_size = file_path.stat().st_size
-            duration = self.get_audio_duration(file_path)
+            file_metadata = self.get_file_metadata(file_path, path_metadata)
 
             # 上傳檔案(帶重試)
             for attempt in range(UploadConfig.UPLOAD_BEHAVIOR['retry_attempts']):
                 analyze_uuid = self.uploader.upload_file(
-                    file_path, label, file_hash, duration, file_size
+                    file_path, label, file_hash, file_metadata
                 )
 
                 if analyze_uuid:
                     logger.info(f"✓ {file_path.name} (標籤: {label})")
                     self.stats['success'] += 1
-                    self.stats[label] += 1
+                    self.stats['labels'][label] = self.stats['labels'].get(label, 0) + 1
 
                     # 記錄進度
                     self.progress['uploaded_files'].append(file_hash)
@@ -447,26 +595,32 @@ class BatchUploader:
         logger.info("=" * 60)
 
         # 掃描檔案
-        audio_files = self.scan_directory()
-        if not audio_files:
-            logger.warning("沒有找到任何音頻檔案")
+        dataset_files = self.scan_directory()
+        if not dataset_files:
+            logger.warning("沒有找到任何資料檔案")
             return
 
-        self.stats['total'] = len(audio_files)
+        dataset_files = self._apply_label_limit(dataset_files)
+        if not dataset_files:
+            logger.warning("套用標籤上限後沒有可上傳的資料檔案")
+            return
+
+        self.stats['total'] = len(dataset_files)
 
         # 統計標籤分布
         label_counts = {}
-        for _, label in audio_files:
+        for entry in dataset_files:
+            label = entry['label']
             label_counts[label] = label_counts.get(label, 0) + 1
 
         logger.info(f"\n檔案統計:")
-        logger.info(f"  總計: {len(audio_files)} 個")
+        logger.info(f"  總計: {len(dataset_files)} 個")
         for label, count in sorted(label_counts.items()):
             logger.info(f"  - {label}: {count} 個")
 
         if dry_run:
             logger.info("\n[DRY RUN 模式] 不會實際上傳")
-            self._generate_dry_run_samples(audio_files)
+            self._generate_dry_run_samples(dataset_files)
             return
 
         # 確認上傳
@@ -485,19 +639,19 @@ class BatchUploader:
             # 並行上傳
             with ThreadPoolExecutor(max_workers=concurrent) as executor:
                 futures = {
-                    executor.submit(self.upload_single_file, file_path, label): (file_path, label)
-                    for file_path, label in audio_files
+                    executor.submit(self.upload_single_file, entry): entry
+                    for entry in dataset_files
                 }
 
-                with tqdm(total=len(audio_files), desc="上傳進度") as pbar:
+                with tqdm(total=len(dataset_files), desc="上傳進度") as pbar:
                     for future in as_completed(futures):
                         future.result()
                         pbar.update(1)
         else:
             # 單線程上傳
-            with tqdm(audio_files, desc="上傳進度") as pbar:
-                for file_path, label in pbar:
-                    self.upload_single_file(file_path, label)
+            with tqdm(dataset_files, desc="上傳進度") as pbar:
+                for entry in pbar:
+                    self.upload_single_file(entry)
                     pbar.set_postfix({
                         '成功': self.stats['success'],
                         '失敗': self.stats['failed'],
@@ -519,11 +673,15 @@ class BatchUploader:
         logger.info(f"成功:   {self.stats['success']} 個")
         logger.info(f"失敗:   {self.stats['failed']} 個")
         logger.info(f"跳過:   {self.stats['skipped']} 個")
+        if self.stats['filtered_invalid_label']:
+            logger.info(f"忽略未設定標籤的檔案: {self.stats['filtered_invalid_label']} 個")
 
-        logger.info(f"\n標籤統計:")
-        logger.info(f"  Normal:   {self.stats['normal']} 個")
-        logger.info(f"  Abnormal: {self.stats['abnormal']} 個")
-        logger.info(f"  Unknown:  {self.stats['unknown']} 個")
+        if self.stats['labels']:
+            logger.info(f"\n標籤統計:")
+            for label, count in sorted(self.stats['labels'].items()):
+                logger.info(f"  {label}: {count} 個")
+        else:
+            logger.info("\n標籤統計: 尚無成功上傳的檔案")
 
         if self.stats['failed_files']:
             logger.info(f"\n失敗檔案列表:")
@@ -547,14 +705,18 @@ class BatchUploader:
                 f"upload_report_{timestamp}.json"
             )
 
+            statistics = dict(self.stats)
+            statistics['labels'] = dict(sorted(self.stats['labels'].items()))
+
             report = {
                 'timestamp': timestamp,
                 'upload_directory': str(UploadConfig.UPLOAD_DIRECTORY),
-                'statistics': self.stats,
+                'statistics': statistics,
                 'config': {
                     'dataset_UUID': UploadConfig.DATASET_CONFIG['dataset_UUID'],
                     'use_gridfs': UploadConfig.USE_GRIDFS,
                     'skip_existing': UploadConfig.UPLOAD_BEHAVIOR['skip_existing'],
+                    'sample_rate_hz': UploadConfig.CSV_CONFIG.get('sample_rate_hz'),
                 }
             }
 
@@ -575,11 +737,11 @@ def main():
     """主程式"""
     print("""
 ╔══════════════════════════════════════════════════════════╗
-║      批量音頻上傳工具 v1.0 (獨立版本)                      ║
+║      MAFAULDA 批量資料上傳工具 v1.0 (獨立版本)              ║
 ║                                                          ║
 ║  功能:                                                    ║
 ║  1. 直接寫入 MongoDB + GridFS (不需要 Flask)              ║
-║  2. 自動偵測並標記 normal/abnormal                         ║
+║  2. 自動偵測並標記 MAFAULDA 故障分類                       ║
 ║  3. 支援並行上傳與斷點續傳                                  ║
 ║  4. 完整的進度追蹤與錯誤處理                                ║
 ║                                                          ║
