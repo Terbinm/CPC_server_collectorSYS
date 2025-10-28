@@ -379,7 +379,10 @@ class AnalysisPipeline:
             )
 
             if success:
-                logger.info(f"[Step 2] ✓ LEAF 特徵提取完成: {len(features_data)} 個特徵")
+                feature_dim = processor_metadata.get('feature_dim', processor_metadata.get('n_filters', 'unknown'))
+                logger.info(
+                    f"[Step 2] ✓ LEAF 特徵提取完成: {len(features_data)} 個切片 (feature_dim={feature_dim})"
+                )
                 return True
             else:
                 logger.error(f"[Step 2] ✗ 儲存 LEAF 特徵失敗")

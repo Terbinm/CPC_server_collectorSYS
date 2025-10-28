@@ -2,8 +2,29 @@
 
 import logging
 import os
+from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from config import LOGGING_CONFIG
+
+
+def _resolve_log_file_path() -> str:
+    """計算本次執行的日誌檔案路徑，並確保目錄存在。"""
+    log_dir = LOGGING_CONFIG.get('log_dir')
+    if not log_dir:
+        log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'logs')
+        log_dir = os.path.normpath(log_dir)
+
+    os.makedirs(log_dir, exist_ok=True)
+
+    base_filename = LOGGING_CONFIG.get('log_file', 'analysis_service.log')
+    base_name, ext = os.path.splitext(base_filename)
+    ext = ext or '.log'
+
+    timestamp_format = LOGGING_CONFIG.get('timestamp_format', '%Y%m%d_%H%M%S')
+    timestamp = datetime.now().strftime(timestamp_format)
+
+    log_filename = f"{base_name}_{timestamp}{ext}"
+    return os.path.join(log_dir, log_filename)
 
 
 def setup_logger(name: str = 'analysis_service') -> logging.Logger:
@@ -25,10 +46,12 @@ def setup_logger(name: str = 'analysis_service') -> logging.Logger:
     
     # 格式化器
     formatter = logging.Formatter(LOGGING_CONFIG['format'])
+
+    log_file_path = _resolve_log_file_path()
     
     # 檔案處理器（使用 RotatingFileHandler）
     file_handler = RotatingFileHandler(
-        LOGGING_CONFIG['log_file'],
+        log_file_path,
         maxBytes=LOGGING_CONFIG['max_bytes'],
         backupCount=LOGGING_CONFIG['backup_count'],
         encoding='utf-8'
@@ -44,6 +67,9 @@ def setup_logger(name: str = 'analysis_service') -> logging.Logger:
     # 添加處理器
     logger.addHandler(file_handler)
     logger.addHandler(console_handler)
+
+    # 方便偵錯與測試取得當前日誌路徑
+    logger.log_file_path = log_file_path
     
     return logger
 

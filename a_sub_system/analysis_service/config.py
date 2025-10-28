@@ -88,13 +88,17 @@ SERVICE_CONFIG = {
     'classify_timeout': 30  # 分類超時（秒）
 }
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 # ==================== 日誌配置 ====================
 LOGGING_CONFIG = {
     'level': 'INFO',
     'format': '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     'log_file': 'analysis_service.log',
+    'log_dir': os.path.join(BASE_DIR, 'logs'),
     'max_bytes': 10 * 1024 * 1024,  # 10MB
-    'backup_count': 5
+    'backup_count': 5,
+    'timestamp_format': '%Y%m%d_%H%M%S'
 }
 
 # ==================== 處理步驟定義 ====================

@@ -77,7 +77,9 @@ class LEAFFeatureExtractor:
                 batch_features = self._extract_batch(filepath, batch_segments)
                 features_data.extend(batch_features)
 
-            logger.info(f"LEAF 特徵提取完成: {len(features_data)} 個特徵")
+            logger.info(
+                f"LEAF 特徵提取完成: {len(features_data)} 個切片，特徵維度={self.config['n_filters']}"
+            )
             return features_data
 
         except Exception as e:
