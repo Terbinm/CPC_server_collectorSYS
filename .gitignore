@@ -30,3 +30,4 @@ uploads/
 /a_sub_system/analysis_service/logs/*
 /debug_tools/batch_delete/delete_backups/*
 /debug_tools/batch_delete/delete_reports/*
+/debug_tools/download_all_file/downloaded_recordings/*
