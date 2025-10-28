@@ -9,7 +9,7 @@ class UploadConfig:
     # ==================== MongoDB 配置 ====================
     MONGODB_CONFIG = {
         'host': 'localhost',
-        'port': 27020,
+        'port': 27021,
         'username': 'web_ui',
         'password': 'hod2iddfsgsrl',
         'database': 'web_db',
@@ -69,7 +69,7 @@ class UploadConfig:
         'concurrent_uploads': 3,  # 並行上傳數量(1 表示單線程)
         'retry_attempts': 3,  # 失敗重試次數
         'retry_delay': 2,  # 重試延遲(秒)
-        'per_label_limit': 50,  # 限制每個label上傳數量，0為不限制
+        'per_label_limit': 2,  # 限制每個label上傳數量，0為不限制
     }
 
     # ==================== 看不懂別動 ====================

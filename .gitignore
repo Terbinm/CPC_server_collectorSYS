@@ -31,3 +31,4 @@ uploads/
 /debug_tools/batch_delete/delete_backups/*
 /debug_tools/batch_delete/delete_reports/*
 /debug_tools/download_all_file/downloaded_recordings/*
+/debug_tools/batch_upload/cpc_upload/cpc_data/*

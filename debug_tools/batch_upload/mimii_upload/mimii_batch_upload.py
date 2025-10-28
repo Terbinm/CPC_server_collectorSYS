@@ -10,6 +10,7 @@ from datetime import datetime, UTC
 import hashlib
 import uuid
 import random
+from collections import OrderedDict, deque
 import soundfile as sf
 from pymongo import MongoClient
 from gridfs import GridFS
@@ -480,29 +481,77 @@ class BatchUploader:
         return dataset_files
 
     def _apply_label_limit(self, dataset_files: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """依設定限制每個標籤的檔案數量"""
+        """依設定限制每個標籤的檔案數量, 並在資料夾間均勻採樣"""
         limit = UploadConfig.UPLOAD_BEHAVIOR.get('per_label_limit', 0)
         if not isinstance(limit, int) or limit <= 0:
             return dataset_files
 
         logger.info(f"套用標籤上限: 每個標籤最多 {limit} 個檔案")
 
-        limited_files: List[Dict[str, Any]] = []
-        label_counts: Dict[str, int] = {}
-        skipped = 0
-
-        for entry in dataset_files:
+        # 依標籤建立資料夾 -> 檔案索引的映射(維持原始順序)
+        label_folder_map: Dict[str, OrderedDict[str, List[int]]] = {}
+        for idx, entry in enumerate(dataset_files):
             label = entry['label']
-            count = label_counts.get(label, 0)
-            if count >= limit:
-                skipped += 1
+            folder_key = str(entry['path'].parent)
+
+            if label not in label_folder_map:
+                label_folder_map[label] = OrderedDict()
+
+            folder_entries = label_folder_map[label].setdefault(folder_key, [])
+            folder_entries.append(idx)
+
+        selected_indices = set()
+        total_skipped = 0
+
+        for label, folders in label_folder_map.items():
+            # 以原始順序列出當前標籤的所有檔案索引
+            all_indices: List[int] = [idx for folder_list in folders.values() for idx in folder_list]
+            total_files = len(all_indices)
+            effective_limit = min(limit, total_files)
+
+            folder_count = sum(1 for folder_list in folders.values() if folder_list)
+            # print(f"{folder_count}and{effective_limit}<{folder_count}")
+            if folder_count and effective_limit < folder_count:
+                average = effective_limit / folder_count if folder_count else 0
+                logger.warning(
+                    f"標籤 {label} 共有 {folder_count} 個資料夾，"
+                    f"依目前上限平均每個資料夾僅 {average:.2f} 個檔案，部分資料夾將不被採樣。"
+                )
+
+            # 如果不需要裁切，直接收錄所有檔案索引
+            if effective_limit >= total_files:
+                selected_indices.update(all_indices)
                 continue
 
-            label_counts[label] = count + 1
-            limited_files.append(entry)
+            # 以資料夾為單位進行 round-robin 均勻採樣
+            folder_queues: Dict[str, deque[int]] = {
+                folder: deque(index_list) for folder, index_list in folders.items()
+            }
 
-        if skipped:
-            logger.info(f"依標籤上限排除 {skipped} 個檔案")
+            active_folders = deque(folder for folder, queue in folder_queues.items() if queue)
+            taken = 0
+
+            while active_folders and taken < effective_limit:
+                folder = active_folders.popleft()
+                queue = folder_queues[folder]
+                if not queue:
+                    continue
+
+                file_index = queue.popleft()
+                selected_indices.add(file_index)
+                taken += 1
+
+                if queue:
+                    active_folders.append(folder)
+
+            skipped_for_label = total_files - min(taken, total_files)
+            total_skipped += max(skipped_for_label, 0)
+
+        if total_skipped:
+            logger.info(f"依標籤上限排除 {total_skipped} 個檔案")
+
+        # 依原始順序輸出被選取的檔案
+        limited_files = [entry for idx, entry in enumerate(dataset_files) if idx in selected_indices]
 
         return limited_files
 
