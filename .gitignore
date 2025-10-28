@@ -28,3 +28,5 @@ uploads/
 /debug_tools/batch_delete/delete_reports/delete_report_20251023_172918.json
 /debug_tools/batch_delete/delete_reports/delete_report_20251023_174943.json
 /a_sub_system/analysis_service/logs/*
+/debug_tools/batch_delete/delete_backups/*
+/debug_tools/batch_delete/delete_reports/*
