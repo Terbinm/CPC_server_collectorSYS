@@ -4,11 +4,20 @@ import os
 
 # ==================== MongoDB 配置 ====================
 
+# MONGODB_CONFIG = {
+#     'host': os.getenv('MONGODB_HOST', 'localhost'),
+#     'port': int(os.getenv('MONGODB_PORT', '27021')),
+#     'username': os.getenv('MONGODB_USERNAME', 'web_ui'),
+#     'password': os.getenv('MONGODB_PASSWORD', 'hod2iddfsgsrl'),
+#     'database': 'web_db',
+#     'collection': 'recordings'
+# }
+
 MONGODB_CONFIG = {
-    'host': os.getenv('MONGODB_HOST', 'localhost'),
-    'port': int(os.getenv('MONGODB_PORT', '27021')),
-    'username': os.getenv('MONGODB_USERNAME', 'web_ui'),
-    'password': os.getenv('MONGODB_PASSWORD', 'hod2iddfsgsrl'),
+    'host': '192.168.71.49',
+    'port': 36001,
+    'username': 'web_ui',
+    'password': 'hod2iddfsgsrl',
     'database': 'web_db',
     'collection': 'recordings'
 }
