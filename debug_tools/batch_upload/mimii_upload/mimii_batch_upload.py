@@ -189,7 +189,6 @@ class MongoDBUploader:
         # 获取音频格式信息
         sample_rate = file_metadata.get('sample_rate')
         channels = file_metadata.get('channels')
-        frames = file_metadata.get('frames')
         raw_format = file_metadata.get('raw_format')
 
         document = {
@@ -215,11 +214,8 @@ class MongoDBUploader:
                 "file_size": file_size,
                 "duration": duration,
                 "label": label,
-                # 添加 sample_rate/channels/frames/num_sample/raw_format
                 "sample_rate": sample_rate,
                 "channels": channels,
-                "frames": frames,
-                "num_sample": frames,  # frames 就是 num_sample
                 "raw_format": raw_format,
                 "mimii_metadata": mimii_metadata
             }
@@ -451,14 +447,12 @@ class BatchUploader:
             metadata['duration'] = info.duration
             metadata['sample_rate'] = info.samplerate
             metadata['channels'] = info.channels
-            metadata['frames'] = info.frames
             metadata['raw_format'] = info.format
         except Exception as e:
             logger.warning(f"無法讀取音頻資訊 {file_path.name}: {e}")
             metadata['duration'] = 0.0
             metadata['sample_rate'] = None
             metadata['channels'] = None
-            metadata['frames'] = None
             metadata['raw_format'] = None
 
         return metadata

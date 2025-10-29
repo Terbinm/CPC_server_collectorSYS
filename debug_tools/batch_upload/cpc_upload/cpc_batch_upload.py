@@ -170,8 +170,6 @@ class MongoDBUploader:
             "label": label,
             "sample_rate": cpc_metadata.get('sample_rate'),
             "channels": cpc_metadata.get('channels'),
-            "frames": cpc_metadata.get('frames'),
-            "num_sample": cpc_metadata.get('frames'),  # frames 就是 num_sample
             "raw_format": cpc_metadata.get('format'),
             "cpc_metadata": {
                 "subtype": cpc_metadata.get('subtype'),
@@ -343,7 +341,6 @@ class BatchUploader:
             'duration': None,
             'sample_rate': None,
             'channels': None,
-            'frames': None,
             'subtype': None,
             'format': None,
         }
@@ -354,7 +351,6 @@ class BatchUploader:
                 'duration': float(info.duration),
                 'sample_rate': info.samplerate,
                 'channels': info.channels,
-                'frames': info.frames,
                 'subtype': info.subtype,
                 'format': info.format,
             })

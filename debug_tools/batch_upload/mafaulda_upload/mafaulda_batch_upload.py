@@ -205,11 +205,8 @@ class MongoDBUploader:
                 "file_size": file_size,
                 "duration": duration,
                 "label": label,
-                # 添加 sample_rate/channels/frames/num_sample/raw_format
                 "sample_rate": file_metadata.get('sample_rate_hz'),
                 "channels": file_metadata.get('num_channels'),
-                "frames": file_metadata.get('num_samples'),
-                "num_sample": file_metadata.get('num_samples'),
                 "raw_format": "CSV",  # MAFAULDA 都是 CSV 格式
                 "mafaulda_metadata": mafaulda_metadata
             }
