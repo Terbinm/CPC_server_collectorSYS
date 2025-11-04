@@ -7,23 +7,23 @@ class UploadConfig:
     """批量上傳配置類"""
 
     # ==================== MongoDB 連線設定 ====================
-    # MONGODB_CONFIG = {
-    #     'host': 'localhost',
-    #     'port': 27021,
-    #     'username': 'web_ui',
-    #     'password': 'hod2iddfsgsrl',
-    #     'database': 'web_db',
-    #     'collection': 'recordings'
-    # }
-
     MONGODB_CONFIG = {
-        'host': '192.168.71.49',
-        'port': 36001,
+        'host': 'localhost',
+        'port': 27021,
         'username': 'web_ui',
         'password': 'hod2iddfsgsrl',
         'database': 'web_db',
         'collection': 'recordings'
     }
+
+    # MONGODB_CONFIG = {
+    #     'host': '192.168.71.49',
+    #     'port': 36001,
+    #     'username': 'web_ui',
+    #     'password': 'hod2iddfsgsrl',
+    #     'database': 'web_db',
+    #     'collection': 'recordings'
+    # }
 
     # ==================== 上傳資料夾配置 ====================
     # 要上傳的資料夾路徑(請修改為您的實際路徑)
@@ -85,7 +85,7 @@ class UploadConfig:
         'concurrent_uploads': 3,  # 並行上傳數量(1 表示單線程)
         'retry_attempts': 3,  # 失敗重試次數
         'retry_delay': 2,  # 重試延遲(秒)
-        'per_label_limit': 0,  # 限制每個 label 上傳數量, 0 為不限制
+        'per_label_limit': 17,  # 限制每個 label 上傳數量, 0 為不限制
     }
 
     # ==================== 看不懂別動 ====================

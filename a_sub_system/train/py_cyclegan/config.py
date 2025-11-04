@@ -7,7 +7,7 @@ import os
 
 MONGODB_CONFIG = {
     'host': os.getenv('MONGODB_HOST', 'localhost'),
-    'port': int(os.getenv('MONGODB_PORT', '27020')),
+    'port': int(os.getenv('MONGODB_PORT', '27021')),
     'username': os.getenv('MONGODB_USERNAME', 'web_ui'),
     'password': os.getenv('MONGODB_PASSWORD', 'hod2iddfsgsrl'),
     'database': os.getenv('MONGODB_DATABASE', 'web_db'),
@@ -20,7 +20,7 @@ MONGODB_CONFIG = {
             username=os.getenv('MONGODB_USERNAME', 'web_ui'),
             password=os.getenv('MONGODB_PASSWORD', 'hod2iddfsgsrl'),
             host=os.getenv('MONGODB_HOST', 'localhost'),
-            port=os.getenv('MONGODB_PORT', '27020')
+            port=os.getenv('MONGODB_PORT', '27021')
         )
     )
 }
@@ -33,21 +33,21 @@ DATA_CONFIG = {
     # Domain A 配置（設備 A）
     'domain_a': {
         'mongo_query': {
-            'info_features.device_id': os.getenv('DOMAIN_A_DEVICE_ID', 'device_001'),
+            'info_features.device_id': os.getenv('DOMAIN_A_DEVICE_ID', 'cpc006'),
             'analysis_status': 'completed'
         },
         'max_samples': int(os.getenv('DOMAIN_A_MAX_SAMPLES', '1000')),
-        'file_path': os.getenv('DOMAIN_A_FILE_PATH', 'data/domain_a.json')  # 當使用 file source 時
+        'file_path': os.getenv('DOMAIN_A_FILE_PATH', 'data/domain_cpc006.json')  # 當使用 file source 時
     },
 
     # Domain B 配置（設備 B）
     'domain_b': {
         'mongo_query': {
-            'info_features.device_id': os.getenv('DOMAIN_B_DEVICE_ID', 'device_002'),
+            'info_features.device_id': os.getenv('DOMAIN_B_DEVICE_ID', 'BATCH_UPLOAD_Mafaulda'),
             'analysis_status': 'completed'
         },
         'max_samples': int(os.getenv('DOMAIN_B_MAX_SAMPLES', '1000')),
-        'file_path': os.getenv('DOMAIN_B_FILE_PATH', 'data/domain_b.json')
+        'file_path': os.getenv('DOMAIN_B_FILE_PATH', 'data/domain_Mafaulda.json')
     },
 
     # 預處理配置

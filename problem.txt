@@ -1,24 +1,6 @@
-cpc obj_ID參考 mafaulda的 將數值可以修改為-1 的方法；
+debug_tools/batch_upload/mimii_upload/mimii_batch_upload.py執行約5小時之後z發生了以下問題
 
-mafaulda與mimii刪除info_features.upload_time (參考cpc)；
+上傳進度:  50%|█████     | 26320/52168 [18:25:01<67:56:00,  9.46s/it]2025-10-29 18:31:35,653 - batch_upload - ERROR - ✗ 00000382.wav: 192.168.71.49:36001: timed out (configured timeouts: socketTimeoutMS: 20000.0ms, connectTimeoutMS: 20000.0ms), Timeout: 30s, Topology Description: <TopologyDescription id: 6900e9ff7df9ae832b417513, topology_type: Single, servers: [<ServerDescription ('192.168.71.49', 36001) server_type: Unknown, rtt: None, error=NetworkTimeout('192.168.71.49:36001: timed out (configured timeouts: socketTimeoutMS: 20000.0ms, connectTimeoutMS: 20000.0ms)')>]>
+2025-10-29 18:32:00,807 - batch_upload - ERROR - ✗ 00000383.wav: 192.168.71.49:36001: timed out (configured timeouts: socketTimeoutMS: 20000.0ms, connectTimeoutMS: 20000.0ms), Timeout: 30s, Topology Description: <TopologyDescription id: 6900e9ff7df9ae832b417513, topology_type: Single, servers: [<ServerDescription ('192.168.71.49', 36001) server_type: Unknown, rtt: None, error=NetworkTimeout('192.168.71.49:36001: timed out (configured timeouts: socketTimeoutMS: 20000.0ms, connectTimeoutMS: 20000.0ms)')>]>
+上傳進度:  50%|█████     | 26322/52168 [18:25:26<76:22:51, 10.64s/it]
 
-mafaulda與mimii刪除info_features.batch_upload_metadata (參考cpc)；
-
-cpc刪除info_features.analysis_config，並移至terget_channel (參考mafaulda與mimii)；
-
-
-mafaulda 的 info_features.mafaulda_metadata中的fault_varient 紀錄有問題，如果沒有fault_varient，似乎會將fault_conditions；
-
-mimii的info_features.mimii_metadata也要紀錄fault_type(參考的info_features.mafaulda_metadata.fault_type)；
-
-mafaulda應該移除num_channels，Sample_rate_hz；
-
-mafaulda與mimii參考cpc應該要紀錄sample_rate/channels/frames/raw_format；
-
-cpc與mimii參考mafaulda應該要紀錄num_sample；
-
-
-ex1: horizontal-misalignment/0.5mm/12.288.csv    =>fault_varient不要紀錄，fault_conditions=0.5mm；
-ex2: overhang/ball_fault/0g/14.1312.csv          =>fault_varient=ball_fault，fault_conditions=0g；
-
-另外mafaulda對fault_varient的紀錄有問題，應該要有平均分配不同的varient樣本。當平均分配後每個資料夾的數量將低於 1 筆時發出警告但不需確認。(參考mimii的方法)；

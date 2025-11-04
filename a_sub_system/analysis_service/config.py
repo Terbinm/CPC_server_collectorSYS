@@ -13,14 +13,34 @@ import os
 #     'collection': 'recordings'
 # }
 
+# MONGODB_CONFIG = {
+#     'host': '192.168.71.42',
+#     'port': 35001,
+#     'username': 'web_ui',
+#     'password': 'hod2iddfsgsrl',
+#     'database': 'web_db',
+#     'collection': 'recordings'
+# }
+
 MONGODB_CONFIG = {
-    'host': '192.168.71.49',
-    'port': 36001,
+    'host': 'localhost',
+    'port': 27021,
     'username': 'web_ui',
     'password': 'hod2iddfsgsrl',
     'database': 'web_db',
     'collection': 'recordings'
 }
+
+# MONGODB_CONFIG = {
+#     'host': '192.168.71.49',
+#     'port': 36001,
+#     'username': 'web_ui',
+#     'password': 'hod2iddfsgsrl',
+#     'database': 'web_db',
+#     'collection': 'recordings'
+# }
+
+
 
 # ==================== 音訊處理配置 ====================
 AUDIO_CONFIG = {
