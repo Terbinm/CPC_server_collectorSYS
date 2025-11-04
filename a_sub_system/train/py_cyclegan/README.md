@@ -162,6 +162,12 @@ for feat in features_a:
 FileLEAFLoader.save_to_npy(converted_features, "outputs/converted_to_b.npy")
 ```
 
+### 7. 批次域轉換
+
+- 使用 `scripts/batch_domain_conversion.py` 可一次處理符合 Domain B 查詢條件的所有 `AnalyzeUUID`。
+- 支援參數覆寫來源/輸出步驟、處理筆數、裝置等設定。
+- 詳細操作請參考《[批次域轉換使用指南](BATCH_CONVERSION_GUIDE.md)》。
+
 ## 配置說明
 
 ### 主要配置項

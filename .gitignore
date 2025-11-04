@@ -33,3 +33,4 @@ uploads/
 /debug_tools/download_all_file/downloaded_recordings/*
 /debug_tools/batch_upload/cpc_upload/cpc_data/*
 /debug_tools/batch_upload/cpc_upload/reports/*
+/a_sub_system/train/py_cyclegan/checkpoints/*
