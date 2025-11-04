@@ -1,6 +1,7 @@
 # a_sub_system/analysis_service/config.py - 分析服務統一配置（加入 Step 0）
 
 import os
+import torch
 
 # ==================== MongoDB 配置 ====================
 
@@ -79,7 +80,7 @@ LEAF_CONFIG = {
 
     # 處理參數
     'batch_size': 32,
-    'device': 'cpu',  # 強制使用 CPU
+    'device': 'cuda' if torch.cuda.is_available() else 'cpu',  # 使用 GPU
     'num_workers': 4,
 
     # 特徵配置

@@ -115,7 +115,7 @@ class QuickStart:
             from pymongo import MongoClient
 
             # 連接 MongoDB
-            client = MongoClient("mongodb://web_ui:hod2iddfsgsrl@localhost:27020/admin")
+            client = MongoClient("mongodb://web_ui:hod2iddfsgsrl@localhost:27021/admin")
             db = client['web_db']
             collection = db['recordings']
 
@@ -125,10 +125,23 @@ class QuickStart:
                 'analysis_status': 'completed',
                 'info_features.label': {'$exists': True, '$ne': 'unknown'}
             }
+            abnormal_labels = [
+                # 'abnormal',
+                'horizontal_misalignment',
+                'vertical_misalignment',
+                'underhang',
+                'overhang',
+                'imbalance',
+            ]
 
-            total_count = collection.count_documents(query)
+            total_count = total_count = collection.count_documents({**query, 'info_features.label': {'$in': ['normal',    *abnormal_labels]}})
             normal_count = collection.count_documents({**query, 'info_features.label': 'normal'})
-            abnormal_count = collection.count_documents({**query, 'info_features.label': 'abnormal'})
+            # abnormal_count = collection.count_documents({**query, 'info_features.label': 'abnormal'})
+
+            abnormal_count = collection.count_documents({
+                **query,
+                'info_features.label': {'$in': abnormal_labels},
+            })
 
             logger.info(f"總資料量: {total_count} 筆")
             logger.info(f"  - Normal: {normal_count} 筆 ({normal_count / total_count * 100:.1f}%)")

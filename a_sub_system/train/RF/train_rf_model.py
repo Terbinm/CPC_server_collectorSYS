@@ -35,14 +35,14 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+target_step = 6
 
 class ModelConfig:
     """模型訓練配置"""
-    
     # MongoDB 配置
     MONGODB_CONFIG = {
         'host': 'localhost',
-        'port': 27020,
+        'port': 27021,
         'username': 'web_ui',
         'password': 'hod2iddfsgsrl',
         'database': 'web_db',
@@ -53,7 +53,8 @@ class ModelConfig:
     FEATURE_CONFIG = {
         'feature_dim': 40,  # LEAF 特徵維度
         'normalize': True,  # 是否標準化特徵
-        'aggregation': 'mean'  # 特徵聚合方式：mean, max, median, all
+        'aggregation': 'mean',  # 特徵聚合方式：mean, max, median, all
+        'features_step': int(os.getenv('RF_FEATURE_STEP', target_step))
     }
     
     # 模型配置
@@ -150,7 +151,9 @@ class DataLoader:
         query = {
             'current_step': 4,  # 已完成所有步驟
             'analysis_status': 'completed',
-            'info_features.label': {'$exists': True, '$ne': 'unknown'}
+            'info_features.label': {'$exists': True, '$ne': 'unknown'},
+            'analyze_features': {'$elemMatch': {'features_step': target_step, 'features_state': 'completed'}}
+
         }
         
         records = list(self.collection.find(query))
@@ -174,7 +177,8 @@ class DataLoader:
                 
                 # 找到 LEAF 特徵步驟
                 for step in analyze_features:
-                    if step.get('features_step') == 2 and step.get('features_name') == 'LEAF Features':
+                    if step.get('features_step') == target_step:
+                    # if step.get('features_step') == 2 and step.get('features_name') == 'LEAF Features':
                         leaf_features = step.get('features_data', [])
                         break
                 
