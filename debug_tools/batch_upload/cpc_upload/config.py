@@ -8,8 +8,8 @@ class UploadConfig:
 
     # ==================== MongoDB 連線設定 ====================
     MONGODB_CONFIG = {
-        'host': 'localhost',
-        'port': 27021,
+        'host': '192.168.71.49',
+        'port': 35002,
         'username': 'web_ui',
         'password': 'hod2iddfsgsrl',
         'database': 'web_db',
@@ -60,7 +60,7 @@ class UploadConfig:
         'concurrent_uploads': 3,
         'retry_attempts': 3,
         'retry_delay': 2,
-        'per_label_limit': 0,  # 0 代表不限制每個標籤的檔案數量
+        'per_label_limit': 2000,  # 0 代表不限制每個標籤的檔案數量
     }
 
     # ==================== 記錄與輸出設定 ====================

@@ -24,8 +24,8 @@ import torch
 # }
 
 MONGODB_CONFIG = {
-    'host': 'localhost',
-    'port': 27021,
+    'host': '192.168.71.49',
+    'port': 35002,
     'username': 'web_ui',
     'password': 'hod2iddfsgsrl',
     'database': 'web_db',

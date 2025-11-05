@@ -6,8 +6,8 @@ import os
 # 用於從 analysis_service 讀取 LEAF 特徵
 
 MONGODB_CONFIG = {
-    'host': os.getenv('MONGODB_HOST', 'localhost'),
-    'port': int(os.getenv('MONGODB_PORT', '27021')),
+    'host': os.getenv('MONGODB_HOST', '192.168.71.49'),
+    'port': int(os.getenv('MONGODB_PORT', '35002')),
     'username': os.getenv('MONGODB_USERNAME', 'web_ui'),
     'password': os.getenv('MONGODB_PASSWORD', 'hod2iddfsgsrl'),
     'database': os.getenv('MONGODB_DATABASE', 'web_db'),
@@ -19,8 +19,8 @@ MONGODB_CONFIG = {
         'mongodb://{username}:{password}@{host}:{port}'.format(
             username=os.getenv('MONGODB_USERNAME', 'web_ui'),
             password=os.getenv('MONGODB_PASSWORD', 'hod2iddfsgsrl'),
-            host=os.getenv('MONGODB_HOST', 'localhost'),
-            port=os.getenv('MONGODB_PORT', '27021')
+            host=os.getenv('MONGODB_HOST', '192.168.71.49'),
+            port=os.getenv('MONGODB_PORT', '35002')
         )
     )
 }
