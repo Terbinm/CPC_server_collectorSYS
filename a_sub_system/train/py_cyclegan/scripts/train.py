@@ -206,6 +206,35 @@ def main():
     logger.info("=== Training Completed ===")
     logger.info(f"Best model saved at: {checkpoint_callback.best_model_path}")
 
+    # 儲存正規化參數
+    logger.info("Saving normalization parameters...")
+    normalization_params = full_dataset.get_normalization_params()
+
+    if normalization_params:
+        import json
+        from pathlib import Path
+
+        # 將 numpy array 轉換為 list 以便 JSON 序列化
+        params_to_save = {}
+        for key, value in normalization_params.items():
+            if hasattr(value, 'tolist'):
+                params_to_save[key] = value.tolist()
+            else:
+                params_to_save[key] = value
+
+        # 儲存到 checkpoint 目錄
+        checkpoint_dir = Path(checkpoint_config['save_dir'])
+        normalization_path = checkpoint_dir / 'normalization_params.json'
+
+        with open(normalization_path, 'w', encoding='utf-8') as f:
+            json.dump(params_to_save, f, indent=2, ensure_ascii=False)
+
+        logger.info(f"✓ Normalization parameters saved to: {normalization_path}")
+        logger.info(f"  - Domain A: mean={params_to_save['mean_a'][:3]}..., std={params_to_save['std_a'][:3]}...")
+        logger.info(f"  - Domain B: mean={params_to_save['mean_b'][:3]}..., std={params_to_save['std_b'][:3]}...")
+    else:
+        logger.warning("⚠ Normalization was disabled during training, no parameters to save")
+
 
 if __name__ == "__main__":
     main()

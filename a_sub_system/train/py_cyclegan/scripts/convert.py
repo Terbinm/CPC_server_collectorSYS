@@ -51,6 +51,41 @@ def main():
     model.eval()
     logger.info("Model loaded successfully")
 
+    # 加載正規化參數
+    checkpoint_path = Path(args.checkpoint)
+    normalization_path = checkpoint_path.parent / 'normalization_params.json'
+
+    normalization_params = None
+    if normalization_path.exists():
+        logger.info(f"Loading normalization parameters from {normalization_path}")
+        with open(normalization_path, 'r', encoding='utf-8') as f:
+            normalization_params = json.load(f)
+
+        # 注意：使用統一歸一化時，mean_a = mean_b, std_a = std_b
+        # 但為了向後兼容性，我們仍然根據方向選擇參數
+        if args.direction == "AB":
+            mean = np.array(normalization_params['mean_a'], dtype=np.float32)
+            std = np.array(normalization_params['std_a'], dtype=np.float32)
+            mean_target = np.array(normalization_params['mean_b'], dtype=np.float32)
+            std_target = np.array(normalization_params['std_b'], dtype=np.float32)
+            logger.info("Using Domain A normalization for input, Domain B for output")
+        else:  # BA
+            mean = np.array(normalization_params['mean_b'], dtype=np.float32)
+            std = np.array(normalization_params['std_b'], dtype=np.float32)
+            mean_target = np.array(normalization_params['mean_a'], dtype=np.float32)
+            std_target = np.array(normalization_params['std_a'], dtype=np.float32)
+            logger.info("Using Domain B normalization for input, Domain A for output")
+
+        logger.info(f"  - Input: mean={mean[:3]}..., std={std[:3]}...")
+        logger.info(f"  - Output: mean={mean_target[:3]}..., std={std_target[:3]}...")
+    else:
+        logger.warning(f"⚠ Normalization parameters not found at {normalization_path}")
+        logger.warning("⚠ Converting without normalization (may produce poor results)")
+        mean = None
+        std = None
+        mean_target = None
+        std_target = None
+
     # 加载输入特征
     logger.info(f"Loading input features from {args.input}")
     if args.input.endswith('.json'):
@@ -68,8 +103,14 @@ def main():
 
     with torch.no_grad():
         for i, features in enumerate(features_list):
+            # 正規化輸入特徵
+            if mean is not None and std is not None:
+                features_normalized = (features - mean) / std
+            else:
+                features_normalized = features
+
             # 转换为 Tensor
-            feat_tensor = torch.FloatTensor(features).unsqueeze(0).to(device)
+            feat_tensor = torch.FloatTensor(features_normalized).unsqueeze(0).to(device)
 
             # 执行转换
             if args.direction == "AB":
@@ -79,6 +120,11 @@ def main():
 
             # 转回 numpy
             converted_np = converted.squeeze(0).cpu().numpy()
+
+            # 反正規化輸出特徵
+            if mean_target is not None and std_target is not None:
+                converted_np = converted_np * std_target + mean_target
+
             converted_features.append(converted_np)
 
             if (i + 1) % 100 == 0:

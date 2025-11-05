@@ -57,20 +57,35 @@ class LEAFDomainDataset(Dataset):
             self._compute_normalization_params()
 
     def _compute_normalization_params(self):
-        """计算特征的均值和标准差"""
+        """计算特征的均值和标准差 - 使用统一归一化"""
         all_features_a = np.vstack(self.domain_a_features)
         all_features_b = np.vstack(self.domain_b_features)
 
-        self.mean_a = np.mean(all_features_a, axis=0)
-        self.std_a = np.std(all_features_a, axis=0) + 1e-8
+        # ✅ 统一归一化：合并两个域计算全局统计
+        all_features_combined = np.vstack([all_features_a, all_features_b])
 
-        self.mean_b = np.mean(all_features_b, axis=0)
-        self.std_b = np.std(all_features_b, axis=0) + 1e-8
+        global_mean = np.mean(all_features_combined, axis=0)
+        global_std = np.std(all_features_combined, axis=0) + 1e-8
+
+        # 两个域使用相同的归一化参数
+        self.mean_a = global_mean
+        self.std_a = global_std
+        self.mean_b = global_mean
+        self.std_b = global_std
 
         logger.info(
-            f"Normalization params computed - "
-            f"Domain A: mean={self.mean_a.mean():.4f}, std={self.std_a.mean():.4f}, "
-            f"Domain B: mean={self.mean_b.mean():.4f}, std={self.std_b.mean():.4f}"
+            f"Normalization params computed (unified) - "
+            f"Global: mean={global_mean.mean():.4f}, std={global_std.mean():.4f}"
+        )
+        logger.info(
+            f"Domain A raw stats: mean={all_features_a.mean():.4f}, "
+            f"std={all_features_a.std():.4f}, "
+            f"min={all_features_a.min():.4f}, max={all_features_a.max():.4f}"
+        )
+        logger.info(
+            f"Domain B raw stats: mean={all_features_b.mean():.4f}, "
+            f"std={all_features_b.std():.4f}, "
+            f"min={all_features_b.min():.4f}, max={all_features_b.max():.4f}"
         )
 
     def _normalize(

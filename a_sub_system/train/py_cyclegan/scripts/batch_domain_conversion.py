@@ -45,8 +45,8 @@ DEFAULT_DEVICE = os.getenv("BATCH_CONVERSION_DEVICE", get_inference_config()["de
 logger = setup_logger("batch_conversion")
 
 
-def load_model(checkpoint: Path, device_name: str) -> Tuple[CycleGANModule, torch.device]:
-    """載入 CycleGAN 檢查點並返回模型與裝置。"""
+def load_model(checkpoint: Path, device_name: str) -> Tuple[CycleGANModule, torch.device, Dict[str, np.ndarray]]:
+    """載入 CycleGAN 檢查點並返回模型、裝置與正規化參數。"""
     if device_name == "cuda" and not torch.cuda.is_available():
         logger.warning("CUDA 不可用，自動改用 CPU")
         device_name = "cpu"
@@ -58,7 +58,33 @@ def load_model(checkpoint: Path, device_name: str) -> Tuple[CycleGANModule, torc
     model.to(device)
     model.eval()
 
-    return model, device
+    # 載入正規化參數
+    import json
+    normalization_path = checkpoint.parent / 'normalization_params.json'
+    normalization_params = {}
+
+    if normalization_path.exists():
+        logger.info("載入正規化參數 %s", normalization_path)
+        with open(normalization_path, 'r', encoding='utf-8') as f:
+            params = json.load(f)
+
+        # 轉換為 numpy array
+        for key, value in params.items():
+            normalization_params[key] = np.array(value, dtype=np.float32)
+
+        # 注意：使用統一歸一化時，mean_a = mean_b, std_a = std_b
+        # 但為了向後兼容性，我們仍然保留所有參數
+        logger.info(
+            "正規化參數已載入 - Domain A: mean=%.4f, std=%.4f | Domain B: mean=%.4f, std=%.4f",
+            normalization_params['mean_a'].mean(),
+            normalization_params['std_a'].mean(),
+            normalization_params['mean_b'].mean(),
+            normalization_params['std_b'].mean(),
+        )
+    else:
+        logger.warning("⚠ 未找到正規化參數檔案 %s，將不進行正規化（可能導致轉換結果不佳）", normalization_path)
+
+    return model, device, normalization_params
 
 
 def get_collection() -> Collection:
@@ -139,15 +165,36 @@ def convert_features(
     model: CycleGANModule,
     device: torch.device,
     features_list: List[np.ndarray],
+    normalization_params: Dict[str, np.ndarray],
 ) -> List[List[List[float]]]:
     """執行 Domain B → Domain A 轉換。"""
     converted: List[List[List[float]]] = []
 
+    # 取得正規化參數（B→A 方向：輸入用 B，輸出用 A）
+    has_norm = bool(normalization_params)
+    if has_norm:
+        mean_input = normalization_params['mean_b']
+        std_input = normalization_params['std_b']
+        mean_output = normalization_params['mean_a']
+        std_output = normalization_params['std_a']
+
     with torch.no_grad():
         for sample in features_list:
-            tensor = torch.tensor(sample, dtype=torch.float32, device=device).unsqueeze(0)
+            # 正規化輸入
+            if has_norm:
+                sample_normalized = (sample - mean_input) / std_input
+            else:
+                sample_normalized = sample
+
+            tensor = torch.tensor(sample_normalized, dtype=torch.float32, device=device).unsqueeze(0)
             translated = model.convert_B_to_A(tensor)
-            converted.append(translated.squeeze(0).cpu().numpy().tolist())
+            translated_np = translated.squeeze(0).cpu().numpy()
+
+            # 反正規化輸出
+            if has_norm:
+                translated_np = translated_np * std_output + mean_output
+
+            converted.append(translated_np.tolist())
 
     return converted
 
@@ -203,7 +250,7 @@ def main() -> None:
 
     mongo_query = build_query(domain_b_cfg["mongo_query"], args.input_step)
     collection = get_collection()
-    model, device = load_model(args.checkpoint, args.device)
+    model, device, normalization_params = load_model(args.checkpoint, args.device)
 
     total = converted = skipped = failures = 0
     last_uuid: Optional[str] = None
@@ -227,7 +274,7 @@ def main() -> None:
 
         try:
             features_list = parse_features(input_step_data)
-            converted_features = convert_features(model, device, features_list)
+            converted_features = convert_features(model, device, features_list, normalization_params)
         except Exception as exc:
             logger.exception("分析任務 %s 轉換失敗：%s", analyze_uuid, exc)
             failures += 1

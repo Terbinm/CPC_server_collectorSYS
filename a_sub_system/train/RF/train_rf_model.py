@@ -51,9 +51,10 @@ class ModelConfig:
     
     # 特徵配置
     FEATURE_CONFIG = {
-        'feature_dim': 40,  # LEAF 特徵維度
-        'normalize': True,  # 是否標準化特徵
-        'aggregation': 'mean',  # 特徵聚合方式：mean, max, median, all
+    'feature_dim': 40,  # LEAF 特徵維度
+    'normalize': True,  # 是否標準化特徵
+    # 特徵聚合方式：mean, max, median, all, segments (segments 表示每個片段為獨立樣本)
+    'aggregation': os.getenv('RF_FEATURE_AGGREGATION', 'segments'),
         'features_step': int(os.getenv('RF_FEATURE_STEP', target_step))
     }
     
@@ -166,10 +167,30 @@ class DataLoader:
         labels_list = []
         uuid_list = []
         
+        abnormal_labels = {
+            'abnormal',
+            'horizontal_misalignment',
+            'vertical_misalignment',
+            'underhang',
+            'overhang',
+            'imbalance',
+        }
+
         for record in records:
             try:
                 # 提取標籤
                 label = record['info_features']['label']
+                if label == 'normal':
+                    mapped_label = 'normal'
+                elif label in abnormal_labels:
+                    mapped_label = 'abnormal'
+                else:
+                    logger.warning(
+                        "記錄 %s 標籤 %s 不在允許列表，跳過",
+                        record.get('AnalyzeUUID', 'UNKNOWN'),
+                        label,
+                    )
+                    continue
                 
                 # 提取 LEAF 特徵
                 analyze_features = record.get('analyze_features', [])
@@ -189,20 +210,58 @@ class DataLoader:
                 # 提取特徵向量
                 segment_features = []
                 for segment in leaf_features:
-                    feature_vector = segment
-                    if feature_vector is not None and len(feature_vector) > 0:
-                        segment_features.append(feature_vector)
+                    if segment is None:
+                        continue
+
+                    feature_array = np.asarray(segment, dtype=np.float32)
+                    if feature_array.size == 0:
+                        continue
+
+                    if feature_array.ndim == 1:
+                        if feature_array.shape[0] != ModelConfig.FEATURE_CONFIG['feature_dim']:
+                            logger.warning(
+                                "記錄 %s 特徵維度不符，預期 %s 實際 %s，跳過該片段",
+                                record.get('AnalyzeUUID', 'UNKNOWN'),
+                                ModelConfig.FEATURE_CONFIG['feature_dim'],
+                                feature_array.shape,
+                            )
+                            continue
+                        segment_features.append(feature_array)
+                    elif feature_array.ndim == 2:
+                        if feature_array.shape[1] != ModelConfig.FEATURE_CONFIG['feature_dim']:
+                            logger.warning(
+                                "記錄 %s 特徵維度不符，預期 %s 實際 %s，跳過該片段",
+                                record.get('AnalyzeUUID', 'UNKNOWN'),
+                                ModelConfig.FEATURE_CONFIG['feature_dim'],
+                                feature_array.shape,
+                            )
+                            continue
+                        for row in feature_array:
+                            segment_features.append(row)
+                    else:
+                        logger.warning(
+                            "記錄 %s 特徵階數 %s 不支援，跳過該片段",
+                            record.get('AnalyzeUUID', 'UNKNOWN'),
+                            feature_array.shape,
+                        )
                 
                 if not segment_features:
                     logger.warning(f"記錄 {record['AnalyzeUUID']} 特徵向量為空")
                     continue
-                
+
+                if aggregation == 'segments':
+                    for feature_vec in segment_features:
+                        features_list.append(np.asarray(feature_vec, dtype=np.float32))
+                        labels_list.append(mapped_label)
+                        uuid_list.append(record['AnalyzeUUID'])
+                    continue
+
                 # 聚合特徵
                 segment_features = np.array(segment_features)
                 aggregated_feature = self._aggregate_features(segment_features, aggregation)
                 
                 features_list.append(aggregated_feature)
-                labels_list.append(label)
+                labels_list.append(mapped_label)
                 uuid_list.append(record['AnalyzeUUID'])
                 
             except Exception as e:
@@ -234,6 +293,8 @@ class DataLoader:
         Returns:
             聚合後的特徵向量
         """
+        if method == 'segments':
+            raise ValueError("segments 聚合方式應在聚合前處理，請勿直接呼叫 _aggregate_features")
         if method == 'mean':
             return np.mean(features, axis=0)
         elif method == 'max':

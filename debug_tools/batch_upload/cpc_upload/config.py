@@ -60,7 +60,7 @@ class UploadConfig:
         'concurrent_uploads': 3,
         'retry_attempts': 3,
         'retry_delay': 2,
-        'per_label_limit': 100,  # 0 代表不限制每個標籤的檔案數量
+        'per_label_limit': 0,  # 0 代表不限制每個標籤的檔案數量
     }
 
     # ==================== 記錄與輸出設定 ====================

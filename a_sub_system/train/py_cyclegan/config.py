@@ -36,7 +36,7 @@ DATA_CONFIG = {
             'info_features.device_id': os.getenv('DOMAIN_A_DEVICE_ID', 'cpc006'),
             'analysis_status': 'completed'
         },
-        'max_samples': int(os.getenv('DOMAIN_A_MAX_SAMPLES', '1000')),
+        'max_samples': int(os.getenv('DOMAIN_A_MAX_SAMPLES', '10000')),  # 增加到 10000
         'file_path': os.getenv('DOMAIN_A_FILE_PATH', 'data/domain_cpc006.json')  # 當使用 file source 時
     },
 
@@ -46,7 +46,7 @@ DATA_CONFIG = {
             'info_features.device_id': os.getenv('DOMAIN_B_DEVICE_ID', 'BATCH_UPLOAD_Mafaulda'),
             'analysis_status': 'completed'
         },
-        'max_samples': int(os.getenv('DOMAIN_B_MAX_SAMPLES', '1000')),
+        'max_samples': int(os.getenv('DOMAIN_B_MAX_SAMPLES', '10000')),  # 增加到 10000
         'file_path': os.getenv('DOMAIN_B_FILE_PATH', 'data/domain_Mafaulda.json')
     },
 
@@ -85,7 +85,7 @@ TRAINING_CONFIG = {
     # 基本參數
     'max_epochs': int(os.getenv('MAX_EPOCHS', '200')),
     'batch_size': int(os.getenv('BATCH_SIZE', '32')),
-    'num_workers': int(os.getenv('NUM_WORKERS', '4')),
+    'num_workers': int(os.getenv('NUM_WORKERS', '0')),  # Windows 必須設為 0
 
     # 優化器參數
     'learning_rate': float(os.getenv('LEARNING_RATE', '0.0002')),
