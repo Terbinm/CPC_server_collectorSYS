@@ -25,6 +25,7 @@ from debug_tools.batch_upload.Integration_upload.config.base_config import BaseU
 from debug_tools.batch_upload.Integration_upload.uploaders.cpc_uploader import CPCBatchUploader
 from debug_tools.batch_upload.Integration_upload.uploaders.mafaulda_uploader import MAFAULDABatchUploader
 from debug_tools.batch_upload.Integration_upload.uploaders.mimii_uploader import MIMIIBatchUploader
+from debug_tools.batch_upload.Integration_upload.core.mongodb_handler import MongoDBUploader
 
 
 PACKAGE_PREFIX = "debug_tools.batch_upload.Integration_upload"
@@ -73,7 +74,58 @@ class IntegrationUploadCLI:
         print("        批次上傳整合工具 v1.0")
         print("=" * 70)
         print("支援資料集：CPC、MAFAULDA、MIMII")
-        print("功能：多資料集選擇、中斷恢復、Dry-run 模式")
+        print("功能：多資料集選擇、中斷恢復、Dry-run 模式、資料庫備份還原")
+        print("=" * 70)
+        print()
+
+    def test_database_connection(self) -> None:
+        """測試資料庫連線並顯示詳細資訊"""
+        print("=" * 70)
+        print("資料庫連線資訊")
+        print("=" * 70)
+
+        mongodb_config = BaseUploadConfig.MONGODB_CONFIG
+
+        # 顯示基本連線資訊
+        print(f"Host: {mongodb_config['host']}")
+        print(f"Port: {mongodb_config['port']}")
+        print(f"Database: {mongodb_config['database']}")
+        print(f"Collection: {mongodb_config['collection']}")
+        print(f"Username: {mongodb_config['username']}")
+
+        # 嘗試連線
+        try:
+            uploader = MongoDBUploader(
+                mongodb_config=mongodb_config,
+                use_gridfs=False,  # 只是測試連線，不需要 GridFS
+                logger=self.logger
+            )
+
+            # 取得詳細資訊
+            info = uploader.get_database_info()
+
+            print(f"連線狀態: ✓ 成功連線")
+            print(f"總記錄數: {info['record_count']:,} 筆")
+
+            # 顯示資料庫大小
+            if info['size_bytes'] > 0:
+                size_mb = info['size_bytes'] / (1024 * 1024)
+                print(f"資料庫大小: {size_mb:.2f} MB")
+
+            # 顯示最後更新時間
+            if info['last_updated']:
+                if isinstance(info['last_updated'], str):
+                    print(f"最後更新時間: {info['last_updated']}")
+                else:
+                    print(f"最後更新時間: {info['last_updated'].strftime('%Y-%m-%d %H:%M:%S')}")
+
+            uploader.close()
+
+        except Exception as e:
+            print(f"連線狀態: ✗ 連線失敗")
+            print(f"失敗原因: {str(e)}")
+            print(f"可能原因: 資料庫未啟動 或 切換至其他資料庫實例")
+
         print("=" * 70)
         print()
 
@@ -117,7 +169,7 @@ class IntegrationUploadCLI:
             else:
                 print("無效的選項，請重新輸入。")
 
-    def select_mode(self, has_progress: bool) -> Tuple[bool, bool]:
+    def select_mode(self, has_progress: bool) -> Tuple[str, bool, bool]:
         """
         讓使用者選擇上傳模式
 
@@ -125,42 +177,57 @@ class IntegrationUploadCLI:
             has_progress: 是否有先前的進度
 
         Returns:
-            (dry_run, delete_progress) tuple
+            (mode, delete_progress, delete_database) tuple
+            mode: 'dry_run', 'upload', 'restore'
         """
         print("\n步驟2: 選擇上傳模式")
         print("-" * 70)
 
         if has_progress:
             print("\n⚠️  檢測到先前的上傳進度！")
-            print("\n請選擇處理方式：")
-            print("  1. 刪除進度並重新開始正式上傳")
-            print("  2. 刪除進度並重新開始 Dry-run")
-            print("  3. 繼續先前的進度並正式上傳")
-            print("  4. 繼續先前的進度並 Dry-run")
+            print("\n【Dry-run 模式】")
+            print("  1. 刪除進度 + 刪除資料庫 + Dry-run")
+            print("  2. 刪除進度 + 保留資料庫 + Dry-run")
+            print("  3. 繼續先前進度 + Dry-run")
+            print("\n【正式上傳模式】")
+            print("  4. 刪除進度 + 刪除資料庫 + 正式上傳")
+            print("  5. 刪除進度 + 保留資料庫 + 正式上傳")
+            print("  6. 繼續先前進度 + 正式上傳")
+            print("\n【還原功能】")
+            print("  7. 從備份檔還原資料庫")
 
             while True:
-                choice = input("\n請選擇 (1-4): ").strip()
+                choice = input("\n請選擇 (1-7): ").strip()
                 if choice == '1':
-                    return False, True  # 正式上傳，刪除進度
+                    return 'dry_run', True, True    # Dry-run, 刪除進度, 刪除資料庫
                 elif choice == '2':
-                    return True, True   # Dry-run，刪除進度
+                    return 'dry_run', True, False   # Dry-run, 刪除進度, 保留資料庫
                 elif choice == '3':
-                    return False, False # 正式上傳，保留進度
+                    return 'dry_run', False, False  # Dry-run, 保留進度, 保留資料庫
                 elif choice == '4':
-                    return True, False  # Dry-run，保留進度
+                    return 'upload', True, True     # 正式上傳, 刪除進度, 刪除資料庫
+                elif choice == '5':
+                    return 'upload', True, False    # 正式上傳, 刪除進度, 保留資料庫
+                elif choice == '6':
+                    return 'upload', False, False   # 正式上傳, 保留進度, 保留資料庫
+                elif choice == '7':
+                    return 'restore', False, False  # 還原模式
                 else:
                     print("無效的選項，請重新輸入。")
         else:
             print("\n請選擇上傳模式：")
-            print("  1. 正式上傳")
-            print("  2. Dry-run（預覽模式）")
+            print("  1. Dry-run 模式")
+            print("  2. 正式上傳模式")
+            print("  3. 從備份檔還原資料庫")
 
             while True:
-                choice = input("\n請選擇 (1-2): ").strip()
+                choice = input("\n請選擇 (1-3): ").strip()
                 if choice == '1':
-                    return False, False # 正式上傳
+                    return 'dry_run', False, False  # Dry-run
                 elif choice == '2':
-                    return True, False  # Dry-run
+                    return 'upload', False, False   # 正式上傳
+                elif choice == '3':
+                    return 'restore', False, False  # 還原模式
                 else:
                     print("無效的選項，請重新輸入。")
 
@@ -173,6 +240,226 @@ class IntegrationUploadCLI:
                 print("\n✓ 已刪除先前的進度文件。")
             except Exception as e:
                 self.logger.warning(f"無法刪除進度文件：{e}")
+
+    def delete_database_with_backup(self) -> bool:
+        """
+        刪除資料庫並備份
+
+        Returns:
+            是否成功
+        """
+        print("\n" + "=" * 70)
+        print("資料庫刪除與備份")
+        print("=" * 70)
+
+        mongodb_config = BaseUploadConfig.MONGODB_CONFIG
+
+        try:
+            # 建立連線
+            uploader = MongoDBUploader(
+                mongodb_config=mongodb_config,
+                use_gridfs=False,
+                logger=self.logger
+            )
+
+            # 計算記錄數
+            record_count = uploader.count_records()
+
+            if record_count == 0:
+                print("\n資料庫目前沒有記錄，無需刪除。")
+                uploader.close()
+                return True
+
+            # 如果筆數 > 1000，需要確認
+            if record_count > 1000:
+                print(f"\n⚠️  警告：即將刪除大量資料")
+                print("=" * 70)
+                info = uploader.get_database_info()
+                print(f"資料庫: {info['database']}")
+                print(f"Collection: {info['collection']}")
+                print(f"目前筆數: {record_count:,} 筆")
+
+                if info['size_bytes'] > 0:
+                    size_mb = info['size_bytes'] / (1024 * 1024)
+                    size_gb = size_mb / 1024
+                    if size_gb >= 1:
+                        print(f"估計大小: {size_gb:.2f} GB")
+                    else:
+                        print(f"估計大小: {size_mb:.2f} MB")
+
+                print("\n此操作將：")
+                print("1. 備份所有記錄至 reports/backups/(但是沒有備份檔案)")
+                print("2. 刪除所有資料庫記錄")
+                print("\n確認刪除？請輸入 'y' 確認: ", end='')
+
+                confirmation = input().strip().lower()
+                if confirmation != 'y':
+                    print("\n已取消刪除操作。")
+                    uploader.close()
+                    sys.exit(0)
+
+            # 建立備份
+            print("\n正在備份資料庫...")
+            backup_dir = Path(BaseUploadConfig.REPORT_OUTPUT['report_directory']) / 'backups'
+            backup_dir.mkdir(parents=True, exist_ok=True)
+
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            backup_file = backup_dir / f"backup_{timestamp}.json"
+
+            if not uploader.backup_all_records(backup_file):
+                print("\n✗ 備份失敗，取消刪除操作。")
+                uploader.close()
+                sys.exit(1)
+
+            # 刪除記錄
+            print("\n正在刪除資料庫記錄...")
+            deleted_count = uploader.delete_all_records()
+
+            if deleted_count > 0:
+                print(f"\n✓ 已刪除 {deleted_count:,} 筆記錄")
+                print(f"✓ 備份檔案：{backup_file}")
+            else:
+                print("\n✗ 刪除失敗")
+                uploader.close()
+                return False
+
+            uploader.close()
+            print("=" * 70)
+            return True
+
+        except Exception as e:
+            self.logger.error(f"刪除資料庫時發生錯誤：{e}")
+            print(f"\n✗ 刪除資料庫失敗：{e}")
+            return False
+
+    def list_and_select_backup(self) -> Path:
+        """
+        列出可用的備份檔並讓使用者選擇
+
+        Returns:
+            選擇的備份檔路徑，如果取消則返回 None
+        """
+        print("\n" + "=" * 70)
+        print("選擇備份檔還原")
+        print("=" * 70)
+
+        backup_dir = Path(BaseUploadConfig.REPORT_OUTPUT['report_directory']) / 'backups'
+
+        if not backup_dir.exists():
+            print("\n✗ 備份目錄不存在")
+            return None
+
+        # 掃描備份檔案
+        backup_files = sorted(backup_dir.glob('backup_*.json'), key=lambda p: p.stat().st_mtime, reverse=True)
+
+        if not backup_files:
+            print("\n✗ 沒有找到備份檔案")
+            return None
+
+        print("\n可用的備份檔案：")
+        print("-" * 70)
+
+        import os
+        for idx, backup_file in enumerate(backup_files, 1):
+            file_stat = backup_file.stat()
+            file_size_mb = file_stat.st_size / (1024 * 1024)
+            file_time = datetime.fromtimestamp(file_stat.st_mtime)
+
+            print(f"\n{idx}. {backup_file.name}")
+            print(f"   時間: {file_time.strftime('%Y-%m-%d %H:%M:%S')}")
+
+            # 嘗試讀取檔案以取得記錄數
+            try:
+                with open(backup_file, 'r', encoding='utf-8') as f:
+                    records = json.load(f)
+                    print(f"   筆數: {len(records):,} 筆")
+            except Exception:
+                print(f"   筆數: 無法讀取")
+
+            print(f"   大小: {file_size_mb:.2f} MB")
+
+        print("\n" + "-" * 70)
+        print("請選擇要還原的備份檔 (輸入編號) 或 q 取消: ", end='')
+
+        while True:
+            choice = input().strip().lower()
+            if choice == 'q':
+                print("\n已取消還原操作。")
+                return None
+
+            try:
+                idx = int(choice)
+                if 1 <= idx <= len(backup_files):
+                    return backup_files[idx - 1]
+                else:
+                    print(f"無效的選項，請輸入 1-{len(backup_files)} 或 q: ", end='')
+            except ValueError:
+                print(f"無效的選項，請輸入 1-{len(backup_files)} 或 q: ", end='')
+
+    def do_restore_from_backup(self) -> bool:
+        """
+        執行從備份檔還原
+
+        Returns:
+            是否成功
+        """
+        # 選擇備份檔
+        backup_file = self.list_and_select_backup()
+        if not backup_file:
+            return False
+
+        print("\n" + "=" * 70)
+        print("資料庫還原")
+        print("=" * 70)
+
+        mongodb_config = BaseUploadConfig.MONGODB_CONFIG
+
+        try:
+            # 建立連線
+            uploader = MongoDBUploader(
+                mongodb_config=mongodb_config,
+                use_gridfs=False,
+                logger=self.logger
+            )
+
+            # 檢查目前資料庫狀態
+            current_count = uploader.count_records()
+
+            if current_count > 0:
+                print(f"\n⚠️  資料庫目前有 {current_count:,} 筆記錄")
+                print("還原將【附加】備份資料，不會刪除現有記錄")
+                print("\n繼續還原？(y/n): ", end='')
+                confirmation = input().strip().lower()
+                if confirmation != 'y':
+                    print("\n已取消還原操作。")
+                    uploader.close()
+                    return False
+
+            # 執行還原
+            print(f"\n正在從備份檔還原：{backup_file.name}")
+            result = uploader.restore_from_backup(backup_file)
+
+            print("\n" + "=" * 70)
+            print("還原摘要")
+            print("=" * 70)
+            print(f"成功插入: {result['inserted']:,} 筆")
+            print(f"跳過記錄: {result['skipped']:,} 筆")
+
+            if result['skipped'] > 0:
+                print("\n⚠️  注意：部分記錄因重複 ID 或其他錯誤而跳過")
+
+            print("\n⚠️  注意：GridFS 檔案無法還原")
+            print("本次還原僅恢復資料庫記錄（metadata）")
+            print("如需完整恢復，請確保 GridFS 檔案仍存在")
+            print("=" * 70)
+
+            uploader.close()
+            return True
+
+        except Exception as e:
+            self.logger.error(f"還原資料庫時發生錯誤：{e}")
+            print(f"\n✗ 還原資料庫失敗：{e}")
+            return False
 
     def initialize_uploaders(self) -> bool:
         """
@@ -306,7 +593,11 @@ class IntegrationUploadCLI:
 
     def run(self) -> None:
         """執行 CLI 主流程"""
+        # 步驟 0：顯示橫幅
         self.print_banner()
+
+        # 步驟 0.5：測試資料庫連線
+        self.test_database_connection()
 
         # 步驟 1：選擇資料集
         self.select_datasets()
@@ -315,11 +606,26 @@ class IntegrationUploadCLI:
         has_progress = self.check_progress()
 
         # 步驟 2：選擇模式
-        dry_run, delete_progress_flag = self.select_mode(has_progress)
+        mode, delete_progress_flag, delete_database_flag = self.select_mode(has_progress)
+
+        # 還原模式：執行還原後直接結束
+        if mode == 'restore':
+            if self.do_restore_from_backup():
+                print("\n✓ 資料庫還原完成。")
+            else:
+                print("\n✗ 資料庫還原失敗或已取消。")
+            print("\n程序執行完畢。")
+            return
 
         # 刪除進度（如果需要）
         if delete_progress_flag:
             self.delete_progress()
+
+        # 刪除資料庫（如果需要）
+        if delete_database_flag:
+            if not self.delete_database_with_backup():
+                print("\n❌ 資料庫刪除失敗，程序終止。")
+                sys.exit(1)
 
         # 初始化上傳器
         if not self.initialize_uploaders():
@@ -327,6 +633,7 @@ class IntegrationUploadCLI:
             sys.exit(1)
 
         # 執行上傳
+        dry_run = (mode == 'dry_run')
         self.run_upload(dry_run)
 
         # 顯示統計

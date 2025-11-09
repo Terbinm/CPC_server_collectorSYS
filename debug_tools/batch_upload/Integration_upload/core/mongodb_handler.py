@@ -175,6 +175,198 @@ class MongoDBUploader:
 
         return document
 
+    def count_records(self) -> int:
+        """
+        計算 collection 中的記錄總數
+
+        Returns:
+            記錄總數
+        """
+        try:
+            count = self.collection.count_documents({})
+            return count
+        except Exception as exc:
+            self.logger.error("計算記錄數時發生錯誤：%s", exc)
+            return 0
+
+    def get_database_info(self) -> Dict[str, Any]:
+        """
+        取得資料庫詳細資訊
+
+        Returns:
+            包含資料庫資訊的字典
+        """
+        try:
+            info = {
+                'host': self.config['host'],
+                'port': self.config['port'],
+                'database': self.config['database'],
+                'collection': self.config['collection'],
+                'username': self.config['username'],
+                'record_count': self.count_records(),
+                'connected': True
+            }
+
+            # 取得資料庫統計資訊
+            try:
+                stats = self.db.command('collStats', self.config['collection'])
+                info['size_bytes'] = stats.get('size', 0)
+                info['storage_size_bytes'] = stats.get('storageSize', 0)
+            except Exception:
+                info['size_bytes'] = 0
+                info['storage_size_bytes'] = 0
+
+            # 取得最後更新時間
+            try:
+                latest_record = self.collection.find_one(
+                    {},
+                    sort=[('updated_at', -1)]
+                )
+                if latest_record and 'updated_at' in latest_record:
+                    info['last_updated'] = latest_record['updated_at']
+                else:
+                    info['last_updated'] = None
+            except Exception:
+                info['last_updated'] = None
+
+            return info
+
+        except Exception as exc:
+            self.logger.error("取得資料庫資訊時發生錯誤：%s", exc)
+            return {
+                'host': self.config.get('host', 'N/A'),
+                'port': self.config.get('port', 'N/A'),
+                'database': self.config.get('database', 'N/A'),
+                'collection': self.config.get('collection', 'N/A'),
+                'username': self.config.get('username', 'N/A'),
+                'record_count': 0,
+                'connected': False,
+                'error': str(exc)
+            }
+
+    def backup_all_records(self, backup_file: Path) -> bool:
+        """
+        備份所有記錄至 JSON 檔案
+
+        Args:
+            backup_file: 備份檔案路徑
+
+        Returns:
+            備份是否成功
+        """
+        import json
+
+        try:
+            self.logger.info("開始備份資料庫記錄...")
+            records = list(self.collection.find({}))
+
+            # 轉換 ObjectId 為字串
+            for record in records:
+                if '_id' in record:
+                    record['_id'] = str(record['_id'])
+                if 'files' in record and 'raw' in record['files']:
+                    if 'fileId' in record['files']['raw'] and record['files']['raw']['fileId']:
+                        record['files']['raw']['fileId'] = str(record['files']['raw']['fileId'])
+                # 轉換 datetime 物件
+                if 'created_at' in record:
+                    record['created_at'] = str(record['created_at'])
+                if 'updated_at' in record:
+                    record['updated_at'] = str(record['updated_at'])
+
+            # 確保備份目錄存在
+            backup_file.parent.mkdir(parents=True, exist_ok=True)
+
+            # 寫入 JSON 檔案
+            with open(backup_file, 'w', encoding='utf-8') as f:
+                json.dump(records, f, indent=2, ensure_ascii=False, default=str)
+
+            self.logger.info(f"✓ 備份完成：{backup_file} ({len(records)} 筆記錄)")
+            return True
+
+        except Exception as exc:
+            self.logger.error(f"✗ 備份失敗：{exc}")
+            return False
+
+    def delete_all_records(self) -> int:
+        """
+        刪除所有記錄
+
+        Returns:
+            刪除的記錄數量
+        """
+        try:
+            result = self.collection.delete_many({})
+            deleted_count = result.deleted_count
+            self.logger.info(f"✓ 已刪除 {deleted_count} 筆記錄")
+            return deleted_count
+
+        except Exception as exc:
+            self.logger.error(f"✗ 刪除記錄失敗：{exc}")
+            return 0
+
+    def restore_from_backup(self, backup_file: Path) -> Dict[str, int]:
+        """
+        從備份檔還原記錄
+
+        Args:
+            backup_file: 備份檔案路徑
+
+        Returns:
+            包含 inserted 和 skipped 數量的字典
+        """
+        import json
+
+        try:
+            self.logger.info(f"開始從備份檔還原：{backup_file}")
+
+            # 讀取備份檔案
+            with open(backup_file, 'r', encoding='utf-8') as f:
+                records = json.load(f)
+
+            inserted_count = 0
+            skipped_count = 0
+
+            for record in records:
+                try:
+                    # 轉換字串 ID 回 ObjectId
+                    if '_id' in record and isinstance(record['_id'], str):
+                        try:
+                            record['_id'] = ObjectId(record['_id'])
+                        except Exception:
+                            # 如果轉換失敗，移除 _id 讓 MongoDB 自動生成
+                            del record['_id']
+
+                    if 'files' in record and 'raw' in record['files']:
+                        if 'fileId' in record['files']['raw'] and isinstance(record['files']['raw']['fileId'], str):
+                            try:
+                                record['files']['raw']['fileId'] = ObjectId(record['files']['raw']['fileId'])
+                            except Exception:
+                                # GridFS 檔案 ID 轉換失敗，保持為 None
+                                record['files']['raw']['fileId'] = None
+
+                    # 轉換日期字串回 datetime（如果是字串格式）
+                    # 注意：這裡簡化處理，實際可能需要更複雜的日期解析
+
+                    # 插入記錄
+                    self.collection.insert_one(record)
+                    inserted_count += 1
+
+                except Exception as e:
+                    # 如果是重複 _id，跳過
+                    if 'duplicate key error' in str(e).lower():
+                        skipped_count += 1
+                        self.logger.debug(f"跳過重複記錄：{record.get('AnalyzeUUID', 'unknown')}")
+                    else:
+                        skipped_count += 1
+                        self.logger.warning(f"還原記錄失敗：{e}")
+
+            self.logger.info(f"✓ 還原完成：插入 {inserted_count} 筆，跳過 {skipped_count} 筆")
+            return {'inserted': inserted_count, 'skipped': skipped_count}
+
+        except Exception as exc:
+            self.logger.error(f"✗ 從備份檔還原失敗：{exc}")
+            return {'inserted': 0, 'skipped': 0}
+
     def close(self) -> None:
         """關閉 MongoDB 連接"""
         if self.mongo_client:
