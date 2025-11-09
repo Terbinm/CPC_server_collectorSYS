@@ -226,13 +226,12 @@ class ModelEvaluator:
                 raise ValueError(f"找不到記錄: {analyze_uuid}")
             
             # 提取 LEAF 特徵
-            analyze_features = record.get('analyze_features', [])
-            leaf_features = None
-            
-            for step in analyze_features:
-                if step.get('features_step') == 2 and step.get('features_name') == 'LEAF Features':
-                    leaf_features = step.get('features_data', [])
-                    break
+            feature_step = ModelConfig.FEATURE_CONFIG['features_step']
+            run_doc, selected_run_id = data_loader._select_analysis_run(record)
+            if not run_doc:
+                raise ValueError("找不到可用的分析 run")
+            leaf_step = DataLoader._find_completed_step(run_doc, feature_step)
+            leaf_features = leaf_step.get('features_data', []) if leaf_step else None
             
             if not leaf_features:
                 raise ValueError("記錄缺少 LEAF 特徵")
@@ -240,9 +239,13 @@ class ModelEvaluator:
             # 提取特徵向量
             segment_features = []
             for segment in leaf_features:
-                feature_vector = segment.get('feature_vector')
-                if feature_vector is not None:
-                    segment_features.append(feature_vector)
+                if isinstance(segment, dict):
+                    feature_vector = segment.get('feature_vector')
+                else:
+                    feature_vector = segment
+                if feature_vector is None:
+                    continue
+                segment_features.append(feature_vector)
             
             if not segment_features:
                 raise ValueError("特徵向量為空")

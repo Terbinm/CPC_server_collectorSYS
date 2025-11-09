@@ -21,6 +21,19 @@ import time
 from config import UploadConfig
 
 
+def build_analysis_container() -> Dict[str, Any]:
+    return {
+        "active_analysis_id": None,
+        "latest_analysis_id": None,
+        "latest_summary_index": None,
+        "total_runs": 0,
+        "last_requested_at": None,
+        "last_started_at": None,
+        "last_completed_at": None,
+        "runs": []
+    }
+
+
 class BatchUploadLogger:
     """日誌管理器"""
 
@@ -196,7 +209,7 @@ class MongoDBUploader:
                     "type": file_type
                 }
             },
-            "analyze_features": [],
+            "analyze_features": build_analysis_container(),
             "info_features": {
                 "dataset_UUID": UploadConfig.DATASET_CONFIG['dataset_UUID'],
                 'device_id': f'BATCH_UPLOAD_{label.upper()}',

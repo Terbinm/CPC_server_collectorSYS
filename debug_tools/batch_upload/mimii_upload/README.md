@@ -127,7 +127,16 @@ python mimii_batch_upload.py
       "type": "wav"
     }
   },
-  "analyze_features": [],
+  "analyze_features": {
+    "active_analysis_id": null,
+    "latest_analysis_id": null,
+    "latest_summary_index": null,
+    "total_runs": 0,
+    "last_requested_at": null,
+    "last_started_at": null,
+    "last_completed_at": null,
+    "runs": []
+  },
   "info_features": {
     "dataset_UUID": "mimii_batch_upload",
     "device_id": "BATCH_UPLOAD_NORMAL",

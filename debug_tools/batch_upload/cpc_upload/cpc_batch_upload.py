@@ -29,6 +29,19 @@ from tqdm import tqdm
 from config import UploadConfig
 
 
+def build_analysis_container() -> Dict[str, Any]:
+    return {
+        "active_analysis_id": None,
+        "latest_analysis_id": None,
+        "latest_summary_index": None,
+        "total_runs": 0,
+        "last_requested_at": None,
+        "last_started_at": None,
+        "last_completed_at": None,
+        "runs": []
+    }
+
+
 class BatchUploadLogger:
     """負責建立共用記錄器。"""
 
@@ -193,7 +206,7 @@ class MongoDBUploader:
                     "type": file_type,
                 }
             },
-            "analyze_features": [],
+            "analyze_features": build_analysis_container(),
             "info_features": info_features,
         }
 

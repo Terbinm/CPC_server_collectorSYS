@@ -38,7 +38,7 @@ python scripts/batch_domain_conversion.py
 1. 連線 MongoDB，將 `DATA_CONFIG["domain_b"]["mongo_query"]` 與 Step 2 條件 (`features_step = 2`, `features_state = completed`) 組合查詢。
 2. 逐筆檢索符合條件的分析任務。
 3. 若尚未存在 Step 6（或指定步驟），使用 CycleGAN 將 Step 2 的特徵轉換為 A-domain。
-4. 寫回 `analyze_features`，並附加 metadata（檢查點、轉換時間、來源步驟等）。
+4. 以新的分析 run 寫回 `analyze_features`，並附加 metadata（檢查點、來源 run、轉換時間等），不覆寫既有流程的結果。
 
 完成後會在終端印出統計資訊：
 - 總處理數
@@ -69,6 +69,7 @@ python scripts/batch_domain_conversion.py \
 | `--output-step` | 轉換結果寫入的步驟 | `6` |
 | `--limit` | 最大處理筆數（None 表示不限） | 取自 `DATA_CONFIG["domain_b"]["max_samples"]` |
 | `--device-id` | 覆寫 `info_features.device_id` 查詢 | 留空則沿用 `config.py` |
+| `--source-run-id` | 指定要使用的來源分析 run ID | 使用各記錄最新完成的 run |
 | `--overwrite` | 若步驟已存在是否覆寫 | 預設跳過 |
 | `--dry-run` | 僅顯示計畫處理的任務，不寫入資料庫 | 關閉 |
 

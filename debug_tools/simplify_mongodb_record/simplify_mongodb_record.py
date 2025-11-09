@@ -41,18 +41,29 @@ def convert_mongo_types(obj):
     return obj
 
 
+def _trim_step_data(step):
+    if 'features_data' in step and isinstance(step['features_data'], list):
+        original_count = len(step['features_data'])
+        step['features_data'] = step['features_data'][:2]
+        print(
+            f"  - {step.get('features_name', 'Unknown')}: {original_count} 筆 -> {len(step['features_data'])} 筆")
+
+
 def simplify_features_data(record):
     """精簡 analyze_features 中的 features_data,僅保留前 2 筆"""
     if 'analyze_features' not in record:
         print("記錄中沒有 analyze_features 欄位")
         return record
 
-    for feature in record['analyze_features']:
-        if 'features_data' in feature and isinstance(feature['features_data'], list):
-            original_count = len(feature['features_data'])
-            feature['features_data'] = feature['features_data'][:2]
-            print(
-                f"  - {feature.get('features_name', 'Unknown')}: {original_count} 筆 -> {len(feature['features_data'])} 筆")
+    analyze_features = record['analyze_features']
+
+    if isinstance(analyze_features, dict):
+        for run in analyze_features.get('runs', []):
+            for step in run.get('steps', []):
+                _trim_step_data(step)
+    elif isinstance(analyze_features, list):
+        for feature in analyze_features:
+            _trim_step_data(feature)
 
     return record
 

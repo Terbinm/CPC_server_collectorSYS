@@ -10,11 +10,119 @@ import soundfile as sf
 from io import BytesIO
 from datetime import datetime, timedelta
 from config import Config
+from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
 # 初始化錄音資料存取層
 recording_repo = RecordingRepository(mongodb_handler)
+
+
+def _format_datetime(value):
+    if isinstance(value, datetime):
+        return value.isoformat()
+    return value
+
+
+def _enrich_summary(summary: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    data = dict(summary or {})
+
+    def _as_int(val):
+        if isinstance(val, (int, float)):
+            return int(val)
+        try:
+            return int(val)
+        except (ValueError, TypeError):
+            return 0
+
+    total = _as_int(data.get('total_segments'))
+    normal = _as_int(data.get('normal_count'))
+    abnormal = _as_int(data.get('abnormal_count'))
+    unknown = _as_int(data.get('unknown_count'))
+
+    if total == 0:
+        total = normal + abnormal + unknown
+
+    data['total_segments'] = total
+    data['normal_count'] = normal
+    data['abnormal_count'] = abnormal
+    data['unknown_count'] = unknown
+
+    def _percentage(value):
+        return (value / total * 100) if total > 0 else 0
+
+    data['normal_percentage'] = _percentage(normal)
+    data['abnormal_percentage'] = _percentage(abnormal)
+    data['unknown_percentage'] = _percentage(unknown)
+    data['final_prediction'] = data.get('final_prediction', 'unknown')
+    data['average_confidence'] = data.get('average_confidence', 0.0) or 0.0
+
+    return data
+
+
+def _extract_analysis_runs(doc: Dict[str, Any], preferred_run_id: Optional[str] = None):
+    analyze_features = doc.get('analyze_features', {})
+    runs_raw = []
+    latest_analysis_id = None
+    latest_summary_index = None
+
+    if isinstance(analyze_features, dict):
+        runs_raw = analyze_features.get('runs', [])
+        latest_analysis_id = analyze_features.get('latest_analysis_id') or analyze_features.get('active_analysis_id')
+        latest_summary_index = analyze_features.get('latest_summary_index')
+    elif isinstance(analyze_features, list):
+        legacy_id = f"legacy-{doc.get('AnalyzeUUID', 'unknown')}"
+        runs_raw = [{
+            'analysis_id': legacy_id,
+            'analysis_status': doc.get('analysis_status', 'completed'),
+            'run_index': 1,
+            'analysis_summary': doc.get('analysis_summary', {}),
+            'steps': analyze_features,
+            'requested_at': doc.get('created_at'),
+            'started_at': doc.get('processing_started_at'),
+            'completed_at': doc.get('updated_at'),
+            'error_message': doc.get('error_message')
+        }]
+        latest_analysis_id = legacy_id
+        latest_summary_index = 1
+    else:
+        runs_raw = []
+
+    runs = []
+    for idx, run in enumerate(runs_raw, start=1):
+        run_index = run.get('run_index', idx)
+        summary = _enrich_summary(run.get('analysis_summary'))
+        status = 'completed' if summary else ('error' if run.get('error_message') else 'processing')
+        runs.append({
+            'index': idx,
+            'run_index': run_index,
+            'analysis_id': run.get('analysis_id'),
+            'analysis_status': status,
+            'analysis_summary': summary,
+            'requested_at': _format_datetime(run.get('requested_at')),
+            'started_at': _format_datetime(run.get('started_at')),
+            'completed_at': _format_datetime(run.get('completed_at')),
+            'error_message': run.get('error_message'),
+            'step_count': len(run.get('steps', []))
+        })
+
+    selected_run = None
+    if preferred_run_id:
+        selected_run = next((run for run in runs if run.get('analysis_id') == preferred_run_id), None)
+
+    if not selected_run and latest_summary_index:
+        selected_run = next((run for run in runs if run.get('run_index') == latest_summary_index), None)
+
+    if not selected_run and latest_analysis_id:
+        selected_run = next((run for run in runs if run.get('analysis_id') == latest_analysis_id), None)
+
+    if not selected_run and runs:
+        selected_run = runs[-1]
+
+    selected_run_id = selected_run.get('analysis_id') if selected_run else None
+    summary = selected_run.get('analysis_summary') if selected_run else {}
+
+    return summary, runs, selected_run_id, selected_run
 
 
 @app.route('/')
@@ -101,27 +209,16 @@ def dashboard():
                     rec_dict['analysis_status'] = original_doc.get('analysis_status', 'pending')
                     rec_dict['current_step'] = original_doc.get('current_step', 0)
 
-                    # 獲取分析摘要,並計算百分比
-                    analysis_summary = original_doc.get('analysis_summary', {})
-                    if analysis_summary and 'total_segments' in analysis_summary:
-                        total = analysis_summary.get('total_segments', 0)
-                        normal = analysis_summary.get('normal_count', 0)
-                        abnormal = analysis_summary.get('abnormal_count', 0)
-
-                        # 確保所有計數欄位都存在
-                        analysis_summary['normal_count'] = normal
-                        analysis_summary['abnormal_count'] = abnormal
-                        analysis_summary['total_segments'] = total
-
-                        # 計算百分比
-                        analysis_summary['normal_percentage'] = (normal / total * 100) if total > 0 else 0
-                        analysis_summary['abnormal_percentage'] = (abnormal / total * 100) if total > 0 else 0
-
-                    rec_dict['analysis_summary'] = analysis_summary
+                    summary, runs, selected_run_id, _ = _extract_analysis_runs(original_doc)
+                    rec_dict['analysis_summary'] = summary
+                    rec_dict['analysis_runs'] = runs
+                    rec_dict['selected_run_id'] = selected_run_id
                 else:
                     rec_dict['analysis_status'] = 'pending'
                     rec_dict['current_step'] = 0
                     rec_dict['analysis_summary'] = {}
+                    rec_dict['analysis_runs'] = []
+                    rec_dict['selected_run_id'] = None
 
                 recordings_dict.append(rec_dict)
                 logger.debug(f"錄音 {idx + 1} 轉換成功: {rec_dict.get('filename')}")
@@ -331,6 +428,7 @@ def play_recording(id):
     :param id: 錄音 UUID
     """
     try:
+        run_id = request.args.get('run_id')
         recording = recording_repo.find_by_uuid(id)
         if not recording:
             return jsonify({'error': '找不到錄音記錄'}), 404
@@ -344,32 +442,18 @@ def play_recording(id):
             recording_dict['analysis_status'] = original_doc.get('analysis_status', 'pending')
             recording_dict['current_step'] = original_doc.get('current_step', 0)
 
-            # 獲取分析摘要,並計算百分比
-            analysis_summary = original_doc.get('analysis_summary', {})
-            if analysis_summary and 'total_segments' in analysis_summary:
-                total = analysis_summary.get('total_segments', 0)
-                normal = analysis_summary.get('normal_count', 0)
-                abnormal = analysis_summary.get('abnormal_count', 0)
-                unknown = analysis_summary.get('unknown_count', 0)
-
-                # 確保所有計數欄位都存在
-                analysis_summary['normal_count'] = normal
-                analysis_summary['abnormal_count'] = abnormal
-                analysis_summary['unknown_count'] = unknown
-                analysis_summary['total_segments'] = total
-
-                # 計算百分比
-                analysis_summary['normal_percentage'] = (normal / total * 100) if total > 0 else 0
-                analysis_summary['abnormal_percentage'] = (abnormal / total * 100) if total > 0 else 0
-                analysis_summary['unknown_percentage'] = (unknown / total * 100) if total > 0 else 0
-
-            recording_dict['analysis_summary'] = analysis_summary
-            recording_dict['analyze_features'] = original_doc.get('analyze_features', [])
+            summary, runs, selected_run_id, selected_run = _extract_analysis_runs(original_doc, preferred_run_id=run_id)
+            recording_dict['analysis_summary'] = summary
+            recording_dict['analysis_runs'] = runs
+            recording_dict['selected_run_id'] = selected_run_id
+            recording_dict['selected_run'] = selected_run or {}
         else:
             recording_dict['analysis_status'] = 'pending'
             recording_dict['current_step'] = 0
             recording_dict['analysis_summary'] = {}
-            recording_dict['analyze_features'] = []
+            recording_dict['analysis_runs'] = []
+            recording_dict['selected_run_id'] = None
+            recording_dict['selected_run'] = {}
 
         return render_template('play.html', recording=recording_dict)
     except Exception as e:

@@ -88,6 +88,19 @@ class AudioRecording:
             file_type = 'wav'
         file_type = file_type.lower()
 
+        def build_empty_analysis_container():
+            """建立預設 analyze_features 容器"""
+            return {
+                "active_analysis_id": None,
+                "latest_analysis_id": None,
+                "latest_summary_index": None,
+                "total_runs": 0,
+                "last_requested_at": None,
+                "last_started_at": None,
+                "last_completed_at": None,
+                "runs": []
+            }
+
         document = {
             "AnalyzeUUID": self.analyze_uuid,
             "current_step": 0,
@@ -100,7 +113,7 @@ class AudioRecording:
                     "type": file_type
                 }
             },
-            "analyze_features": [],
+            "analyze_features": build_empty_analysis_container(),
             "info_features": {
                 "dataset_UUID": Config.DATASET_CONFIG['dataset_UUID'],
                 "device_id": self.device_id,
@@ -119,6 +132,8 @@ class AudioRecording:
                 }
             }
         }
+
+        document["analyze_features"] = build_empty_analysis_container()
 
         return document
 

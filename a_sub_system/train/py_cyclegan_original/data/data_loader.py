@@ -53,6 +53,24 @@ class MongoDBLEAFLoader:
 
         logger.info(f"Connected to MongoDB: {db_name}.{collection_name}")
 
+    @staticmethod
+    def _find_completed_step(doc: Dict[str, Any], step_number: int) -> Optional[Dict[str, Any]]:
+        """在紀錄中尋找指定步驟（支援新版 analyze_features 結構）"""
+        analyze_features = doc.get("analyze_features", {})
+
+        if isinstance(analyze_features, dict):
+            runs = analyze_features.get("runs", [])
+            for run in reversed(runs):
+                for step in run.get("steps", []):
+                    if step.get("features_step") == step_number and step.get("features_state") == "completed":
+                        return step
+        elif isinstance(analyze_features, list):
+            for step in analyze_features:
+                if step.get("features_step") == step_number and step.get("features_state") == "completed":
+                    return step
+
+        return None
+
     def load_domain_features(
         self,
         query: Dict[str, Any],
@@ -82,12 +100,32 @@ class MongoDBLEAFLoader:
             }
         """
         # 查询条件：确保有 LEAF 特征
-        query.update({
-            "analyze_features.1.features_state": "completed"
-        })
+        base_query = dict(query or {})
+        completion_condition = {
+            "$or": [
+                {"analyze_features.1.features_state": "completed"},
+                {
+                    "analyze_features.runs": {
+                        "$elemMatch": {
+                            "steps": {
+                                "$elemMatch": {
+                                    "features_step": 2,
+                                    "features_state": "completed"
+                                }
+                            }
+                        }
+                    }
+                }
+            ]
+        }
+
+        if base_query:
+            effective_query = {"$and": [base_query, completion_condition]}
+        else:
+            effective_query = completion_condition
 
         # 查询文档
-        cursor = self.collection.find(query)
+        cursor = self.collection.find(effective_query)
 
         if max_samples:
             cursor = cursor.limit(max_samples)
@@ -97,17 +135,7 @@ class MongoDBLEAFLoader:
         for doc in cursor:
             try:
                 # 获取 Step 2 的 LEAF 特征
-                analyze_features = doc.get("analyze_features", [])
-
-                # 找到 Step 2
-                step_2 = next(
-                    (
-                        step
-                        for step in analyze_features
-                        if step.get("features_step") == 2
-                    ),
-                    None,
-                )
+                step_2 = self._find_completed_step(doc, 2)
 
                 if not step_2:
                     logger.warning(f"No Step 2 found in doc {doc.get('_id')}")

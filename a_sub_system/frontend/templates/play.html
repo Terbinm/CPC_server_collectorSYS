@@ -148,7 +148,44 @@
 
         <!-- 側邊詳細信息 -->
         <div class="lg:col-span-1 space-y-6">
-            {% if recording.analysis_status == 'completed' and recording.analysis_summary %}
+            {% if recording.analysis_runs %}
+            <div class="bg-white rounded-lg border border-gray-200 p-6">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-lg font-medium text-gray-800 flex items-center">
+                        <svg class="w-5 h-5 text-indigo-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"></path>
+                        </svg>
+                        分析歷程
+                    </h3>
+                    <span class="text-xs text-gray-500">{{ recording.analysis_runs|length }} 筆紀錄</span>
+                </div>
+                {% if recording.analysis_runs|length > 1 %}
+                <label class="block text-sm text-gray-600 mt-4 mb-2">選擇要檢視的分析</label>
+                <select class="w-full border-gray-300 rounded-lg text-sm"
+                        onchange="if(this.value){ window.location='{{ url_for('play_recording', id=recording.id) }}?run_id=' + this.value; }">
+                    {% for run in recording.analysis_runs %}
+                    <option value="{{ run.analysis_id }}" {% if run.analysis_id == recording.selected_run_id %}selected{% endif %}>
+                        Run {{ run.run_index }} · {{ run.analysis_status }} · {{ run.started_at or '無開始時間' }}
+                    </option>
+                    {% endfor %}
+                </select>
+                {% endif %}
+                <div class="mt-4 text-sm text-gray-600 space-y-1">
+                    <p><span class="font-medium text-gray-700">狀態：</span>{{ recording.selected_run.analysis_status if recording.selected_run else '無資料' }}</p>
+                    <p><span class="font-medium text-gray-700">開始時間：</span>{{ recording.selected_run.started_at or 'N/A' }}</p>
+                    <p><span class="font-medium text-gray-700">完成時間：</span>{{ recording.selected_run.completed_at or '尚未完成' }}</p>
+                    <p><span class="font-medium text-gray-700">步驟數：</span>{{ recording.selected_run.step_count or 0 }}</p>
+                    {% if recording.selected_run.error_message %}
+                    <p class="text-xs text-red-500 break-words">錯誤：{{ recording.selected_run.error_message }}</p>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            {% if recording.analysis_summary %}
             <!-- 分析統計圓餅圖 -->
             <div class="bg-white rounded-lg border border-gray-200 p-6">
                 <h3 class="text-lg font-medium text-gray-800 mb-4 flex items-center">
@@ -206,7 +243,8 @@
                     </div>
                 </div>
             </div>
-            {% else %}
+            {% endif %}
+
             <!-- 分析狀態卡片 -->
             <div class="bg-white rounded-lg border border-gray-200 p-6">
                 <h3 class="text-lg font-medium text-gray-800 mb-4 flex items-center">
@@ -248,7 +286,6 @@
                     {% endif %}
                 </div>
             </div>
-            {% endif %}
 
             <!-- 技術信息 -->
             <div class="bg-white rounded-lg border border-gray-200 p-6">

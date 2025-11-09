@@ -6,7 +6,7 @@ import numpy as np
 import pickle
 import json
 from datetime import datetime
-from typing import List, Dict, Tuple, Optional
+from typing import List, Dict, Tuple, Optional, Any
 from pathlib import Path
 
 # 機器學習相關
@@ -51,11 +51,12 @@ class ModelConfig:
     
     # 特徵配置
     FEATURE_CONFIG = {
-    'feature_dim': 40,  # LEAF 特徵維度
-    'normalize': True,  # 是否標準化特徵
-    # 特徵聚合方式：mean, max, median, all, segments (segments 表示每個片段為獨立樣本)
-    'aggregation': os.getenv('RF_FEATURE_AGGREGATION', 'segments'),
-        'features_step': int(os.getenv('RF_FEATURE_STEP', target_step))
+        'feature_dim': 40,  # LEAF 特徵維度
+        'normalize': True,  # 是否標準化特徵
+        # 特徵聚合方式：mean, max, median, all, segments (segments 表示每個片段為獨立樣本)
+        'aggregation': os.getenv('RF_FEATURE_AGGREGATION', 'segments'),
+        'features_step': int(os.getenv('RF_FEATURE_STEP', target_step)),
+        'analysis_run_id': os.getenv('RF_ANALYSIS_RUN_ID')
     }
     
     # 模型配置
@@ -115,6 +116,9 @@ class DataLoader:
         self.config = mongodb_config
         self.mongo_client = None
         self.collection = None
+        self.preferred_run_id = ModelConfig.FEATURE_CONFIG.get('analysis_run_id')
+        self.selected_run_records: List[Dict[str, Any]] = []
+        self._warned_latest_fallback = False
         self._connect()
     
     def _connect(self):
@@ -135,6 +139,59 @@ class DataLoader:
         except Exception as e:
             logger.error(f"✗ MongoDB 連接失敗: {e}")
             raise
+
+    def _select_analysis_run(self, record: Dict[str, Any]) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
+        """根據設定選擇欲使用的分析 run"""
+        analyze_uuid = record.get('AnalyzeUUID', 'UNKNOWN')
+        analyze_features = record.get('analyze_features')
+
+        if isinstance(analyze_features, dict):
+            runs = analyze_features.get('runs', []) or []
+            if not runs:
+                return None, None
+
+            run_doc = None
+            if self.preferred_run_id:
+                run_doc = next((r for r in runs if r.get('analysis_id') == self.preferred_run_id), None)
+                if not run_doc:
+                    logger.warning("記錄 %s 找不到指定分析 run %s，改用最新完成的 run", analyze_uuid, self.preferred_run_id)
+
+            if run_doc is None:
+                latest_index = analyze_features.get('latest_summary_index')
+                if latest_index:
+                    run_doc = next((r for r in runs if r.get('run_index') == latest_index), None)
+
+            if run_doc is None:
+                if not self._warned_latest_fallback:
+                    logger.warning("未設定 RF_ANALYSIS_RUN_ID，將預設使用各記錄最新完成的分析結果")
+                    self._warned_latest_fallback = True
+                run_doc = runs[-1]
+
+            return run_doc, run_doc.get('analysis_id')
+
+        if isinstance(analyze_features, list):
+            # legacy 結構視為單一 run
+            legacy_run = {
+                'analysis_id': 'legacy',
+                'run_index': 1,
+                'steps': analyze_features
+            }
+            return legacy_run, 'legacy'
+
+        return None, None
+
+    @staticmethod
+    def _find_completed_step(run_doc: Optional[Dict[str, Any]], step_number: int) -> Optional[Dict[str, Any]]:
+        """在指定 run 中尋找完成的步驟"""
+        if not run_doc:
+            return None
+
+        steps = run_doc.get('steps', [])
+        for step in steps:
+            if step.get('features_step') == step_number and step.get('features_state') == 'completed':
+                return step
+
+        return None
     
     def load_data(self, aggregation: str = 'mean') -> Tuple[np.ndarray, np.ndarray, List[str]]:
         """
@@ -148,13 +205,28 @@ class DataLoader:
         """
         logger.info("開始載入訓練資料...")
         
+        feature_step = ModelConfig.FEATURE_CONFIG['features_step']
+
         # 查詢已完成分析的記錄
         query = {
             'current_step': 4,  # 已完成所有步驟
             'analysis_status': 'completed',
             'info_features.label': {'$exists': True, '$ne': 'unknown'},
-            'analyze_features': {'$elemMatch': {'features_step': target_step, 'features_state': 'completed'}}
-
+            '$or': [
+                {'analyze_features': {'$elemMatch': {'features_step': feature_step, 'features_state': 'completed'}}},
+                {
+                    'analyze_features.runs': {
+                        '$elemMatch': {
+                            'steps': {
+                                '$elemMatch': {
+                                    'features_step': feature_step,
+                                    'features_state': 'completed'
+                                }
+                            }
+                        }
+                    }
+                }
+            ]
         }
         
         records = list(self.collection.find(query))
@@ -178,6 +250,8 @@ class DataLoader:
 
         for record in records:
             try:
+                analyze_uuid = record.get('AnalyzeUUID', 'UNKNOWN')
+
                 # 提取標籤
                 label = record['info_features']['label']
                 if label == 'normal':
@@ -192,20 +266,25 @@ class DataLoader:
                     )
                     continue
                 
-                # 提取 LEAF 特徵
-                analyze_features = record.get('analyze_features', [])
-                leaf_features = None
-                
-                # 找到 LEAF 特徵步驟
-                for step in analyze_features:
-                    if step.get('features_step') == target_step:
-                    # if step.get('features_step') == 2 and step.get('features_name') == 'LEAF Features':
-                        leaf_features = step.get('features_data', [])
-                        break
+                # 選擇 run 並提取對應步驟
+                run_doc, selected_run_id = self._select_analysis_run(record)
+                if not run_doc:
+                    logger.warning("記錄 %s 沒有可用的分析 run，跳過", analyze_uuid)
+                    continue
+
+                leaf_step = self._find_completed_step(run_doc, feature_step)
+                leaf_features = leaf_step.get('features_data', []) if leaf_step else None
                 
                 if not leaf_features:
                     logger.warning(f"記錄 {record['AnalyzeUUID']} 缺少 LEAF 特徵")
                     continue
+
+                self.selected_run_records.append({
+                    'analyze_uuid': analyze_uuid,
+                    'analysis_id': selected_run_id or 'unknown',
+                    'run_index': run_doc.get('run_index'),
+                    'features_step': feature_step
+                })
                 
                 # 提取特徵向量
                 segment_features = []
@@ -560,7 +639,7 @@ class ModelTrainer:
             raise ValueError("模型尚未訓練")
         return self.model.feature_importances_
     
-    def save_model(self, output_dir: str):
+    def save_model(self, output_dir: str, training_context: Optional[Dict[str, Any]] = None):
         """
         儲存模型
         
@@ -596,6 +675,8 @@ class ModelTrainer:
             'model_params': ModelConfig.MODEL_CONFIG['rf_params'],
             'training_history': self.training_history
         }
+        if training_context:
+            metadata['training_context'] = training_context
         
         metadata_path = os.path.join(output_dir, config['metadata_filename'])
         with open(metadata_path, 'w', encoding='utf-8') as f:
@@ -682,6 +763,7 @@ def main():
         features, labels, uuids = data_loader.load_data(
             aggregation=ModelConfig.FEATURE_CONFIG['aggregation']
         )
+        run_usage = list(data_loader.selected_run_records)
         data_loader.close()
         
         # 2. 準備資料
@@ -707,7 +789,11 @@ def main():
         logger.info("\n步驟 5: 儲存模型")
         logger.info("-" * 60)
         output_dir = ModelConfig.OUTPUT_CONFIG['model_dir']
-        trainer.save_model(output_dir)
+        training_context = {
+            'analysis_run_preference': ModelConfig.FEATURE_CONFIG.get('analysis_run_id') or 'latest',
+            'analysis_run_usage': run_usage
+        }
+        trainer.save_model(output_dir, training_context=training_context)
         
         # 6. 生成視覺化
         if ModelConfig.OUTPUT_CONFIG['plot_confusion_matrix']:
