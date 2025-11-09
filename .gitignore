@@ -34,3 +34,8 @@ uploads/
 /debug_tools/batch_upload/cpc_upload/cpc_data/*
 /debug_tools/batch_upload/cpc_upload/reports/*
 /a_sub_system/train/py_cyclegan/checkpoints/*
+/a_sub_system/train/py_cyclegan_original/checkpoints/*
+/a_sub_system/train/py_cyclegan_original/logs/*
+/a_sub_system/analysis_service/models/*
+/a_sub_system/train/RF/models/*
+/a_sub_system/train/.claude/settings.local.json
