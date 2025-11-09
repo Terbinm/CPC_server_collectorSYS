@@ -4,7 +4,7 @@ import time
 from typing import Callable, Optional
 from pymongo.errors import PyMongoError
 from config import SERVICE_CONFIG
-from utils.logger import logger
+from utils.logger import logger, analyze_uuid_context
 from utils.mongodb_handler import MongoDBHandler
 
 
@@ -134,7 +134,9 @@ class MongoDBWatcher:
                 full_document = change.get('fullDocument')
                 
                 if full_document:
-                    logger.info(f"偵測到新記錄: {full_document.get('AnalyzeUUID', 'UNKNOWN')}")
+                    analyze_uuid = full_document.get('AnalyzeUUID', 'UNKNOWN')
+                    with analyze_uuid_context(analyze_uuid):
+                        logger.info(f"偵測到新記錄: {analyze_uuid}")
                     self.callback(full_document)
             
             # 可以根據需要處理其他操作類型（update, delete 等）

@@ -12,7 +12,7 @@ class MAFAULDAUploadConfig(BaseUploadConfig):
     # ==================== 資料來源 ====================
     UPLOAD_DIRECTORY = (
         r"C:\Users\sixsn\PycharmProjects\CPC_server_collectorSYS"
-        r"\debug_tools\batch_upload\mafaulda_upload\mafaulda_data"
+        r"\debug_tools\batch_upload\Integration_upload\upload_data\mafaulda_data"
     )
 
     # ==================== 標籤對應資料夾名稱 ====================

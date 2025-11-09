@@ -15,7 +15,7 @@ class MIMIIUploadConfig(BaseUploadConfig):
     # ==================== 資料來源 ====================
     UPLOAD_DIRECTORY = (
         r"C:\Users\sixsn\PycharmProjects\CPC_server_collectorSYS"
-        r"\debug_tools\batch_upload\mimii_upload\mimii_data"
+        r"\debug_tools\batch_upload\Integration_upload\upload_data\mimii_data"
     )
 
     # ==================== 標籤對應資料夾名稱 ====================

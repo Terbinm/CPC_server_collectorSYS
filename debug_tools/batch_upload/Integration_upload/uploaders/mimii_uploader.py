@@ -207,7 +207,7 @@ class MIMIIBatchUploader(BaseBatchUploader):
 
         info_features: Dict[str, Any] = {
             "dataset_UUID": self.config.DATASET_CONFIG['dataset_UUID'],
-            "device_id": f"Batch_upload_Mimii_{label.upper()}",
+            "device_id": f"Mimii_{label.upper()}",
             "testing": False,
             "obj_ID": obj_id,
             "upload_complete": True,

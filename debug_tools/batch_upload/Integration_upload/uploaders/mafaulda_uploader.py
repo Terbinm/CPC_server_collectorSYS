@@ -240,7 +240,7 @@ class MAFAULDABatchUploader(BaseBatchUploader):
 
         info_features: Dict[str, Any] = {
             "dataset_UUID": self.config.DATASET_CONFIG['dataset_UUID'],
-            "device_id": f'Batch_upload_Maflauda_{label.upper()}',
+            "device_id": f'Maflauda_{label.upper()}',
             "testing": False,
             "obj_ID": self.config.DATASET_CONFIG['obj_ID'],
             "upload_complete": True,

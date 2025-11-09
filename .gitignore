@@ -40,3 +40,4 @@ uploads/
 /a_sub_system/train/RF/models/*
 /a_sub_system/train/.claude/settings.local.json
 /debug_tools/batch_upload/Integration_upload/reports/*
+/debug_tools/batch_upload/Integration_upload/upload_data/*

@@ -7,7 +7,7 @@ from queue import Queue
 from typing import Dict, Any
 
 from config import SERVICE_CONFIG
-from utils.logger import logger
+from utils.logger import logger, analyze_uuid_context
 from utils.mongodb_handler import MongoDBHandler
 from mongodb_watcher import MongoDBWatcher
 from analysis_pipeline import AnalysisPipeline
@@ -131,15 +131,16 @@ class AnalysisService:
         Args:
             record: MongoDB 記錄
         """
-        try:
-            analyze_uuid = record.get('AnalyzeUUID', 'UNKNOWN')
-            logger.info(f"收到新記錄: {analyze_uuid}")
-            
-            # 將任務加入佇列
-            self.task_queue.put(record)
-            
-        except Exception as e:
-            logger.error(f"處理新記錄回調失敗: {e}")
+        analyze_uuid = record.get('AnalyzeUUID', 'UNKNOWN')
+        with analyze_uuid_context(analyze_uuid):
+            try:
+                logger.info(f"收到新記錄: {analyze_uuid}")
+                
+                # 將任務加入佇列
+                self.task_queue.put(record)
+                
+            except Exception as e:
+                logger.error(f"處理新記錄回調失敗: {e}")
     
     def _start_workers(self):
         """啟動工作執行緒"""
@@ -163,8 +164,14 @@ class AnalysisService:
         while self.is_running:
             try:
                 record = self.task_queue.get(timeout=1)
-                analyze_uuid = record.get('AnalyzeUUID', 'UNKNOWN')
+            except Exception:
+                if self.is_running:  # 避免在關閉時記錄錯誤
+                    continue  # Queue.Empty 是正常的，不需要記錄
+                break
 
+            analyze_uuid = record.get('AnalyzeUUID', 'UNKNOWN')
+
+            with analyze_uuid_context(analyze_uuid):
                 # ✅ 檢查是否已在處理
                 with self.processing_lock:
                     if analyze_uuid in self.processing_records:
@@ -188,11 +195,6 @@ class AnalysisService:
                         self.processing_records.discard(analyze_uuid)
 
                     self.task_queue.task_done()
-
-
-            except Exception as e:
-                if self.is_running:  # 避免在關閉時記錄錯誤
-                    pass  # Queue.Empty 是正常的，不需要記錄
 
         logger.info(f"{thread_name} 已停止")
 

@@ -2,9 +2,59 @@
 
 import logging
 import os
+from contextlib import contextmanager
+import contextvars
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
+from typing import Optional
 from config import LOGGING_CONFIG
+
+
+_ANALYZE_UUID_CONTEXT: contextvars.ContextVar[str] = contextvars.ContextVar(
+    'analyze_uuid',
+    default='-'
+)
+
+
+def _normalize_uuid(value: Optional[str]) -> str:
+    """確保 AnalyzeUUID 以字串形式輸出。"""
+    if value is None:
+        return '-'
+    value = str(value).strip()
+    return value or '-'
+
+
+class AnalyzeUUIDFilter(logging.Filter):
+    """將 AnalyzeUUID 注入 log record，確保格式化時可用。"""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        record.analyze_uuid = _ANALYZE_UUID_CONTEXT.get('-')
+        return True
+
+
+@contextmanager
+def analyze_uuid_context(analyze_uuid: Optional[str]):
+    """提供 context manager，用於在區塊內綁定 AnalyzeUUID。"""
+    token = _ANALYZE_UUID_CONTEXT.set(_normalize_uuid(analyze_uuid))
+    try:
+        yield
+    finally:
+        _ANALYZE_UUID_CONTEXT.reset(token)
+
+
+def set_analyze_uuid(analyze_uuid: Optional[str]) -> None:
+    """直接設定當前執行緒（context）的 AnalyzeUUID。"""
+    _ANALYZE_UUID_CONTEXT.set(_normalize_uuid(analyze_uuid))
+
+
+def clear_analyze_uuid() -> None:
+    """清除當前設定的 AnalyzeUUID。"""
+    _ANALYZE_UUID_CONTEXT.set('-')
+
+
+def get_analyze_uuid() -> str:
+    """取得當前設定的 AnalyzeUUID。"""
+    return _ANALYZE_UUID_CONTEXT.get('-')
 
 
 def _resolve_log_file_path() -> str:
@@ -39,6 +89,9 @@ def setup_logger(name: str = 'analysis_service') -> logging.Logger:
     """
     logger = logging.getLogger(name)
     logger.setLevel(getattr(logging, LOGGING_CONFIG['level']))
+
+    if not any(isinstance(f, AnalyzeUUIDFilter) for f in logger.filters):
+        logger.addFilter(AnalyzeUUIDFilter())
     
     # 避免重複添加 handler
     if logger.handlers:
