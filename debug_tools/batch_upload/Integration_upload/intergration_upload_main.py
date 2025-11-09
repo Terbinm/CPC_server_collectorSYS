@@ -72,17 +72,14 @@ class IntegrationUploadCLI:
         """顯示橫幅"""
         print("=" * 70)
         print("        批次上傳整合工具 v1.0")
-        print("=" * 70)
         print("支援資料集：CPC、MAFAULDA、MIMII")
         print("功能：多資料集選擇、中斷恢復、Dry-run 模式、資料庫備份還原")
-        print("=" * 70)
-        print()
+        print("-" * 35)
 
     def test_database_connection(self) -> None:
         """測試資料庫連線並顯示詳細資訊"""
-        print("=" * 70)
         print("資料庫連線資訊")
-        print("=" * 70)
+        print("-" * 35)
 
         mongodb_config = BaseUploadConfig.MONGODB_CONFIG
 
@@ -129,6 +126,174 @@ class IntegrationUploadCLI:
         print("=" * 70)
         print()
 
+    def preview_upload_counts_with_mode(self, delete_progress: bool, delete_database: bool) -> bool:
+        """
+        預覽每個資料集預計上傳的檔案數量（考慮實際限制和選定模式）
+
+        Args:
+            delete_progress: 是否會刪除進度
+            delete_database: 是否會刪除資料庫
+
+        Returns:
+            使用者是否確認繼續
+        """
+        from debug_tools.batch_upload.Integration_upload.core.utils import calculate_file_hash
+
+        print("\n" + "=" * 70)
+        print("步驟3：預覽上傳數量")
+        print("=" * 70)
+
+        if delete_database:
+            print("⚠️  注意：已選擇刪除資料庫，所有檔案將重新上傳")
+        if delete_progress:
+            print("⚠️  注意：已選擇刪除進度，將從頭開始")
+
+        print("\n正在分析檔案與套用限制...")
+
+        total_files = 0
+        total_actual = 0
+        preview_data = {}
+
+        for dataset_name in self.selected_datasets:
+            try:
+                uploader_class, config_module, config_class_name = self.DATASET_MAP[dataset_name]
+
+                # 動態導入配置
+                config_module_obj = __import__(config_module, fromlist=[config_class_name])
+                config_class = getattr(config_module_obj, config_class_name)
+
+                # 建立臨時上傳器來掃描檔案
+                temp_uploader = uploader_class(logger=self.logger)
+                files = temp_uploader.scan_directory()
+
+                # 取得上傳行為配置
+                upload_behavior = config_class.UPLOAD_BEHAVIOR
+                per_label_limit = upload_behavior.get('per_label_limit', 0)
+                skip_existing = upload_behavior.get('skip_existing', True)
+                check_duplicates = upload_behavior.get('check_duplicates', True)
+
+                # 統計掃描到的檔案數量
+                scanned_label_counts = {}
+                for file_path, label, _ in files:
+                    scanned_label_counts[label] = scanned_label_counts.get(label, 0) + 1
+
+                # 應用 per_label_limit 限制
+                if per_label_limit and per_label_limit > 0:
+                    filtered_files = []
+                    label_counts = {}
+                    for file_path, label, metadata in files:
+                        count = label_counts.get(label, 0)
+                        if count < per_label_limit:
+                            label_counts[label] = count + 1
+                            filtered_files.append((file_path, label, metadata))
+                    files = filtered_files
+
+                # 應用 skip_existing 和 check_duplicates 檢查（根據選定模式）
+                actual_files = []
+                actual_label_counts = {}
+                skipped_existing = 0
+                skipped_duplicate = 0
+
+                # 如果會刪除資料庫和進度，則不需要檢查重複
+                if delete_database and delete_progress:
+                    # 全部上傳
+                    actual_files = files
+                    for file_path, label, _ in files:
+                        actual_label_counts[label] = actual_label_counts.get(label, 0) + 1
+                elif skip_existing and check_duplicates:
+                    # 需要檢查每個檔案是否已存在
+                    for file_path, label, metadata in files:
+                        # 計算檔案 hash
+                        file_hash = calculate_file_hash(file_path)
+
+                        # 檢查進度檔案（只有在不刪除進度時才檢查）
+                        if not delete_progress and file_hash in temp_uploader.progress.get('uploaded_files', []):
+                            skipped_existing += 1
+                            continue
+
+                        # 檢查資料庫（只有在不刪除資料庫時才檢查）
+                        if not delete_database and temp_uploader.uploader.file_exists(file_hash, check_duplicates):
+                            skipped_duplicate += 1
+                            continue
+
+                        # 這個檔案會被上傳
+                        actual_files.append((file_path, label, metadata))
+                        actual_label_counts[label] = actual_label_counts.get(label, 0) + 1
+                else:
+                    # 不需要檢查重複，所有檔案都會上傳
+                    actual_files = files
+                    for file_path, label, _ in files:
+                        actual_label_counts[label] = actual_label_counts.get(label, 0) + 1
+
+                preview_data[dataset_name] = {
+                    'scanned': len([f for f, _, _ in temp_uploader.scan_directory()]),
+                    'after_limit': len(files),
+                    'actual': len(actual_files),
+                    'scanned_labels': scanned_label_counts,
+                    'actual_labels': actual_label_counts,
+                    'skipped_existing': skipped_existing,
+                    'skipped_duplicate': skipped_duplicate,
+                    'per_label_limit': per_label_limit,
+                    'has_limit': per_label_limit and per_label_limit > 0
+                }
+
+                total_files += preview_data[dataset_name]['scanned']
+                total_actual += len(actual_files)
+
+                # 清理臨時上傳器
+                temp_uploader.cleanup()
+
+            except Exception as e:
+                self.logger.error(f"預覽 {dataset_name} 時發生錯誤：{e}")
+                print(f"\n✗ 預覽 {dataset_name} 失敗：{e}")
+                return False
+
+        # 顯示預覽結果
+        print(f"\n{'=' * 70}")
+        print(f"掃描到的檔案總計：{total_files:,} 個")
+        print(f"實際預計上傳：{total_actual:,} 個檔案")
+
+        if total_actual != total_files:
+            print(f"已過濾：{total_files - total_actual:,} 個檔案")
+
+        print("\n各資料集詳細：")
+        print("-" * 70)
+
+        for dataset_name, data in preview_data.items():
+            print(f"\n{dataset_name}：")
+            print(f"  掃描到：{data['scanned']:,} 個檔案")
+
+            if data['has_limit']:
+                print(f"  套用限制後：{data['after_limit']:,} 個檔案（每類別上限：{data['per_label_limit']:,}）")
+
+            if data['skipped_existing'] > 0 or data['skipped_duplicate'] > 0:
+                print(f"  過濾已存在：{data['skipped_existing'] + data['skipped_duplicate']:,} 個檔案")
+
+            print(f"  實際上傳：{data['actual']:,} 個檔案")
+
+            if data['actual_labels']:
+                print("  類別分佈（實際上傳）：")
+                for label, count in sorted(data['actual_labels'].items()):
+                    scanned_count = data['scanned_labels'].get(label, 0)
+                    if scanned_count != count:
+                        print(f"    - {label}: {count:,} 個 (掃描到 {scanned_count:,})")
+                    else:
+                        print(f"    - {label}: {count:,} 個")
+
+        print("\n" + "=" * 70)
+
+        # 確認是否繼續
+        while True:
+            choice = input("\n確認繼續？(y/n): ").strip().lower()
+            if choice == 'y':
+                print()
+                return True
+            elif choice == 'n':
+                print("\n已取消操作。")
+                return False
+            else:
+                print("無效的選項，請輸入 y 或 n。")
+
     def check_progress(self) -> bool:
         """
         檢查是否有先前的上傳進度
@@ -155,8 +320,9 @@ class IntegrationUploadCLI:
 
     def select_datasets(self) -> None:
         """讓使用者選擇要上傳的資料集"""
-        print("\n步驟1: 選擇要上傳的資料集")
-        print("-" * 70)
+        print("\n" + "=" * 70)
+        print("步驟1: 選擇要上傳的資料集")
+        print("=" * 70)
         for key, (datasets, description) in self.DATASET_COMBINATIONS.items():
             print(f"  {key}. {description}")
 
@@ -180,8 +346,9 @@ class IntegrationUploadCLI:
             (mode, delete_progress, delete_database) tuple
             mode: 'dry_run', 'upload', 'restore'
         """
-        print("\n步驟2: 選擇上傳模式")
-        print("-" * 70)
+        print("\n" + "=" * 70)
+        print("步驟2: 選擇上傳模式")
+        print("=" * 70)
 
         if has_progress:
             print("\n⚠️  檢測到先前的上傳進度！")
@@ -616,6 +783,11 @@ class IntegrationUploadCLI:
                 print("\n✗ 資料庫還原失敗或已取消。")
             print("\n程序執行完畢。")
             return
+
+        # 步驟 3：預覽上傳數量（根據選定的模式）
+        if not self.preview_upload_counts_with_mode(delete_progress_flag, delete_database_flag):
+            print("\n程序已終止。")
+            sys.exit(0)
 
         # 刪除進度（如果需要）
         if delete_progress_flag:
