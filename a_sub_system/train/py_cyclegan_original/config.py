@@ -33,7 +33,9 @@ DATA_CONFIG = {
     # Domain A 配置（設備 A）
     'domain_a': {
         'mongo_query': {
-            'info_features.device_id': os.getenv('DOMAIN_A_DEVICE_ID', 'cpc006'),
+            'info_features.device_id': {
+                '$in': [device_id.strip() for device_id in os.getenv('DOMAIN_A_DEVICE_ID', 'cpc006').split(',')]
+            },
             'analysis_status': 'completed'
         },
         'max_samples': int(os.getenv('DOMAIN_A_MAX_SAMPLES', '10000')),  # 增加到 10000
@@ -43,7 +45,9 @@ DATA_CONFIG = {
     # Domain B 配置（設備 B）
     'domain_b': {
         'mongo_query': {
-            'info_features.device_id': os.getenv('DOMAIN_B_DEVICE_ID', 'BATCH_UPLOAD_Mafaulda'),
+            'info_features.device_id': {
+                '$in': [device_id.strip() for device_id in os.getenv('DOMAIN_B_DEVICE_ID', 'BATCH_UPLOAD_NORMAL,BATCH_UPLOAD_ABNORMAL').split(',')]
+            },
             'analysis_status': 'completed'
         },
         'max_samples': int(os.getenv('DOMAIN_B_MAX_SAMPLES', '10000')),  # 增加到 10000
@@ -54,7 +58,9 @@ DATA_CONFIG = {
     'preprocessing': {
         'normalize': True,
         'augment': os.getenv('DATA_AUGMENT', 'true').lower() == 'true',
-        'max_sequence_length': int(os.getenv('MAX_SEQUENCE_LENGTH', '100'))
+        'max_sequence_length': int(os.getenv('MAX_SEQUENCE_LENGTH', '100')),
+        # 訓練模式: 'slice' (每個 slice 為獨立樣本) 或 'sequence' (整個序列為一個樣本)
+        'training_mode': os.getenv('TRAINING_MODE', 'slice')  # 'slice' 或 'sequence'
     }
 }
 

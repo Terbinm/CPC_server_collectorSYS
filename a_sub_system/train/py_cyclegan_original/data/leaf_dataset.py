@@ -24,7 +24,10 @@ class LEAFDomainDataset(Dataset):
         domain_b_features: Domain B 的特征列表
         normalize: 是否标准化特征
         augment: 是否进行数据增强
-        max_sequence_length: 最大序列长度（超过则截断，不足则填充）
+        max_sequence_length: 最大序列长度（仅在sequence模式下使用）
+        training_mode: 训练模式 'slice' 或 'sequence'
+            - 'slice': 每个样本是 (40,) - 单个时间步
+            - 'sequence': 每个样本是 (seq_len, 40) - 完整序列
     """
 
     def __init__(
@@ -34,14 +37,20 @@ class LEAFDomainDataset(Dataset):
         normalize: bool = True,
         augment: bool = False,
         max_sequence_length: Optional[int] = None,
+        training_mode: str = 'sequence',
     ):
         super().__init__()
+
+        # 验证训练模式
+        if training_mode not in ['slice', 'sequence']:
+            raise ValueError(f"Invalid training_mode: {training_mode}. Must be 'slice' or 'sequence'")
 
         self.domain_a_features = domain_a_features
         self.domain_b_features = domain_b_features
         self.normalize = normalize
         self.augment = augment
         self.max_sequence_length = max_sequence_length
+        self.training_mode = training_mode
 
         # 统计信息
         self.len_a = len(domain_a_features)
@@ -49,7 +58,7 @@ class LEAFDomainDataset(Dataset):
 
         logger.info(
             f"Dataset initialized: Domain A={self.len_a} samples, "
-            f"Domain B={self.len_b} samples"
+            f"Domain B={self.len_b} samples, Mode={training_mode}"
         )
 
         # 计算归一化参数
@@ -58,6 +67,8 @@ class LEAFDomainDataset(Dataset):
 
     def _compute_normalization_params(self):
         """计算特征的均值和标准差 - 使用统一归一化"""
+        # 将所有特征堆叠为2D数组
+        # 无论是slice模式(40,)还是sequence模式(seq_len, 40)，vstack都能正确处理
         all_features_a = np.vstack(self.domain_a_features)
         all_features_b = np.vstack(self.domain_b_features)
 
@@ -74,7 +85,7 @@ class LEAFDomainDataset(Dataset):
         self.std_b = global_std
 
         logger.info(
-            f"Normalization params computed (unified) - "
+            f"Normalization params computed (unified, {self.training_mode} mode) - "
             f"Global: mean={global_mean.mean():.4f}, std={global_std.mean():.4f}"
         )
         logger.info(
@@ -136,6 +147,8 @@ class LEAFDomainDataset(Dataset):
 
         Returns:
             (features_a, features_b): 两个域的特征张量
+            - slice模式: shape (40,)
+            - sequence模式: shape (seq_len, 40)
         """
         # 循环采样（如果一个域的样本数少，则循环使用）
         idx_a = index % self.len_a
@@ -145,9 +158,10 @@ class LEAFDomainDataset(Dataset):
         features_a = self.domain_a_features[idx_a].copy()
         features_b = self.domain_b_features[idx_b].copy()
 
-        # 处理序列长度
-        features_a = self._process_sequence(features_a)
-        features_b = self._process_sequence(features_b)
+        # 仅在sequence模式下处理序列长度
+        if self.training_mode == 'sequence':
+            features_a = self._process_sequence(features_a)
+            features_b = self._process_sequence(features_b)
 
         # 标准化
         if self.normalize:

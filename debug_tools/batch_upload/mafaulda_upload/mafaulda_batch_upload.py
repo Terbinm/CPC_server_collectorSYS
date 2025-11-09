@@ -128,13 +128,14 @@ class MongoDBUploader:
                     file_data,
                     filename=file_path.name,
                     metadata={
-                        # 'device_id': f'BATCH_UPLOAD_{label.upper()}',
-                        'device_id': f'BATCH_UPLOAD_Mafaulda',
+                        'device_id': f'BATCH_UPLOAD_{label.upper()}',
+                        # 'device_id': f'BATCH_UPLOAD_Mafaulda',
                         'upload_time': datetime.now(UTC).isoformat(),
                         'file_hash': file_hash,
                         'label': label
                     }
                 )
+
                 logger.debug(f"檔案上傳至 GridFS: {file_id}")
 
             # 創建 MongoDB 文檔
@@ -198,8 +199,8 @@ class MongoDBUploader:
             "analyze_features": [],
             "info_features": {
                 "dataset_UUID": UploadConfig.DATASET_CONFIG['dataset_UUID'],
-                # 'device_id': f'BATCH_UPLOAD_{label.upper()}',
-                'device_id': f'BATCH_UPLOAD_Mafaulda',
+                'device_id': f'BATCH_UPLOAD_{label.upper()}',
+                # 'device_id': f'BATCH_UPLOAD_Mafaulda',
                 "testing": False,
                 "obj_ID": UploadConfig.DATASET_CONFIG['obj_ID'],
                 "upload_complete": True,

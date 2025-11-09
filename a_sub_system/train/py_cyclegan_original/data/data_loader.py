@@ -57,16 +57,22 @@ class MongoDBLEAFLoader:
         self,
         query: Dict[str, Any],
         max_samples: Optional[int] = None,
+        flatten_slices: bool = False,
     ) -> List[np.ndarray]:
         """
         加载单个域的 LEAF 特征
 
         Args:
             query: MongoDB 查询条件
-            max_samples: 最大样本数
+            max_samples: 最大样本数（对于记录数，非slice数）
+            flatten_slices: 是否将每个slice展开为独立样本
+                - True: 返回 [(40,), (40,), ...] - 每个slice是独立样本
+                - False: 返回 [(seq_len, 40), ...] - 每个序列是一个样本
 
         Returns:
-            LEAF 特征列表，每个元素是 (seq_len, 40) 的数组
+            LEAF 特征列表
+            - flatten_slices=True: 每个元素是 (40,) 的数组
+            - flatten_slices=False: 每个元素是 (seq_len, 40) 的数组
 
         Example query:
             {
@@ -127,7 +133,14 @@ class MongoDBLEAFLoader:
                     )
                     continue
 
-                features_list.append(features)
+                # 根据模式处理特征
+                if flatten_slices:
+                    # 展开每个slice为独立样本
+                    for slice_features in features:
+                        features_list.append(slice_features)
+                else:
+                    # 整个序列作为一个样本
+                    features_list.append(features)
 
             except Exception as e:
                 logger.error(f"Error processing doc {doc.get('_id')}: {e}")
@@ -141,6 +154,7 @@ class MongoDBLEAFLoader:
         domain_a_query: Dict[str, Any],
         domain_b_query: Dict[str, Any],
         max_samples_per_domain: Optional[int] = None,
+        flatten_slices: bool = False,
     ) -> Dict[str, List[np.ndarray]]:
         """
         加载两个域的 LEAF 特征
@@ -149,18 +163,19 @@ class MongoDBLEAFLoader:
             domain_a_query: Domain A 的查询条件
             domain_b_query: Domain B 的查询条件
             max_samples_per_domain: 每个域的最大样本数
+            flatten_slices: 是否将每个slice展开为独立样本
 
         Returns:
             包含两个域特征的字典
         """
         logger.info("Loading Domain A features...")
         domain_a_features = self.load_domain_features(
-            domain_a_query, max_samples_per_domain
+            domain_a_query, max_samples_per_domain, flatten_slices
         )
 
         logger.info("Loading Domain B features...")
         domain_b_features = self.load_domain_features(
-            domain_b_query, max_samples_per_domain
+            domain_b_query, max_samples_per_domain, flatten_slices
         )
 
         return {

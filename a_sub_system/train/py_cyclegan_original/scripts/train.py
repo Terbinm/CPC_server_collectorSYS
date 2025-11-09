@@ -72,10 +72,16 @@ def main():
             collection_name=mongodb_config['collection']
         )
 
+        # 获取训练模式配置
+        preprocessing = data_config['preprocessing']
+        training_mode = preprocessing.get('training_mode', 'sequence')
+        flatten_slices = (training_mode == 'slice')
+
         data = loader.load_dual_domain(
             domain_a_query=data_config['domain_a']['mongo_query'],
             domain_b_query=data_config['domain_b']['mongo_query'],
-            max_samples_per_domain=data_config['domain_a'].get('max_samples')
+            max_samples_per_domain=data_config['domain_a'].get('max_samples'),
+            flatten_slices=flatten_slices
         )
 
         domain_a_features = data['domain_a']
@@ -95,12 +101,21 @@ def main():
 
     # 創建數據集
     preprocessing = data_config['preprocessing']
+    training_mode = preprocessing.get('training_mode', 'sequence')
+
+    logger.info(f"Training mode: {training_mode}")
+    if training_mode == 'slice':
+        logger.info("  - Each slice is treated as an independent sample")
+    else:
+        logger.info("  - Each complete sequence is treated as one sample")
+
     full_dataset = LEAFDomainDataset(
         domain_a_features=domain_a_features,
         domain_b_features=domain_b_features,
         normalize=preprocessing['normalize'],
         augment=preprocessing['augment'],
-        max_sequence_length=preprocessing.get('max_sequence_length')
+        max_sequence_length=preprocessing.get('max_sequence_length'),
+        training_mode=training_mode
     )
 
     # 劃分訓練/驗證集
