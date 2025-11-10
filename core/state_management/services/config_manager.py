@@ -75,7 +75,10 @@ class ConfigManager:
 
     def _load_mongodb_instances(self) -> List[Dict[str, Any]]:
         """加載 MongoDB 實例配置"""
-        instances = MongoDBInstance.get_all(enabled_only=True)
+        instances = MongoDBInstance.get_all(
+            enabled_only=True,
+            ensure_default=True
+        )
         return [instance.to_dict() for instance in instances]
 
     def get_analysis_config(self, config_id: str) -> Optional[Dict[str, Any]]:

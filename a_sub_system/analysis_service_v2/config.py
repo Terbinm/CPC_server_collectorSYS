@@ -171,7 +171,10 @@ RABBITMQ_CONFIG = {
     'username': os.getenv('RABBITMQ_USERNAME', 'admin'),
     'password': os.getenv('RABBITMQ_PASSWORD', 'rabbitmq_admin_pass'),
     'virtual_host': os.getenv('RABBITMQ_VHOST', '/'),
-    'queue': 'analysis_tasks_queue',
+    'exchange': os.getenv('RABBITMQ_EXCHANGE', 'analysis_tasks_exchange'),
+    'queue': os.getenv('RABBITMQ_QUEUE', 'analysis_tasks_queue'),
+    'routing_key': os.getenv('RABBITMQ_ROUTING_KEY', 'analysis.#'),
+    'message_ttl_ms': int(os.getenv('RABBITMQ_MESSAGE_TTL_MS', '86400000')),
     'prefetch_count': 1,  # 每次只處理一個任務
     'max_retries': 3  # 最大重試次數
 }

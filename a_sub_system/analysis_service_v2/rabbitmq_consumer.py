@@ -53,6 +53,9 @@ class RabbitMQConsumer:
             self._connection = pika.BlockingConnection(parameters)
             self._channel = self._connection.channel()
 
+            # 確保 exchange / queue 存在
+            self._setup_infrastructure()
+
             # 設置 QoS (每次只處理一個任務)
             self._channel.basic_qos(
                 prefetch_count=self.config.get('prefetch_count', 1)
@@ -64,6 +67,47 @@ class RabbitMQConsumer:
         except Exception as e:
             logger.error(f"RabbitMQ 連接失敗: {e}")
             return False
+
+    def _setup_infrastructure(self):
+        """確保 exchange、queue、綁定存在"""
+        try:
+            exchange = self.config.get('exchange')
+            queue = self.config.get('queue')
+            routing_key = self.config.get('routing_key')
+
+            if not queue:
+                raise ValueError("RabbitMQ queue 名稱未設定")
+
+            if exchange:
+                self._channel.exchange_declare(
+                    exchange=exchange,
+                    exchange_type='topic',
+                    durable=True
+                )
+
+            queue_arguments = {}
+            message_ttl = self.config.get('message_ttl_ms')
+            if message_ttl:
+                queue_arguments['x-message-ttl'] = message_ttl
+
+            self._channel.queue_declare(
+                queue=queue,
+                durable=True,
+                arguments=queue_arguments or None
+            )
+
+            if exchange and routing_key:
+                self._channel.queue_bind(
+                    queue=queue,
+                    exchange=exchange,
+                    routing_key=routing_key
+                )
+
+            logger.info(f"RabbitMQ 队列已就緒: exchange={exchange}, queue={queue}")
+
+        except Exception as e:
+            logger.error(f"初始化 RabbitMQ 隊列失敗: {e}")
+            raise
 
     def start_consuming(self):
         """開始消費任務"""

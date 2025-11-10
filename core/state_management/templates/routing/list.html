@@ -18,6 +18,18 @@
     </div>
 </div>
 
+<!-- 操作指引 -->
+<div class="mt-4 rounded-lg border border-amber-100 bg-amber-50/80 p-4 text-sm text-amber-900">
+    <p class="font-semibold">建立路由規則提示</p>
+    <ul class="mt-2 list-disc space-y-1 pl-5">
+        <li><span class="font-semibold">優先級</span> 數字愈大愈先匹配，同時會影響 RabbitMQ routing key（<code class="bg-white/60 px-1.5 py-0.5 rounded">analysis.&lt;method&gt;.&lt;priority&gt;</code>）。</li>
+        <li><span class="font-semibold">conditions</span> 可以使用 <code>$in</code>、<code>$gte</code> 等運算子比對 <code>info_features</code> 或巢狀欄位（例如 <code>mimii_metadata.machine_type</code>）。</li>
+        <li><span class="font-semibold">actions</span> 需要同時指定 <code>analysis_method_id</code> 與 <code>config_id</code>；可額外指定 <code>mongodb_instance</code> 以切換分析節點使用的資料庫。</li>
+        <li>建立/修改後建議呼叫 <code>POST /api/routing/test</code> 驗證條件，避免誤派任務。</li>
+    </ul>
+    <p class="mt-2 text-xs text-amber-800">詳見 <code>docs/設定規則說明.html</code>「路由規則」章節。</p>
+</div>
+
 <!-- 篩選條件 -->
 <div class="mt-4 flex items-center space-x-4">
     <div class="flex items-center">

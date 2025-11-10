@@ -8,7 +8,6 @@ import uuid
 from datetime import datetime
 from typing import Dict, List, Any
 from threading import Thread
-import pymongo
 
 from models.routing_rule import RoutingRule
 from models.mongodb_instance import MongoDBInstance
@@ -37,7 +36,10 @@ class TaskScheduler:
             self.running = True
 
             # 獲取所有啟用的 MongoDB 實例
-            instances = MongoDBInstance.get_all(enabled_only=True)
+            instances = MongoDBInstance.get_all(
+                enabled_only=True,
+                ensure_default=True
+            )
 
             if not instances:
                 logger.warning("沒有啟用的 MongoDB 實例")
@@ -112,14 +114,7 @@ class TaskScheduler:
                     instance.get_connection_config()
                 )
                 collection = db[instance.collection]
-
-                # 嘗試使用 Change Stream
-                try:
-                    self._watch_with_change_stream(instance_id, collection)
-                except pymongo.errors.OperationFailure as e:
-                    logger.warning(f"Change Stream 不可用 ({instance_id}): {e}")
-                    # 降級為輪詢模式
-                    self._watch_with_polling(instance_id, collection)
+                self._watch_with_polling(instance_id, collection)
 
             except Exception as e:
                 retry_count += 1
@@ -132,30 +127,9 @@ class TaskScheduler:
         if retry_count >= max_retries:
             logger.error(f"監聽器達到最大重試次數，停止監聽: {instance_id}")
 
-    def _watch_with_change_stream(self, instance_id: str, collection):
-        """使用 Change Stream 監聽"""
-        logger.info(f"使用 Change Stream 監聽: {instance_id}")
-
-        # 只監聽插入操作
-        pipeline = [{'$match': {'operationType': 'insert'}}]
-
-        with collection.watch(pipeline, full_document='updateLookup') as stream:
-            for change in stream:
-                if not self.running:
-                    break
-
-                try:
-                    # 獲取新插入的文檔
-                    document = change.get('fullDocument')
-                    if document:
-                        self._process_new_record(instance_id, document)
-
-                except Exception as e:
-                    logger.error(f"處理變更事件失敗 ({instance_id}): {e}")
-
     def _watch_with_polling(self, instance_id: str, collection):
         """使用輪詢模式監聽"""
-        logger.info(f"使用輪詢模式監聽: {instance_id}")
+        logger.info(f"開始輪詢實例資料: {instance_id}")
 
         last_check_time = datetime.utcnow()
         poll_interval = self.config.TASK_MONITOR_INTERVAL

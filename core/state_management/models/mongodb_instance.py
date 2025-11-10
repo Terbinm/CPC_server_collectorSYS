@@ -15,6 +15,46 @@ logger = logging.getLogger(__name__)
 class MongoDBInstance:
     """MongoDB 實例類"""
 
+    DEFAULT_INSTANCE_ID = 'default'
+
+    @staticmethod
+    def _get_collection():
+        config = get_config()
+        db = get_db()
+        return db[config.COLLECTIONS['mongodb_instances']]
+
+    @classmethod
+    def _build_default_instance(cls) -> 'MongoDBInstance':
+        """根據配置構建預設實例"""
+        config = get_config()
+        mongo_cfg = config.MONGODB_CONFIG
+
+        default_data = {
+            'instance_id': cls.DEFAULT_INSTANCE_ID,
+            'instance_name': 'Default MongoDB',
+            'description': '由 config.py 定義的預設 MongoDB 實例',
+            'host': mongo_cfg['host'],
+            'port': mongo_cfg['port'],
+            'username': mongo_cfg['username'],
+            'password': mongo_cfg['password'],
+            'database': mongo_cfg['database'],
+            'collection': config.COLLECTIONS['recordings'],
+            'auth_source': mongo_cfg.get('auth_source', 'admin'),
+            'enabled': True,
+            'created_at': datetime.utcnow(),
+            'updated_at': datetime.utcnow(),
+            'is_system': True
+        }
+
+        return MongoDBInstance(default_data)
+
+    @staticmethod
+    def _mask_password(instances: List['MongoDBInstance'], include_password: bool):
+        if include_password:
+            return
+        for instance in instances:
+            instance.password = ''
+
     def __init__(self, data: Optional[Dict[str, Any]] = None):
         """初始化"""
         if data:
@@ -34,6 +74,7 @@ class MongoDBInstance:
             self.enabled = True
             self.created_at = datetime.utcnow()
             self.updated_at = datetime.utcnow()
+            self.is_system = False
 
     def from_dict(self, data: Dict[str, Any]):
         """從字典加載"""
@@ -50,6 +91,7 @@ class MongoDBInstance:
         self.enabled = data.get('enabled', True)
         self.created_at = data.get('created_at', datetime.utcnow())
         self.updated_at = data.get('updated_at', datetime.utcnow())
+        self.is_system = data.get('is_system', False)
         return self
 
     def to_dict(self, include_password: bool = True) -> Dict[str, Any]:
@@ -71,7 +113,8 @@ class MongoDBInstance:
             'auth_source': self.auth_source,
             'enabled': self.enabled,
             'created_at': self.created_at,
-            'updated_at': self.updated_at
+            'updated_at': self.updated_at,
+            'is_system': self.is_system
         }
 
         if include_password:
@@ -121,13 +164,14 @@ class MongoDBInstance:
     def create(instance_data: Dict[str, Any]) -> Optional['MongoDBInstance']:
         """創建新實例配置"""
         try:
-            config = get_config()
-            db = get_db()
-            collection = db[config.COLLECTIONS['mongodb_instances']]
+            collection = MongoDBInstance._get_collection()
 
             # 創建實例對象
             instance = MongoDBInstance()
             instance.instance_id = instance_data.get('instance_id', str(uuid.uuid4()))
+            if instance.instance_id == MongoDBInstance.DEFAULT_INSTANCE_ID:
+                logger.error("instance_id 'default' 為保留值")
+                return None
             instance.instance_name = instance_data['instance_name']
             instance.description = instance_data.get('description', '')
             instance.host = instance_data['host']
@@ -140,6 +184,7 @@ class MongoDBInstance:
             instance.enabled = instance_data.get('enabled', True)
             instance.created_at = datetime.utcnow()
             instance.updated_at = datetime.utcnow()
+            instance.is_system = instance_data.get('is_system', False)
 
             # 驗證
             valid, error = instance.validate()
@@ -160,51 +205,93 @@ class MongoDBInstance:
             logger.error(f"創建實例配置失敗: {e}", exc_info=True)
             return None
 
+    def update(self, allow_system: bool = False, **update_data) -> bool:
+        """實例方法包裝更新"""
+        if not update_data:
+            return True
+        return MongoDBInstance.update(
+            self.instance_id,
+            update_data,
+            allow_system=allow_system
+        )
+
     @staticmethod
-    def get_by_id(instance_id: str) -> Optional['MongoDBInstance']:
+    def get_by_id(
+        instance_id: str,
+        include_password: bool = True
+    ) -> Optional['MongoDBInstance']:
         """根據 ID 獲取實例配置"""
         try:
-            config = get_config()
-            db = get_db()
-            collection = db[config.COLLECTIONS['mongodb_instances']]
+            collection = MongoDBInstance._get_collection()
 
             data = collection.find_one({'instance_id': instance_id})
-            if data:
-                return MongoDBInstance(data)
 
-            return None
+            if data:
+                instance = MongoDBInstance(data)
+            elif instance_id == MongoDBInstance.DEFAULT_INSTANCE_ID:
+                instance = MongoDBInstance._build_default_instance()
+            else:
+                return None
+
+            if not include_password:
+                instance.password = ''
+
+            return instance
 
         except Exception as e:
             logger.error(f"獲取實例配置失敗: {e}")
             return None
 
     @staticmethod
-    def get_all(enabled_only: bool = False) -> List['MongoDBInstance']:
+    def get_all(
+        enabled_only: bool = False,
+        include_password: bool = True,
+        ensure_default: bool = False
+    ) -> List['MongoDBInstance']:
         """獲取所有實例配置"""
         try:
-            config = get_config()
-            db = get_db()
-            collection = db[config.COLLECTIONS['mongodb_instances']]
+            collection = MongoDBInstance._get_collection()
 
             query = {'enabled': True} if enabled_only else {}
-            instances = []
+            instances = [
+                MongoDBInstance(data)
+                for data in collection.find(query).sort('created_at', -1)
+            ]
 
-            for data in collection.find(query).sort('created_at', -1):
-                instances.append(MongoDBInstance(data))
+            if ensure_default and not instances:
+                instances = [MongoDBInstance._build_default_instance()]
 
+            MongoDBInstance._mask_password(instances, include_password)
             return instances
 
         except Exception as e:
             logger.error(f"獲取所有實例配置失敗: {e}")
+
+            if ensure_default:
+                fallback = [MongoDBInstance._build_default_instance()]
+                MongoDBInstance._mask_password(fallback, include_password)
+                return fallback
+
             return []
 
     @staticmethod
-    def update(instance_id: str, update_data: Dict[str, Any]) -> bool:
+    def update(
+        instance_id: str,
+        update_data: Dict[str, Any],
+        allow_system: bool = False
+    ) -> bool:
         """更新實例配置"""
         try:
-            config = get_config()
-            db = get_db()
-            collection = db[config.COLLECTIONS['mongodb_instances']]
+            collection = MongoDBInstance._get_collection()
+
+            existing = collection.find_one({'instance_id': instance_id})
+            if not existing:
+                logger.warning(f"實例配置不存在: {instance_id}")
+                return False
+
+            if existing.get('is_system') and not allow_system:
+                logger.warning(f"禁止修改系統 MongoDB 實例: {instance_id}")
+                return False
 
             # 更新時間
             update_data['updated_at'] = datetime.utcnow()
@@ -230,12 +317,19 @@ class MongoDBInstance:
             return False
 
     @staticmethod
-    def delete(instance_id: str) -> bool:
+    def delete(instance_id: str, allow_system: bool = False) -> bool:
         """刪除實例配置"""
         try:
-            config = get_config()
-            db = get_db()
-            collection = db[config.COLLECTIONS['mongodb_instances']]
+            collection = MongoDBInstance._get_collection()
+
+            existing = collection.find_one({'instance_id': instance_id})
+            if not existing:
+                logger.warning(f"實例配置不存在: {instance_id}")
+                return False
+
+            if existing.get('is_system') and not allow_system:
+                logger.warning(f"禁止刪除系統 MongoDB 實例: {instance_id}")
+                return False
 
             result = collection.delete_one({'instance_id': instance_id})
 
@@ -255,7 +349,33 @@ class MongoDBInstance:
             return False
 
     @staticmethod
-    def test_connection(instance_id: str) -> tuple[bool, str]:
+    def count_all() -> int:
+        """獲取實例總數（包含預設實例）"""
+        try:
+            collection = MongoDBInstance._get_collection()
+            count = collection.count_documents({})
+            return count if count > 0 else 1
+        except Exception as e:
+            logger.error(f"統計實例總數失敗: {e}")
+            return 1
+
+    @staticmethod
+    def count_enabled() -> int:
+        """獲取啟用實例數量（包含預設實例）"""
+        try:
+            collection = MongoDBInstance._get_collection()
+            count = collection.count_documents({'enabled': True})
+            return count if count > 0 else 1
+        except Exception as e:
+            logger.error(f"統計啟用實例數失敗: {e}")
+            return 1
+
+    def test_connection(self) -> tuple[bool, str]:
+        """以當前實例測試連線"""
+        return MongoDBInstance.test_connection_by_id(self.instance_id)
+
+    @staticmethod
+    def test_connection_by_id(instance_id: str) -> tuple[bool, str]:
         """
         測試連接
 

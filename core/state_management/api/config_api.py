@@ -118,11 +118,18 @@ def update_config(config_id):
             }), 400
 
         # 檢查配置是否存在
-        if not AnalysisConfig.exists(config_id):
+        config = AnalysisConfig.get_by_id(config_id)
+        if not config:
             return jsonify({
                 'success': False,
                 'error': '配置不存在'
             }), 404
+
+        if config.is_system:
+            return jsonify({
+                'success': False,
+                'error': '系統內建配置不可修改'
+            }), 403
 
         # 不允許修改的欄位
         protected_fields = ['config_id', 'created_at']
@@ -140,11 +147,9 @@ def update_config(config_id):
             }), 500
 
         # 獲取更新後的配置
-        config = AnalysisConfig.get_by_id(config_id)
-
         return jsonify({
             'success': True,
-            'data': config.to_dict(),
+            'data': AnalysisConfig.get_by_id(config_id).to_dict(),
             'message': '配置已更新'
         }), 200
 
@@ -161,11 +166,18 @@ def delete_config(config_id):
     """刪除配置"""
     try:
         # 檢查配置是否存在
-        if not AnalysisConfig.exists(config_id):
+        config = AnalysisConfig.get_by_id(config_id)
+        if not config:
             return jsonify({
                 'success': False,
                 'error': '配置不存在'
             }), 404
+
+        if config.is_system:
+            return jsonify({
+                'success': False,
+                'error': '系統內建配置不可刪除'
+            }), 403
 
         # 刪除配置
         success = AnalysisConfig.delete(config_id)

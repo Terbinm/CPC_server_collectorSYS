@@ -59,13 +59,13 @@ def config_create():
                     return render_template('configs/edit.html', form=form, mode='create')
 
             # 建立設定
-            config = AnalysisConfig.create(
-                analysis_method_id=form.analysis_method_id.data,
-                config_name=form.config_name.data,
-                description=form.description.data,
-                parameters=parameters,
-                enabled=form.enabled.data
-            )
+            config = AnalysisConfig.create({
+                'analysis_method_id': form.analysis_method_id.data,
+                'config_name': form.config_name.data,
+                'description': form.description.data,
+                'parameters': parameters,
+                'enabled': form.enabled.data
+            })
 
             if config:
                 logger.info(f"設定建立成功: {config.config_id}")
@@ -90,6 +90,10 @@ def config_edit(config_id):
     config = AnalysisConfig.get_by_id(config_id)
     if not config:
         flash('設定不存在', 'danger')
+        return redirect(url_for('views.configs_list'))
+
+    if config.is_system:
+        flash('系統內建設定不可修改', 'warning')
         return redirect(url_for('views.configs_list'))
 
     form = ConfigForm()
@@ -166,6 +170,15 @@ def config_delete(config_id):
     刪除設定
     """
     try:
+        config = AnalysisConfig.get_by_id(config_id)
+        if not config:
+            flash('設定不存在', 'danger')
+            return redirect(url_for('views.configs_list'))
+
+        if config.is_system:
+            flash('系統內建設定不可刪除', 'warning')
+            return redirect(url_for('views.configs_list'))
+
         success = AnalysisConfig.delete(config_id)
 
         if success:
@@ -191,6 +204,9 @@ def config_toggle(config_id):
         config = AnalysisConfig.get_by_id(config_id)
         if not config:
             return jsonify({'success': False, 'message': '設定不存在'}), 404
+
+        if config.is_system:
+            return jsonify({'success': False, 'message': '系統設定不可變更狀態'}), 403
 
         new_status = not config.enabled
         success = config.update(enabled=new_status)

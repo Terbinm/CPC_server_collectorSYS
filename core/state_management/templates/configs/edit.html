@@ -4,7 +4,16 @@
 {% block page_title %}{% if mode == 'create' %}建立分析設定{% else %}編輯分析設定{% endif %}{% endblock %}
 
 {% block content %}
-<div class="max-w-4xl">
+<div class="max-w-4xl space-y-4">
+    <div class="rounded-lg border border-indigo-100 bg-indigo-50/80 p-4 text-sm text-indigo-900">
+        <p class="font-semibold">填寫建議</p>
+        <ul class="mt-2 list-disc space-y-1 pl-5">
+            <li><span class="font-semibold">分析方法 ID</span> 為必填且不可重複，應與分析節點的 routing key（如 <code class="bg-white/70 px-1.5 py-0.5 rounded">analysis.fan_autoencoder_v2.*</code>）對應。</li>
+            <li><span class="font-semibold">參數設定</span> 接受任何 JSON 結構，可放置模型路徑、特徵設定與後處理閾值；儲存前請先驗證格式。</li>
+            <li>若此設定受路由規則引用，請確保 <span class="font-semibold">啟用狀態</span> 與規則條件一致，以免調度器略過任務。</li>
+        </ul>
+        <p class="mt-2 text-xs text-indigo-700">更多範例：<code>docs/設定規則說明.html</code>（分析設定章節）。</p>
+    </div>
     <form method="POST" class="space-y-6">
         {{ form.hidden_tag() }}
 

@@ -2,6 +2,7 @@
 路由規則模型
 管理資料路由規則
 """
+import copy
 import uuid
 from datetime import datetime
 from typing import Dict, Any, List, Optional
@@ -14,6 +15,12 @@ logger = logging.getLogger(__name__)
 
 class RoutingRule:
     """路由規則類"""
+
+    @staticmethod
+    def _get_collection():
+        config = get_config()
+        db = get_db()
+        return db[config.COLLECTIONS['routing_rules']]
 
     def __init__(self, data: Optional[Dict[str, Any]] = None):
         """初始化"""
@@ -160,9 +167,7 @@ class RoutingRule:
     def create(rule_data: Dict[str, Any]) -> Optional['RoutingRule']:
         """創建新規則"""
         try:
-            config = get_config()
-            db = get_db()
-            collection = db[config.COLLECTIONS['routing_rules']]
+            collection = RoutingRule._get_collection()
 
             # 創建規則對象
             rule = RoutingRule()
@@ -199,9 +204,7 @@ class RoutingRule:
     def get_by_id(rule_id: str) -> Optional['RoutingRule']:
         """根據 ID 獲取規則"""
         try:
-            config = get_config()
-            db = get_db()
-            collection = db[config.COLLECTIONS['routing_rules']]
+            collection = RoutingRule._get_collection()
 
             data = collection.find_one({'rule_id': rule_id})
             if data:
@@ -217,9 +220,7 @@ class RoutingRule:
     def get_all(enabled_only: bool = True) -> List['RoutingRule']:
         """獲取所有規則"""
         try:
-            config = get_config()
-            db = get_db()
-            collection = db[config.COLLECTIONS['routing_rules']]
+            collection = RoutingRule._get_collection()
 
             query = {'enabled': True} if enabled_only else {}
             rules = []
@@ -238,9 +239,7 @@ class RoutingRule:
     def update(rule_id: str, update_data: Dict[str, Any]) -> bool:
         """更新規則"""
         try:
-            config = get_config()
-            db = get_db()
-            collection = db[config.COLLECTIONS['routing_rules']]
+            collection = RoutingRule._get_collection()
 
             # 更新時間
             update_data['updated_at'] = datetime.utcnow()
@@ -269,9 +268,7 @@ class RoutingRule:
     def delete(rule_id: str) -> bool:
         """刪除規則"""
         try:
-            config = get_config()
-            db = get_db()
-            collection = db[config.COLLECTIONS['routing_rules']]
+            collection = RoutingRule._get_collection()
 
             result = collection.delete_one({'rule_id': rule_id})
 
@@ -289,6 +286,26 @@ class RoutingRule:
         except Exception as e:
             logger.error(f"刪除規則失敗: {e}")
             return False
+
+    @staticmethod
+    def count_all() -> int:
+        """獲取規則總數"""
+        try:
+            collection = RoutingRule._get_collection()
+            return collection.count_documents({})
+        except Exception as e:
+            logger.error(f"統計規則總數失敗: {e}")
+            return 0
+
+    @staticmethod
+    def count_enabled() -> int:
+        """獲取啟用規則數量"""
+        try:
+            collection = RoutingRule._get_collection()
+            return collection.count_documents({'enabled': True})
+        except Exception as e:
+            logger.error(f"統計啟用規則數失敗: {e}")
+            return 0
 
     @staticmethod
     def find_matching_rules(info_features: Dict[str, Any]) -> List['RoutingRule']:
@@ -317,3 +334,51 @@ class RoutingRule:
         except Exception as e:
             logger.error(f"查找匹配規則失敗: {e}")
             return []
+
+    def get_statistics(self) -> Dict[str, Any]:
+        """
+        統計符合條件的資料筆數與分析狀態
+
+        Returns:
+            dict: {
+                'total': int,
+                'status_counts': Dict[str, int],
+                'generated_at': datetime
+            }
+        """
+        stats = {
+            'total': 0,
+            'status_counts': {},
+            'generated_at': datetime.utcnow()
+        }
+
+        try:
+            config = get_config()
+            db = get_db()
+            collection = db[config.COLLECTIONS['recordings']]
+
+            query = copy.deepcopy(self.conditions) if self.conditions else {}
+
+            stats['total'] = collection.count_documents(query)
+
+            pipeline = [
+                {'$match': query},
+                {
+                    '$group': {
+                        '_id': '$analysis_status',
+                        'count': {'$sum': 1}
+                    }
+                }
+            ]
+
+            status_counts = {}
+            for doc in collection.aggregate(pipeline):
+                key = doc.get('_id') or 'unknown'
+                status_counts[key] = doc.get('count', 0)
+
+            stats['status_counts'] = status_counts
+
+        except Exception as e:
+            logger.error(f"統計路由規則資料失敗 ({self.rule_id}): {e}", exc_info=True)
+
+        return stats

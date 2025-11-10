@@ -15,6 +15,12 @@ logger = logging.getLogger(__name__)
 class AnalysisConfig:
     """分析配置類"""
 
+    @staticmethod
+    def _get_collection():
+        config = get_config()
+        db = get_db()
+        return db[config.COLLECTIONS['analysis_configs']]
+
     def __init__(self, data: Optional[Dict[str, Any]] = None):
         """初始化"""
         if data:
@@ -30,6 +36,7 @@ class AnalysisConfig:
             self.created_at = datetime.utcnow()
             self.updated_at = datetime.utcnow()
             self.enabled = True
+            self.is_system = False
 
     def from_dict(self, data: Dict[str, Any]):
         """從字典加載"""
@@ -42,6 +49,7 @@ class AnalysisConfig:
         self.created_at = data.get('created_at', datetime.utcnow())
         self.updated_at = data.get('updated_at', datetime.utcnow())
         self.enabled = data.get('enabled', True)
+        self.is_system = data.get('is_system', False)
         return self
 
     def to_dict(self) -> Dict[str, Any]:
@@ -55,8 +63,19 @@ class AnalysisConfig:
             'model_files': self.model_files,
             'created_at': self.created_at,
             'updated_at': self.updated_at,
-            'enabled': self.enabled
+            'enabled': self.enabled,
+            'is_system': self.is_system
         }
+
+    def update(self, allow_system: bool = False, **update_data) -> bool:
+        """實例方法包裝靜態更新"""
+        if not update_data:
+            return True
+        return AnalysisConfig.update(
+            self.config_id,
+            update_data,
+            allow_system=allow_system
+        )
 
     def validate(self) -> tuple[bool, str]:
         """驗證數據"""
@@ -83,9 +102,7 @@ class AnalysisConfig:
             創建的配置對象，失敗返回 None
         """
         try:
-            config = get_config()
-            db = get_db()
-            collection = db[config.COLLECTIONS['analysis_configs']]
+            collection = AnalysisConfig._get_collection()
 
             # 創建配置對象
             analysis_config = AnalysisConfig()
@@ -98,6 +115,7 @@ class AnalysisConfig:
             analysis_config.created_at = datetime.utcnow()
             analysis_config.updated_at = datetime.utcnow()
             analysis_config.enabled = config_data.get('enabled', True)
+            analysis_config.is_system = config_data.get('is_system', False)
 
             # 驗證
             valid, error = analysis_config.validate()
@@ -122,9 +140,7 @@ class AnalysisConfig:
     def get_by_id(config_id: str) -> Optional['AnalysisConfig']:
         """根據 ID 獲取配置"""
         try:
-            config = get_config()
-            db = get_db()
-            collection = db[config.COLLECTIONS['analysis_configs']]
+            collection = AnalysisConfig._get_collection()
 
             data = collection.find_one({'config_id': config_id})
             if data:
@@ -140,9 +156,7 @@ class AnalysisConfig:
     def get_by_method_id(analysis_method_id: str) -> List['AnalysisConfig']:
         """根據分析方法 ID 獲取所有配置"""
         try:
-            config = get_config()
-            db = get_db()
-            collection = db[config.COLLECTIONS['analysis_configs']]
+            collection = AnalysisConfig._get_collection()
 
             configs = []
             for data in collection.find({'analysis_method_id': analysis_method_id}):
@@ -155,32 +169,44 @@ class AnalysisConfig:
             return []
 
     @staticmethod
-    def get_all(enabled_only: bool = False) -> List['AnalysisConfig']:
+    def get_all(
+        enabled_only: bool = False,
+        limit: Optional[int] = None
+    ) -> List['AnalysisConfig']:
         """獲取所有配置"""
         try:
-            config = get_config()
-            db = get_db()
-            collection = db[config.COLLECTIONS['analysis_configs']]
+            collection = AnalysisConfig._get_collection()
 
             query = {'enabled': True} if enabled_only else {}
-            configs = []
+            cursor = collection.find(query).sort('created_at', -1)
 
-            for data in collection.find(query).sort('created_at', -1):
-                configs.append(AnalysisConfig(data))
+            if limit is not None:
+                cursor = cursor.limit(limit)
 
-            return configs
+            return [AnalysisConfig(data) for data in cursor]
 
         except Exception as e:
             logger.error(f"獲取所有配置失敗: {e}")
             return []
 
     @staticmethod
-    def update(config_id: str, update_data: Dict[str, Any]) -> bool:
+    def update(
+        config_id: str,
+        update_data: Dict[str, Any],
+        allow_system: bool = False
+    ) -> bool:
         """更新配置"""
         try:
-            config = get_config()
-            db = get_db()
-            collection = db[config.COLLECTIONS['analysis_configs']]
+            collection = AnalysisConfig._get_collection()
+
+            existing = collection.find_one({'config_id': config_id})
+            if not existing:
+                logger.warning(f"配置不存在: {config_id}")
+                return False
+
+            if existing.get('is_system') and not allow_system:
+                logger.warning(f"禁止修改系統配置: {config_id}")
+                return False
 
             # 更新時間
             update_data['updated_at'] = datetime.utcnow()
@@ -206,12 +232,19 @@ class AnalysisConfig:
             return False
 
     @staticmethod
-    def delete(config_id: str) -> bool:
+    def delete(config_id: str, allow_system: bool = False) -> bool:
         """刪除配置"""
         try:
-            config = get_config()
-            db = get_db()
-            collection = db[config.COLLECTIONS['analysis_configs']]
+            collection = AnalysisConfig._get_collection()
+
+            existing = collection.find_one({'config_id': config_id})
+            if not existing:
+                logger.warning(f"配置不存在: {config_id}")
+                return False
+
+            if existing.get('is_system') and not allow_system:
+                logger.warning(f"禁止刪除系統配置: {config_id}")
+                return False
 
             result = collection.delete_one({'config_id': config_id})
 
@@ -234,12 +267,30 @@ class AnalysisConfig:
     def exists(config_id: str) -> bool:
         """檢查配置是否存在"""
         try:
-            config = get_config()
-            db = get_db()
-            collection = db[config.COLLECTIONS['analysis_configs']]
+            collection = AnalysisConfig._get_collection()
 
             return collection.count_documents({'config_id': config_id}) > 0
 
         except Exception as e:
             logger.error(f"檢查配置存在失敗: {e}")
             return False
+
+    @staticmethod
+    def count_all() -> int:
+        """獲取配置總數"""
+        try:
+            collection = AnalysisConfig._get_collection()
+            return collection.count_documents({})
+        except Exception as e:
+            logger.error(f"統計配置總數失敗: {e}")
+            return 0
+
+    @staticmethod
+    def count_enabled() -> int:
+        """獲取啟用配置數量"""
+        try:
+            collection = AnalysisConfig._get_collection()
+            return collection.count_documents({'enabled': True})
+        except Exception as e:
+            logger.error(f"統計啟用配置數失敗: {e}")
+            return 0

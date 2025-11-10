@@ -13,6 +13,8 @@ from flask_bcrypt import Bcrypt
 from flask_wtf.csrf import CSRFProtect
 from config import get_config
 
+csrf = CSRFProtect()
+
 # 配置日誌
 def setup_logging(config):
     """配置日誌系統"""
@@ -52,7 +54,7 @@ def create_app():
 
     # 初始化擴展
     bcrypt = Bcrypt(app)
-    csrf = CSRFProtect(app)
+    csrf.init_app(app)
     login_manager = LoginManager(app)
     login_manager.login_view = 'auth.login'
     login_manager.login_message = '請先登錄'
@@ -74,6 +76,10 @@ def create_app():
     app.register_blueprint(routing_bp, url_prefix='/api/routing')
     app.register_blueprint(node_bp, url_prefix='/api/nodes')
     app.register_blueprint(instance_bp, url_prefix='/api/instances')
+
+    # API 僅透過 JSON 驗證，移除 CSRF 限制
+    for bp in (config_bp, routing_bp, node_bp, instance_bp):
+        csrf.exempt(bp)
 
     # 註冊 Web UI 藍圖
     from auth import auth_bp

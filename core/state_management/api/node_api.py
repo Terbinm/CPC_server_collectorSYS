@@ -5,6 +5,7 @@
 import logging
 from flask import Blueprint, request, jsonify
 from models.node_status import NodeStatus
+from services.system_defaults import SystemDefaultsService
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +51,9 @@ def register_node():
             }), 500
 
         logger.info(f"節點已註冊: {node_id}")
+
+        # 自動建立系統內建分析設定
+        SystemDefaultsService.ensure_node_analysis_configs(node_id, node_info)
 
         return jsonify({
             'success': True,

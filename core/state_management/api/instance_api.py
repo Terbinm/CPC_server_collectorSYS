@@ -18,11 +18,18 @@ def get_all_instances():
         enabled_only = request.args.get('enabled_only', 'false').lower() == 'true'
         include_password = request.args.get('include_password', 'false').lower() == 'true'
 
-        instances = MongoDBInstance.get_all(enabled_only=enabled_only)
+        instances = MongoDBInstance.get_all(
+            enabled_only=enabled_only,
+            include_password=include_password,
+            ensure_default=True
+        )
 
         return jsonify({
             'success': True,
-            'data': [instance.to_dict(include_password=include_password) for instance in instances],
+            'data': [
+                instance.to_dict(include_password=include_password)
+                for instance in instances
+            ],
             'count': len(instances)
         }), 200
 
@@ -125,6 +132,12 @@ def update_instance(instance_id):
                 'error': '實例配置不存在'
             }), 404
 
+        if instance.is_system:
+            return jsonify({
+                'success': False,
+                'error': '系統內建實例不可修改'
+            }), 403
+
         # 不允許修改的欄位
         protected_fields = ['instance_id', 'created_at']
         for field in protected_fields:
@@ -141,11 +154,9 @@ def update_instance(instance_id):
             }), 500
 
         # 獲取更新後的實例
-        instance = MongoDBInstance.get_by_id(instance_id)
-
         return jsonify({
             'success': True,
-            'data': instance.to_dict(include_password=False),
+            'data': MongoDBInstance.get_by_id(instance_id).to_dict(include_password=False),
             'message': '實例配置已更新'
         }), 200
 
@@ -168,6 +179,12 @@ def delete_instance(instance_id):
                 'success': False,
                 'error': '實例配置不存在'
             }), 404
+
+        if instance.is_system:
+            return jsonify({
+                'success': False,
+                'error': '系統內建實例不可刪除'
+            }), 403
 
         # 刪除實例
         success = MongoDBInstance.delete(instance_id)
@@ -196,7 +213,7 @@ def test_connection(instance_id):
     """測試 MongoDB 實例連接"""
     try:
         # 測試連接
-        success, message = MongoDBInstance.test_connection(instance_id)
+        success, message = MongoDBInstance.test_connection_by_id(instance_id)
 
         if success:
             return jsonify({

@@ -59,14 +59,14 @@ def routing_create():
                 return render_template('routing/edit.html', form=form, mode='create')
 
             # 建立規則
-            rule = RoutingRule.create(
-                rule_name=form.rule_name.data,
-                description=form.description.data,
-                priority=priority,
-                conditions=conditions,
-                actions=actions,
-                enabled=form.enabled.data
-            )
+            rule = RoutingRule.create({
+                'rule_name': form.rule_name.data,
+                'description': form.description.data,
+                'priority': priority,
+                'conditions': conditions,
+                'actions': actions,
+                'enabled': form.enabled.data
+            })
 
             if rule:
                 logger.info(f"路由規則建立成功: {rule.rule_id}")
@@ -112,13 +112,16 @@ def routing_edit(rule_id):
                 )
 
             # 更新規則
-            success = rule.update(
-                rule_name=form.rule_name.data,
-                description=form.description.data,
-                priority=priority,
-                conditions=conditions,
-                actions=actions,
-                enabled=form.enabled.data
+            success = RoutingRule.update(
+                rule.rule_id,
+                {
+                    'rule_name': form.rule_name.data,
+                    'description': form.description.data,
+                    'priority': priority,
+                    'conditions': conditions,
+                    'actions': actions,
+                    'enabled': form.enabled.data
+                }
             )
 
             if success:
@@ -160,7 +163,9 @@ def routing_view(rule_id):
         flash('路由規則不存在', 'danger')
         return redirect(url_for('views.routing_list'))
 
-    return render_template('routing/view.html', rule=rule)
+    stats = rule.get_statistics()
+
+    return render_template('routing/view.html', rule=rule, stats=stats)
 
 
 @views_bp.route('/routing/<rule_id>/delete', methods=['POST'])
@@ -197,7 +202,7 @@ def routing_toggle(rule_id):
             return jsonify({'success': False, 'message': '路由規則不存在'}), 404
 
         new_status = not rule.enabled
-        success = rule.update(enabled=new_status)
+        success = RoutingRule.update(rule.rule_id, {'enabled': new_status})
 
         if success:
             logger.info(f"路由規則狀態切換成功: {rule_id} -> {new_status}")

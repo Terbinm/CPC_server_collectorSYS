@@ -36,6 +36,23 @@ class Config:
         'mongodb_instances': 'mongodb_instances',
     }
 
+    # 系統自帶分析設定模板
+    SYSTEM_ANALYSIS_CONFIG_TEMPLATE = {
+        'config_name_prefix': os.environ.get(
+            'SYSTEM_ANALYSIS_CONFIG_PREFIX',
+            '系統自帶設定'
+        ),
+        'description_template': os.environ.get(
+            'SYSTEM_ANALYSIS_CONFIG_DESC',
+            '系統自帶設定 - 節點 {node_id}（能力: {capability}）'
+        ),
+        'default_parameters': {},
+        'default_capability': os.environ.get(
+            'SYSTEM_ANALYSIS_CONFIG_DEFAULT_CAPABILITY',
+            'system_default'
+        )
+    }
+
     # RabbitMQ 配置
     RABBITMQ_CONFIG: Dict[str, Any] = {
         'host': os.environ.get('RABBITMQ_HOST', 'localhost'),

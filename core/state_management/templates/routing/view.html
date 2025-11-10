@@ -4,19 +4,37 @@
 {% block page_title %}路由規則詳情{% endblock %}
 
 {% block content %}
-<div class="max-w-4xl">
+<div class="max-w-4xl space-y-4">
     <!-- 操作按鈕 -->
-    <div class="mb-6 flex justify-end gap-2">
-        {% if current_user.is_admin() %}
-        <a href="{{ url_for('views.routing_edit', rule_id=rule.rule_id) }}"
-           class="inline-flex items-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500">
-            <i class="fas fa-edit mr-2"></i> 編輯
-        </a>
-        {% endif %}
+    <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-2">
+            {% if current_user.is_admin() %}
+            <button type="button"
+                    onclick="toggleRule('{{ rule.rule_id }}')"
+                    class="inline-flex items-center rounded-md px-3 py-2 text-sm font-semibold text-white shadow-sm {% if rule.enabled %}bg-red-600 hover:bg-red-500{% else %}bg-green-600 hover:bg-green-500{% endif %}">
+                <i class="fas {% if rule.enabled %}fa-stop-circle{% else %}fa-play-circle{% endif %} mr-2"></i>
+                {% if rule.enabled %}停用規則{% else %}啟用規則{% endif %}
+            </button>
+            <a href="{{ url_for('views.routing_edit', rule_id=rule.rule_id) }}"
+               class="inline-flex items-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500">
+                <i class="fas fa-edit mr-2"></i> 編輯
+            </a>
+            {% endif %}
+        </div>
         <a href="{{ url_for('views.routing_list') }}"
            class="inline-flex items-center rounded-md bg-gray-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-500">
             <i class="fas fa-arrow-left mr-2"></i> 返回列表
         </a>
+    </div>
+
+    <div class="rounded-lg border border-amber-100 bg-amber-50/80 p-4 text-sm text-amber-900">
+        <p class="font-semibold">規則運作方式</p>
+        <ul class="mt-2 list-disc space-y-1 pl-5">
+            <li>調度器會依優先級從高到低檢查條件，命中後依序執行下方的每個 action。</li>
+            <li>RabbitMQ routing key 會是 <code class="bg-white/70 px-1.5 py-0.5 rounded">analysis.{{ rule.actions[0].analysis_method_id if rule.actions else 'method' }}.{{ rule.priority }}</code> 格式，供分析節點訂閱。</li>
+            <li>如需快速驗證條件，使用 <code>POST /api/routing/test</code> 搭配實際 <code>info_features</code>。</li>
+        </ul>
+        <p class="mt-2 text-xs text-amber-800">更多細節：<code>docs/設定規則說明.html</code>。</p>
     </div>
 
     <!-- 基本資訊 -->
@@ -78,6 +96,49 @@
         </div>
     </div>
 
+    {% if stats %}
+    <div class="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl mb-6">
+        <div class="px-6 py-5 border-b border-gray-200 flex items-center justify-between">
+            <h3 class="text-lg font-medium text-gray-900">
+                <i class="fas fa-chart-bar mr-2 text-gray-400"></i>
+                規則狀態概覽
+            </h3>
+            <p class="text-xs text-gray-500">更新時間：{{ stats.generated_at.strftime('%Y-%m-%d %H:%M:%S') }}</p>
+        </div>
+        <div class="px-6 py-4 grid gap-4 sm:grid-cols-3">
+            <div class="rounded-lg border border-gray-200 p-4">
+                <p class="text-sm text-gray-500">符合條件的資料</p>
+                <p class="mt-1 text-2xl font-semibold text-gray-900">{{ stats.total }}</p>
+            </div>
+            <div class="rounded-lg border border-gray-200 p-4">
+                <p class="text-sm text-gray-500">待分析</p>
+                <p class="mt-1 text-2xl font-semibold text-amber-600">
+                    {{ stats.status_counts.get('pending', 0) }}
+                </p>
+            </div>
+            <div class="rounded-lg border border-gray-200 p-4">
+                <p class="text-sm text-gray-500">分析中</p>
+                {% set processing_total = stats.status_counts.get('processing', 0) + stats.status_counts.get('running', 0) + stats.status_counts.get('sliced', 0) + stats.status_counts.get('features_extracted', 0) %}
+                <p class="mt-1 text-2xl font-semibold text-blue-600">
+                    {{ processing_total }}
+                </p>
+            </div>
+            <div class="rounded-lg border border-gray-200 p-4">
+                <p class="text-sm text-gray-500">分析完成</p>
+                <p class="mt-1 text-2xl font-semibold text-green-600">
+                    {{ stats.status_counts.get('completed', 0) }}
+                </p>
+            </div>
+            <div class="rounded-lg border border-gray-200 p-4">
+                <p class="text-sm text-gray-500">發生錯誤</p>
+                <p class="mt-1 text-2xl font-semibold text-red-600">
+                    {{ stats.status_counts.get('error', 0) }}
+                </p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- 匹配條件 -->
     <div class="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl mb-6">
         <div class="px-6 py-5 border-b border-gray-200">
@@ -87,7 +148,7 @@
             </h3>
         </div>
         <div class="px-6 py-4">
-            <pre class="bg-gray-50 p-4 rounded-md overflow-x-auto text-sm"><code>{{ rule.conditions | tojson(indent=2, ensure_ascii=False) }}</code></pre>
+            <pre class="bg-gray-50 p-4 rounded-md overflow-x-auto text-sm"><code>{{ rule.conditions | tojson(indent=2) }}</code></pre>
         </div>
     </div>
 
@@ -134,4 +195,34 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+async function toggleRule(ruleId) {
+    try {
+        const tokenMeta = document.querySelector('meta[name="csrf-token"]');
+        const csrfToken = tokenMeta ? tokenMeta.getAttribute('content') : '';
+
+        const response = await fetch(`/routing/${ruleId}/toggle`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': csrfToken
+            }
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            window.location.reload();
+        } else {
+            alert(data.message || '切換狀態失敗');
+        }
+    } catch (error) {
+        alert('切換狀態失敗：' + error.message);
+    }
+}
+</script>
 {% endblock %}

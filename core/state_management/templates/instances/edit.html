@@ -4,7 +4,16 @@
 {% block page_title %}{% if mode == 'create' %}新增 MongoDB 實例{% else %}編輯 MongoDB 實例{% endif %}{% endblock %}
 
 {% block content %}
-<div class="max-w-4xl">
+<div class="max-w-4xl space-y-4">
+    <div class="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-900">
+        <p class="font-semibold">填寫建議</p>
+        <ul class="mt-2 list-disc space-y-1 pl-5">
+            <li><span class="font-semibold">實例名稱</span> 建議對應用途（如 Production/QA），日後可在路由規則的 <code class="bg-white px-1.5 py-0.5 rounded text-xs">mongodb_instance</code> 引用。</li>
+            <li><span class="font-semibold">host/port/database</span> 需與實際 MongoDB 服務一致，並確保帳號具備讀寫 <code>recordings</code> 集合的權限。</li>
+            <li>啟用後 TaskScheduler 會開始監聽此實例的 <code>info_features.upload_time</code> 變動；若僅作為分析輸出用，可指定但不啟用監聽。</li>
+        </ul>
+        <p class="mt-2 text-xs text-slate-600">更多說明：<code>docs/設定規則說明.html</code>（MongoDB 實例章節）。</p>
+    </div>
     <form method="POST" class="space-y-6">
         {{ form.hidden_tag() }}
 

@@ -4,7 +4,16 @@
 {% block page_title %}{% if mode == 'create' %}建立路由規則{% else %}編輯路由規則{% endif %}{% endblock %}
 
 {% block content %}
-<div class="max-w-4xl">
+<div class="max-w-4xl space-y-4">
+    <div class="rounded-lg border border-amber-100 bg-amber-50/80 p-4 text-sm text-amber-900">
+        <p class="font-semibold">編寫規則小抄</p>
+        <ul class="mt-2 list-disc space-y-1 pl-5">
+            <li><span class="font-semibold">conditions</span> 可混用單值、陣列或 <code class="bg-white/70 px-1.5 py-0.5 rounded">$gte/$in</code> 等運算子，比對對象為資料紀錄的 <code>info_features</code>。</li>
+            <li>每個 <span class="font-semibold">action</span> 至少要包含 <code class="bg-white/70 px-1.5 py-0.5 rounded">analysis_method_id</code> 與 <code class="bg-white/70 px-1.5 py-0.5 rounded">config_id</code>，可視需要指定 <code class="bg-white/70 px-1.5 py-0.5 rounded">mongodb_instance</code>。</li>
+            <li>儲存後建議用 <code>POST /api/routing/test</code> 搭配範例 <code>info_features</code> 驗證規則是否命中。</li>
+        </ul>
+        <p class="mt-2 text-xs text-amber-800">延伸閱讀：<code>docs/設定規則說明.html</code>。</p>
+    </div>
     <form method="POST" class="space-y-6">
         {{ form.hidden_tag() }}
 

@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <title>分析設定／路由規則／MongoDB 實例建立說明</title>
+  <style>
+    body { font-family: "Segoe UI", "PingFang TC", "Noto Sans TC", sans-serif; line-height: 1.6; margin: 0; padding: 24px; background: #f6f7fb; color: #1f2a37; }
+    h1, h2, h3 { color: #0f172a; }
+    header { margin-bottom: 24px; }
+    nav { margin-bottom: 24px; }
+    nav a { margin-right: 12px; text-decoration: none; color: #2563eb; font-weight: 600; }
+    section { background: #fff; border-radius: 12px; padding: 24px; margin-bottom: 24px; box-shadow: 0 4px 16px rgba(15, 23, 42, 0.08); }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+    th, td { border: 1px solid #e2e8f0; padding: 8px 12px; text-align: left; }
+    th { background: #f1f5f9; }
+    code { background: #e2e8f0; padding: 2px 6px; border-radius: 4px; font-size: 0.95em; }
+    pre { background: #0f172a; color: #f8fafc; padding: 16px; border-radius: 8px; overflow-x: auto; }
+    .tip { background: #eef2ff; border-left: 4px solid #6366f1; padding: 12px 16px; border-radius: 6px; margin: 12px 0; }
+    .api-list li { margin-bottom: 4px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>分析設定／路由規則／MongoDB 實例建立說明</h1>
+    <p>此頁面彙整 Web UI 與 API 在三大設定項的欄位需求與建立流程，協助您判斷 batch_upload 寫入的資料如何被路由到分析節點並套用正確參數。</p>
+  </header>
+
+  <nav>
+    <a href="#analysis-config">分析設定</a>
+    <a href="#routing-rule">路由規則</a>
+    <a href="#mongodb-instance">MongoDB 實例</a>
+  </nav>
+
+  <section id="analysis-config">
+    <h2>一、分析設定（AnalysisConfig）</h2>
+    <p>分析設定描述某個 <code>analysis_method_id</code> 在執行時需要的參數與模型檔案。調度器會在建立任務時帶入 <code>config_id</code>，分析節點據此載入設定。</p>
+
+    <h3>主要欄位</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>欄位</th>
+          <th>說明</th>
+          <th>備註/建議</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>analysis_method_id</code></td>
+          <td>分析流程的唯一識別，例如 <code>fan_autoencoder_v2</code>。</td>
+          <td>需與分析程式訂閱的 routing key 相對應。</td>
+        </tr>
+        <tr>
+          <td><code>config_id</code></td>
+          <td>設定 ID，可由系統自動產生 UUID。</td>
+          <td>路由規則在 actions 中引用此值。</td>
+        </tr>
+        <tr>
+          <td><code>config_name</code></td>
+          <td>顯示用名稱，便於在列表中辨識。</td>
+          <td>建議包含模型版本或適用資料集。</td>
+        </tr>
+        <tr>
+          <td><code>description</code></td>
+          <td>文字描述，可註記模型來源、評估結果等。</td>
+          <td>可選。</td>
+        </tr>
+        <tr>
+          <td><code>parameters</code></td>
+          <td>JSON 參數，例如模型路徑、特徵參數。</td>
+          <td>請保持有效 JSON；必要時可在此指定 GridFS 路徑。</td>
+        </tr>
+        <tr>
+          <td><code>model_files</code></td>
+          <td>（可選）記錄上傳的模型檔案路徑與雜湊。</td>
+          <td>透過 Web UI 上傳後自動帶入。</td>
+        </tr>
+        <tr>
+          <td><code>enabled</code></td>
+          <td>設定是否可被任務引用。</td>
+          <td>停用時，即使被規則引用也不會建立任務。</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>建立流程</h3>
+    <ol>
+      <li>進入 Web UI 側邊欄的「分析設定」，點擊「建立新設定」。</li>
+      <li>填入表單欄位，特別注意 <code>analysis_method_id</code> 需與分析程式碼一致。</li>
+      <li>在 <code>parameters</code> 欄貼上 JSON，建議使用線上工具先驗證語法。</li>
+      <li>儲存後可於列表上傳模型檔案並切換啟用狀態。</li>
+    </ol>
+    <p class="mt-2 text-sm text-gray-600">
+      當分析節點透過 Node API 註冊時，系統會依節點回報的 <code>capabilities</code> 自動產生一份標記為「系統」的分析設定，供路由規則直接引用。
+    </p>
+
+    <div class="tip">
+      API 端點：<code>POST /api/configs</code>、<code>PUT /api/configs/&lt;config_id&gt;</code>。<br>
+      模型欄位定義：<code>core/state_management/models/analysis_config.py</code>。<br>
+      標示為「系統」的分析設定由程式 config 控制，僅供檢視，無法在 UI 或 API 上修改／刪除。
+    </div>
+
+    <h3>參數示例</h3>
+    <pre><code>{
+  "analysis_method_id": "fan_autoencoder_v2",
+  "config_name": "Fan-2025-Q1",
+  "parameters": {
+    "model_path": "gridfs://models/fan_v2.pth",
+    "window_size": 2048,
+    "hop_length": 512,
+    "postprocess": {
+      "smooth": true,
+      "threshold": 0.65
+    }
+  },
+  "enabled": true
+}</code></pre>
+  </section>
+
+  <section id="routing-rule">
+    <h2>二、路由規則（RoutingRule）</h2>
+    <p>路由規則決定 batch_upload 寫入的資料要派送到哪些分析流程。當 <code>info_features</code> 符合條件時，調度器會為每個 action 建立任務並送往 RabbitMQ。</p>
+
+    <h3>欄位與意義</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>欄位</th>
+          <th>說明</th>
+          <th>注意事項</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>rule_name</code></td>
+          <td>顯示用名稱。</td>
+          <td>建議描述資料來源與採用分析法。</td>
+        </tr>
+        <tr>
+          <td><code>priority</code></td>
+          <td>整數，值越高越先匹配，也影響 routing key 最末段。</td>
+          <td>預設為 0，可視情況調整。</td>
+        </tr>
+        <tr>
+          <td><code>conditions</code></td>
+          <td>JSON 物件，用於比對 <code>info_features</code>。</td>
+          <td>支援單值、陣列與 <code>$eq/$ne/$gt/$gte/$lt/$lte/$in/$nin</code> 等運算子。</td>
+        </tr>
+        <tr>
+          <td><code>actions</code></td>
+          <td>陣列；每個元素代表一個待派送的分析任務。</td>
+          <td>需包含 <code>analysis_method_id</code>、<code>config_id</code>，可選 <code>mongodb_instance</code>。</td>
+        </tr>
+        <tr>
+          <td><code>enabled</code></td>
+          <td>是否啟用規則。</td>
+          <td>停用後調度器會忽略該規則。</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>建立／測試流程</h3>
+    <ol>
+      <li>在 Web UI 點選「路由規則」→「建立規則」。</li>
+      <li>輸入優先級、條件與動作；可貼上多行 JSON，系統會在儲存前驗證格式。</li>
+      <li>儲存後可透過列表中的操作啟用／停用、編輯或刪除。</li>
+      <li>使用 <code>POST /api/routing/test</code> 並附上範例 <code>info_features</code> 驗證命中結果。</li>
+    </ol>
+
+    <div class="tip">
+      調度器邏輯位於 <code>core/state_management/services/task_scheduler.py</code>；RabbitMQ routing key 格式為 <code>analysis.&lt;analysis_method_id&gt;.&lt;priority&gt;</code>。
+    </div>
+
+    <h3>範例規則</h3>
+    <pre><code>{
+  "rule_name": "MIMII Fan 自動分析",
+  "priority": 90,
+  "conditions": {
+    "dataset_UUID": "mimii_batch_upload",
+    "mimii_metadata.machine_type": ["fan"],
+    "label": {"$in": ["normal", "abnormal"]}
+  },
+  "actions": [
+    {
+      "analysis_method_id": "fan_autoencoder_v2",
+      "config_id": "fan_ae_v2_config",
+      "mongodb_instance": "default"
+    }
+  ],
+  "enabled": true
+}</code></pre>
+  </section>
+
+  <section id="mongodb-instance">
+    <h2>三、MongoDB 實例（MongoDBInstance）</h2>
+    <p>MongoDB 實例描述資料來源或分析節點將連線的資料庫。調度器會針對「啟用」的實例啟動監聽；分析任務亦可指定目標實例，用於跨庫寫入分析結果。</p>
+
+    <h3>欄位說明</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>欄位</th>
+          <th>內容</th>
+          <th>說明</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>instance_id</code></td>
+          <td>唯一 ID（預設自動產生）。</td>
+          <td>保留值 <code>default</code> 對應 <code>config.py</code> 裡的主資料庫。</td>
+        </tr>
+        <tr>
+          <td><code>instance_name</code></td>
+          <td>顯示名稱。</td>
+          <td>建議描述用途，如「主庫」或「QA-replica」。</td>
+        </tr>
+        <tr>
+          <td><code>host</code> / <code>port</code></td>
+          <td>MongoDB 連線位置。</td>
+          <td>需開放給 Web UI / 分析節點存取。</td>
+        </tr>
+        <tr>
+          <td><code>username</code> / <code>password</code></td>
+          <td>認證帳密。</td>
+          <td>Web UI 僅在建立或編輯時顯示。</td>
+        </tr>
+        <tr>
+          <td><code>database</code></td>
+          <td>預設資料庫名稱。</td>
+          <td>通常為錄音集合所在的 DB。</td>
+        </tr>
+        <tr>
+          <td><code>collection</code></td>
+          <td>資料集合，預設 <code>recordings</code>。</td>
+          <td>調度器會在此集合上輪詢 <code>info_features.upload_time</code>。</td>
+        </tr>
+        <tr>
+          <td><code>auth_source</code></td>
+          <td>認證資料庫，預設 <code>admin</code>。</td>
+          <td>與 MongoDB 使用者設定一致即可。</td>
+        </tr>
+        <tr>
+          <td><code>enabled</code></td>
+          <td>是否啟用監聽。</td>
+          <td>停用後調度器不會再監看該實例。</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>建立與測試</h3>
+    <ol>
+      <li>前往 Web UI →「MongoDB 實例」→「新增實例」。</li>
+      <li>填入連線資訊；儲存後在列表點擊插頭圖示即可測試連線。</li>
+      <li>確認狀態顯示「啟用」且調度器服務已重載或重新讀取設定。</li>
+    </ol>
+
+    <div class="tip">
+      Model 實作位置：<code>core/state_management/models/mongodb_instance.py</code>。<br>
+      調度器啟動監聽程式碼：<code>TaskScheduler._start_watcher()</code>。<br>
+      標示為「系統」的實例由程式 config 載入，僅能檢視與測試連線，禁止透過 UI/API 編輯或刪除。
+    </div>
+  </section>
+
+  <section>
+    <h2>附錄：API 快速索引</h2>
+    <ul class="api-list">
+      <li><strong>分析設定</strong>：<code>GET/POST /api/configs</code>、<code>PUT /api/configs/&lt;config_id&gt;</code></li>
+      <li><strong>路由規則</strong>：<code>GET/POST /api/routing</code>、<code>PUT /api/routing/&lt;rule_id&gt;</code>、<code>POST /api/routing/test</code></li>
+      <li><strong>MongoDB 實例</strong>：<code>GET/POST /api/instances</code>、<code>PUT /api/instances/&lt;instance_id&gt;</code></li>
+    </ul>
+    <p>更多細節可參考 <code>core/state_management/WEB_UI_README.md</code> 與 <code>docs/路由規則管理指南.md</code>。</p>
+  </section>
+</body>
+</html>

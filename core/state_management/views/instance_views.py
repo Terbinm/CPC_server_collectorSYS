@@ -26,7 +26,8 @@ def instances_list():
         # 取得實例列表（不包含密碼）
         instances = MongoDBInstance.get_all(
             enabled_only=enabled_only,
-            include_password=False
+            include_password=False,
+            ensure_default=True
         )
 
         return render_template(
@@ -52,18 +53,18 @@ def instance_create():
     if form.validate_on_submit():
         try:
             # 建立實例
-            instance = MongoDBInstance.create(
-                instance_name=form.instance_name.data,
-                description=form.description.data,
-                host=form.host.data,
-                port=int(form.port.data),
-                username=form.username.data,
-                password=form.password.data,
-                database=form.database.data,
-                collection=form.collection.data or 'recordings',
-                auth_source=form.auth_source.data or 'admin',
-                enabled=form.enabled.data
-            )
+            instance = MongoDBInstance.create({
+                'instance_name': form.instance_name.data,
+                'description': form.description.data,
+                'host': form.host.data,
+                'port': int(form.port.data),
+                'username': form.username.data,
+                'password': form.password.data,
+                'database': form.database.data,
+                'collection': form.collection.data or 'recordings',
+                'auth_source': form.auth_source.data or 'admin',
+                'enabled': form.enabled.data
+            })
 
             if instance:
                 logger.info(f"MongoDB 實例建立成功: {instance.instance_id}")
@@ -88,6 +89,10 @@ def instance_edit(instance_id):
     instance = MongoDBInstance.get_by_id(instance_id, include_password=True)
     if not instance:
         flash('MongoDB 實例不存在', 'danger')
+        return redirect(url_for('views.instances_list'))
+
+    if instance.is_system:
+        flash('系統內建 MongoDB 實例不可修改', 'warning')
         return redirect(url_for('views.instances_list'))
 
     form = MongoDBInstanceForm()
@@ -161,6 +166,15 @@ def instance_delete(instance_id):
     刪除 MongoDB 實例
     """
     try:
+        instance = MongoDBInstance.get_by_id(instance_id)
+        if not instance:
+            flash('MongoDB 實例不存在', 'danger')
+            return redirect(url_for('views.instances_list'))
+
+        if instance.is_system:
+            flash('系統內建 MongoDB 實例不可刪除', 'warning')
+            return redirect(url_for('views.instances_list'))
+
         success = MongoDBInstance.delete(instance_id)
 
         if success:
@@ -186,6 +200,9 @@ def instance_toggle(instance_id):
         instance = MongoDBInstance.get_by_id(instance_id)
         if not instance:
             return jsonify({'success': False, 'message': '實例不存在'}), 404
+
+        if instance.is_system:
+            return jsonify({'success': False, 'message': '系統實例不可變更狀態'}), 403
 
         new_status = not instance.enabled
         success = instance.update(enabled=new_status)

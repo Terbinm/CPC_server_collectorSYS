@@ -81,7 +81,6 @@ def logout():
     if current_user.is_authenticated:
         username = current_user.username
         logout_user()
-        session.clear()
         logger.info(f"使用者登出: {username}")
         flash('您已成功登出', 'info')
     else:

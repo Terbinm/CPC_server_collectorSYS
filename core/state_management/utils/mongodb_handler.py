@@ -7,7 +7,7 @@ from typing import Dict, Any, List, Optional
 from pymongo import MongoClient, ASCENDING, DESCENDING
 from pymongo.database import Database
 from pymongo.collection import Collection
-from pymongo.errors import PyMongoError, ConnectionFailure
+from pymongo.errors import PyMongoError, ConnectionFailure, OperationFailure
 from config import get_config
 
 logger = logging.getLogger(__name__)
@@ -60,6 +60,73 @@ class MongoDBHandler:
             logger.error(f"MongoDB 初始化錯誤: {e}")
             raise
 
+    def _ensure_index(self, collection: Collection, keys, name: str, **kwargs):
+        """安全建立索引，避免名稱或參數衝突"""
+        index_kwargs = {'name': name, 'background': True}
+        index_kwargs.update(kwargs)
+
+        # _id 索引不允許 background / unique 參數
+        if len(keys) == 1 and keys[0][0] == '_id':
+            index_kwargs.pop('background', None)
+            index_kwargs.pop('unique', None)
+
+        try:
+            collection.create_index(keys, **index_kwargs)
+        except OperationFailure as e:
+            if e.code in (85, 86):
+                logger.warning(
+                    "索引衝突，嘗試重新建立 %s: %s",
+                    name,
+                    e.details.get('errmsg') if hasattr(e, 'details') else str(e)
+                )
+
+                existing_name = (
+                    name if e.code == 86 else self._find_existing_index(collection, keys)
+                )
+
+                if not existing_name:
+                    existing_name = self._parse_existing_index_name(e)
+
+                if existing_name:
+                    try:
+                        collection.drop_index(existing_name)
+                        collection.create_index(keys, **index_kwargs)
+                        return
+                    except Exception as recreate_error:
+                        logger.error(
+                            "重新建立索引失敗 %s: %s",
+                            name,
+                            recreate_error
+                        )
+
+            logger.warning(f"建立索引失敗 ({name}): {e}")
+        except Exception as e:
+            logger.warning(f"建立索引失敗 ({name}): {e}")
+
+    def _find_existing_index(self, collection: Collection, keys) -> Optional[str]:
+        """尋找與給定 keys 相同的現有索引名稱"""
+        key_doc = dict(keys)
+        try:
+            for index in collection.list_indexes():
+                if dict(index['key']) == key_doc:
+                    return index['name']
+        except Exception as e:
+            logger.debug(f"列出索引失敗: {e}")
+        return None
+
+    def _parse_existing_index_name(self, error: OperationFailure) -> Optional[str]:
+        message = ''
+        if hasattr(error, 'details') and error.details:
+            message = error.details.get('errmsg', '')
+        if not message:
+            message = str(error)
+
+        if ':' in message:
+            candidate = message.split(':')[-1].strip().strip('.')
+            if candidate:
+                return candidate
+        return None
+
     def _create_indexes(self):
         """創建必要的索引"""
         try:
@@ -67,40 +134,103 @@ class MongoDBHandler:
 
             # recordings 集合索引
             recordings = self._db[config.COLLECTIONS['recordings']]
-            recordings.create_index([('AnalyzeUUID', ASCENDING)], unique=True)
-            recordings.create_index([('info_features.dataset_UUID', ASCENDING)])
-            recordings.create_index([('info_features.device_id', ASCENDING)])
-            recordings.create_index([('info_features.upload_time', DESCENDING)])
-            recordings.create_index([('analyze_features.active_analysis_id', ASCENDING)])
+            self._ensure_index(
+                recordings,
+                [('AnalyzeUUID', ASCENDING)],
+                name='idx_recordings_analyze_uuid',
+                unique=True
+            )
+            self._ensure_index(
+                recordings,
+                [('info_features.dataset_UUID', ASCENDING)],
+                name='idx_recordings_dataset_uuid'
+            )
+            self._ensure_index(
+                recordings,
+                [('info_features.device_id', ASCENDING)],
+                name='idx_recordings_device_id'
+            )
+            self._ensure_index(
+                recordings,
+                [('info_features.upload_time', DESCENDING)],
+                name='idx_recordings_upload_time'
+            )
+            self._ensure_index(
+                recordings,
+                [('analyze_features.active_analysis_id', ASCENDING)],
+                name='idx_recordings_active_analysis_id'
+            )
 
             # analysis_configs 集合索引
             configs = self._db[config.COLLECTIONS['analysis_configs']]
-            configs.create_index([('analysis_method_id', ASCENDING)])
-            configs.create_index([('config_id', ASCENDING)], unique=True)
+            self._ensure_index(
+                configs,
+                [('analysis_method_id', ASCENDING)],
+                name='idx_analysis_configs_method_id'
+            )
+            self._ensure_index(
+                configs,
+                [('config_id', ASCENDING)],
+                name='idx_analysis_configs_config_id',
+                unique=True
+            )
 
             # routing_rules 集合索引
             rules = self._db[config.COLLECTIONS['routing_rules']]
-            rules.create_index([('rule_id', ASCENDING)], unique=True)
-            rules.create_index([('enabled', ASCENDING)])
-            rules.create_index([('priority', DESCENDING)])
+            self._ensure_index(
+                rules,
+                [('rule_id', ASCENDING)],
+                name='idx_routing_rules_rule_id',
+                unique=True
+            )
+            self._ensure_index(
+                rules,
+                [('enabled', ASCENDING)],
+                name='idx_routing_rules_enabled'
+            )
+            self._ensure_index(
+                rules,
+                [('priority', DESCENDING)],
+                name='idx_routing_rules_priority'
+            )
 
             # mongodb_instances 集合索引
             instances = self._db[config.COLLECTIONS['mongodb_instances']]
-            instances.create_index([('instance_id', ASCENDING)], unique=True)
-            instances.create_index([('enabled', ASCENDING)])
+            self._ensure_index(
+                instances,
+                [('instance_id', ASCENDING)],
+                name='idx_mongodb_instances_instance_id',
+                unique=True
+            )
+            self._ensure_index(
+                instances,
+                [('enabled', ASCENDING)],
+                name='idx_mongodb_instances_enabled'
+            )
 
             # nodes_status 集合索引（取代 Redis）
             nodes_status = self._db['nodes_status']
             # TTL Index: 自動清理超過 60 秒無心跳的節點
-            nodes_status.create_index(
+            self._ensure_index(
+                nodes_status,
                 [('last_heartbeat', ASCENDING)],
-                expireAfterSeconds=60
+                name='idx_nodes_status_last_heartbeat',
+                expireAfterSeconds=config.NODE_HEARTBEAT_TIMEOUT
             )
-            nodes_status.create_index([('created_at', DESCENDING)])
+            self._ensure_index(
+                nodes_status,
+                [('created_at', DESCENDING)],
+                name='idx_nodes_status_created_at'
+            )
 
             # system_metadata 集合索引
             system_metadata = self._db['system_metadata']
-            system_metadata.create_index([('_id', ASCENDING)], unique=True)
+            self._ensure_index(
+                system_metadata,
+                [('_id', ASCENDING)],
+                name='idx_system_metadata_id',
+                unique=True
+            )
 
             logger.info("MongoDB 索引創建完成")
 
