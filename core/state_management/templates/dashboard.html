@@ -1,12 +1,12 @@
 {% extends "base.html" %}
 
-{% block title %}仪表板{% endblock %}
-{% block page_title %}仪表板{% endblock %}
+{% block title %}儀表板{% endblock %}
+{% block page_title %}儀表板{% endblock %}
 
 {% block content %}
-<!-- 统计卡片 -->
+<!-- 統計卡片 -->
 <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4 mb-8">
-    <!-- 分析配置 -->
+    <!-- 分析設定 -->
     <div class="overflow-hidden rounded-lg bg-white shadow">
         <div class="p-5">
             <div class="flex items-center">
@@ -17,7 +17,7 @@
                 </div>
                 <div class="ml-5 w-0 flex-1">
                     <dl>
-                        <dt class="text-sm font-medium text-gray-500 truncate">分析配置</dt>
+                        <dt class="text-sm font-medium text-gray-500 truncate">分析設定</dt>
                         <dd class="flex items-baseline">
                             <div class="text-2xl font-semibold text-gray-900">{{ stats.configs.enabled if stats.configs else 0 }}</div>
                             <div class="ml-2 text-sm text-gray-500">/ {{ stats.configs.total if stats.configs else 0 }}</div>
@@ -28,12 +28,12 @@
         </div>
         <div class="bg-gray-50 px-5 py-3">
             <a href="{{ url_for('views.configs_list') }}" class="text-sm font-medium text-indigo-600 hover:text-indigo-500">
-                查看详情 <i class="fas fa-arrow-right ml-1"></i>
+                檢視詳情 <i class="fas fa-arrow-right ml-1"></i>
             </a>
         </div>
     </div>
 
-    <!-- 路由规则 -->
+    <!-- 路由規則 -->
     <div class="overflow-hidden rounded-lg bg-white shadow">
         <div class="p-5">
             <div class="flex items-center">
@@ -44,7 +44,7 @@
                 </div>
                 <div class="ml-5 w-0 flex-1">
                     <dl>
-                        <dt class="text-sm font-medium text-gray-500 truncate">路由规则</dt>
+                        <dt class="text-sm font-medium text-gray-500 truncate">路由規則</dt>
                         <dd class="flex items-baseline">
                             <div class="text-2xl font-semibold text-gray-900">{{ stats.routing_rules.enabled if stats.routing_rules else 0 }}</div>
                             <div class="ml-2 text-sm text-gray-500">/ {{ stats.routing_rules.total if stats.routing_rules else 0 }}</div>
@@ -55,12 +55,12 @@
         </div>
         <div class="bg-gray-50 px-5 py-3">
             <a href="{{ url_for('views.routing_list') }}" class="text-sm font-medium text-green-600 hover:text-green-500">
-                查看详情 <i class="fas fa-arrow-right ml-1"></i>
+                檢視詳情 <i class="fas fa-arrow-right ml-1"></i>
             </a>
         </div>
     </div>
 
-    <!-- MongoDB 实例 -->
+    <!-- MongoDB 實例 -->
     <div class="overflow-hidden rounded-lg bg-white shadow">
         <div class="p-5">
             <div class="flex items-center">
@@ -71,7 +71,7 @@
                 </div>
                 <div class="ml-5 w-0 flex-1">
                     <dl>
-                        <dt class="text-sm font-medium text-gray-500 truncate">MongoDB 实例</dt>
+                        <dt class="text-sm font-medium text-gray-500 truncate">MongoDB 實例</dt>
                         <dd class="flex items-baseline">
                             <div class="text-2xl font-semibold text-gray-900">{{ stats.mongodb_instances.enabled if stats.mongodb_instances else 0 }}</div>
                             <div class="ml-2 text-sm text-gray-500">/ {{ stats.mongodb_instances.total if stats.mongodb_instances else 0 }}</div>
@@ -82,12 +82,12 @@
         </div>
         <div class="bg-gray-50 px-5 py-3">
             <a href="{{ url_for('views.instances_list') }}" class="text-sm font-medium text-yellow-600 hover:text-yellow-500">
-                查看详情 <i class="fas fa-arrow-right ml-1"></i>
+                檢視詳情 <i class="fas fa-arrow-right ml-1"></i>
             </a>
         </div>
     </div>
 
-    <!-- 在线节点 -->
+    <!-- 在線節點 -->
     <div class="overflow-hidden rounded-lg bg-white shadow">
         <div class="p-5">
             <div class="flex items-center">
@@ -98,7 +98,7 @@
                 </div>
                 <div class="ml-5 w-0 flex-1">
                     <dl>
-                        <dt class="text-sm font-medium text-gray-500 truncate">在线节点</dt>
+                        <dt class="text-sm font-medium text-gray-500 truncate">在線節點</dt>
                         <dd class="flex items-baseline">
                             <div class="text-2xl font-semibold text-gray-900">{{ stats.nodes.online if stats.nodes else 0 }}</div>
                             <div class="ml-2 text-sm text-gray-500">/ {{ stats.nodes.total if stats.nodes else 0 }}</div>
@@ -109,19 +109,19 @@
         </div>
         <div class="bg-gray-50 px-5 py-3">
             <a href="{{ url_for('views.nodes_list') }}" class="text-sm font-medium text-blue-600 hover:text-blue-500">
-                查看详情 <i class="fas fa-arrow-right ml-1"></i>
+                檢視詳情 <i class="fas fa-arrow-right ml-1"></i>
             </a>
         </div>
     </div>
 </div>
 
 <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
-    <!-- 最近更新的配置 -->
+    <!-- 最近更新的設定 -->
     <div class="bg-white shadow rounded-lg">
         <div class="px-6 py-5 border-b border-gray-200">
             <h3 class="text-lg font-medium text-gray-900">
                 <i class="fas fa-clock mr-2 text-gray-400"></i>
-                最近更新的配置
+                最近更新的設定
             </h3>
         </div>
         <div class="px-6 py-4">
@@ -141,11 +141,11 @@
                         <div class="ml-4 flex-shrink-0">
                             {% if config.enabled %}
                             <span class="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
-                                启用
+                                啟用
                             </span>
                             {% else %}
                             <span class="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-800">
-                                禁用
+                                停用
                             </span>
                             {% endif %}
                         </div>
@@ -154,17 +154,17 @@
                 {% endfor %}
             </ul>
             {% else %}
-            <p class="text-sm text-gray-500 text-center py-4">暂无配置</p>
+            <p class="text-sm text-gray-500 text-center py-4">暫無設定</p>
             {% endif %}
         </div>
     </div>
 
-    <!-- 在线节点列表 -->
+    <!-- 在線節點列表 -->
     <div class="bg-white shadow rounded-lg">
         <div class="px-6 py-5 border-b border-gray-200">
             <h3 class="text-lg font-medium text-gray-900">
                 <i class="fas fa-server mr-2 text-gray-400"></i>
-                在线节点
+                在線節點
             </h3>
         </div>
         <div class="px-6 py-4">
@@ -179,13 +179,13 @@
                                 {{ node.node_id }}
                             </p>
                             <p class="text-sm text-gray-500">
-                                任务: {{ node.current_tasks }} / {{ node.max_concurrent_tasks }}
+                                任務: {{ node.current_tasks }} / {{ node.max_concurrent_tasks }}
                             </p>
                         </div>
                         <div class="ml-4">
                             <a href="{{ url_for('views.node_detail', node_id=node.node_id) }}"
                                class="text-indigo-600 hover:text-indigo-900 text-sm">
-                                详情 <i class="fas fa-arrow-right ml-1"></i>
+                                詳情 <i class="fas fa-arrow-right ml-1"></i>
                             </a>
                         </div>
                     </div>
@@ -193,7 +193,7 @@
                 {% endfor %}
             </ul>
             {% else %}
-            <p class="text-sm text-gray-500 text-center py-4">暂无在线节点</p>
+            <p class="text-sm text-gray-500 text-center py-4">暫無在線節點</p>
             {% endif %}
         </div>
     </div>

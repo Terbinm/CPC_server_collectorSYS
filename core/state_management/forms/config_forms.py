@@ -1,5 +1,5 @@
 """
-配置管理相关表单
+設定管理相關表單
 """
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileField, FileAllowed
@@ -8,87 +8,87 @@ from wtforms.validators import DataRequired, Length, Optional
 
 
 class ConfigForm(FlaskForm):
-    """分析配置表单"""
+    """分析設定表單"""
     analysis_method_id = StringField('分析方法 ID',
-                                     validators=[DataRequired(message='请输入分析方法 ID'),
+                                     validators=[DataRequired(message='請輸入分析方法 ID'),
                                                Length(max=100)])
-    config_name = StringField('配置名称',
-                             validators=[DataRequired(message='请输入配置名称'),
+    config_name = StringField('設定名稱',
+                             validators=[DataRequired(message='請輸入設定名稱'),
                                        Length(max=200)])
     description = TextAreaField('描述',
                                validators=[Optional(),
                                          Length(max=500)])
-    parameters = TextAreaField('参数 (JSON 格式)',
+    parameters = TextAreaField('參數 (JSON 格式)',
                               validators=[Optional()],
-                              render_kw={'rows': 10, 'placeholder': '请输入 JSON 格式的参数配置'})
-    enabled = BooleanField('启用', default=True)
-    submit = SubmitField('保存')
+                              render_kw={'rows': 10, 'placeholder': '請輸入 JSON 格式的參數設定'})
+    enabled = BooleanField('啟用', default=True)
+    submit = SubmitField('儲存')
 
 
 class ModelUploadForm(FlaskForm):
-    """模型文件上传表单"""
-    file = FileField('模型文件',
+    """模型檔案上傳表單"""
+    file = FileField('模型檔案',
                     validators=[
-                        DataRequired(message='请选择文件'),
+                        DataRequired(message='請選擇檔案'),
                         FileAllowed(['pkl', 'pth', 'h5', 'onnx', 'pb'],
-                                  message='只支持 .pkl, .pth, .h5, .onnx, .pb 格式的文件')
+                                  message='僅支援 .pkl、.pth、.h5、.onnx、.pb 格式檔案')
                     ])
-    config_id = HiddenField('配置 ID')
-    submit = SubmitField('上传')
+    config_id = HiddenField('設定 ID')
+    submit = SubmitField('上傳')
 
 
 class RoutingRuleForm(FlaskForm):
-    """路由规则表单"""
-    rule_name = StringField('规则名称',
-                           validators=[DataRequired(message='请输入规则名称'),
+    """路由規則表單"""
+    rule_name = StringField('規則名稱',
+                           validators=[DataRequired(message='請輸入規則名稱'),
                                      Length(max=200)])
     description = TextAreaField('描述',
                                validators=[Optional(),
                                          Length(max=500)])
-    priority = StringField('优先级',
-                          validators=[DataRequired(message='请输入优先级')],
+    priority = StringField('優先級',
+                          validators=[DataRequired(message='請輸入優先級')],
                           render_kw={'type': 'number', 'min': '0', 'value': '0'})
-    conditions = TextAreaField('匹配条件 (JSON 格式)',
-                              validators=[DataRequired(message='请输入匹配条件')],
-                              render_kw={'rows': 8, 'placeholder': '请输入 JSON 格式的匹配条件'})
+    conditions = TextAreaField('匹配條件 (JSON 格式)',
+                              validators=[DataRequired(message='請輸入匹配條件')],
+                              render_kw={'rows': 8, 'placeholder': '請輸入 JSON 格式的匹配條件'})
     actions = TextAreaField('操作 (JSON 格式)',
-                           validators=[DataRequired(message='请输入操作配置')],
-                           render_kw={'rows': 8, 'placeholder': '请输入 JSON 格式的操作配置'})
-    enabled = BooleanField('启用', default=True)
-    submit = SubmitField('保存')
+                           validators=[DataRequired(message='請輸入操作設定')],
+                           render_kw={'rows': 8, 'placeholder': '請輸入 JSON 格式的操作設定'})
+    enabled = BooleanField('啟用', default=True)
+    submit = SubmitField('儲存')
 
 
 class MongoDBInstanceForm(FlaskForm):
-    """MongoDB 实例表单"""
-    instance_name = StringField('实例名称',
-                               validators=[DataRequired(message='请输入实例名称'),
+    """MongoDB 實例表單"""
+    instance_name = StringField('實例名稱',
+                               validators=[DataRequired(message='請輸入實例名稱'),
                                          Length(max=200)])
     description = TextAreaField('描述',
                                validators=[Optional(),
                                          Length(max=500)])
-    host = StringField('主机地址',
-                      validators=[DataRequired(message='请输入主机地址'),
+    host = StringField('主機位址',
+                      validators=[DataRequired(message='請輸入主機位址'),
                                 Length(max=100)])
-    port = StringField('端口',
-                      validators=[DataRequired(message='请输入端口')],
+    port = StringField('連接埠',
+                      validators=[DataRequired(message='請輸入連接埠')],
                       render_kw={'type': 'number', 'min': '1', 'max': '65535', 'value': '27017'})
-    username = StringField('用户名',
-                          validators=[DataRequired(message='请输入用户名'),
+    username = StringField('使用者名稱',
+                          validators=[DataRequired(message='請輸入使用者名稱'),
                                     Length(max=100)])
-    password = StringField('密码',
-                          validators=[DataRequired(message='请输入密码'),
+    password = StringField('密碼',
+                          validators=[DataRequired(message='請輸入密碼'),
                                     Length(max=200)],
                           render_kw={'type': 'password'})
-    database = StringField('数据库名',
-                          validators=[DataRequired(message='请输入数据库名'),
+    database = StringField('資料庫名稱',
+                          validators=[DataRequired(message='請輸入資料庫名稱'),
                                     Length(max=100)])
-    collection = StringField('集合名',
+    collection = StringField('集合名稱',
                             validators=[Optional(),
                                       Length(max=100)],
                             render_kw={'value': 'recordings'})
-    auth_source = StringField('认证数据库',
+    auth_source = StringField('認證資料庫',
                              validators=[Optional(),
                                        Length(max=100)],
                              render_kw={'value': 'admin'})
-    enabled = BooleanField('启用', default=True)
-    submit = SubmitField('保存')
+    enabled = BooleanField('啟用', default=True)
+    submit = SubmitField('儲存')

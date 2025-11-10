@@ -1,20 +1,20 @@
 {% extends "base.html" %}
 
-{% block title %}实例详情{% endblock %}
-{% block page_title %}MongoDB 实例详情{% endblock %}
+{% block title %}實例詳情{% endblock %}
+{% block page_title %}MongoDB 實例詳情{% endblock %}
 
 {% block content %}
 <div class="max-w-4xl">
-    <!-- 操作按钮 -->
+    <!-- 操作按鈕 -->
     <div class="mb-6 flex justify-end gap-2">
         {% if current_user.is_admin() %}
         <button onclick="testConnection()"
                 class="inline-flex items-center rounded-md bg-green-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-500">
-            <i class="fas fa-plug mr-2"></i> 测试连接
+            <i class="fas fa-plug mr-2"></i> 測試連線
         </button>
         <a href="{{ url_for('views.instance_edit', instance_id=instance.instance_id) }}"
            class="inline-flex items-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500">
-            <i class="fas fa-edit mr-2"></i> 编辑
+            <i class="fas fa-edit mr-2"></i> 編輯
         </a>
         {% endif %}
         <a href="{{ url_for('views.instances_list') }}"
@@ -23,37 +23,37 @@
         </a>
     </div>
 
-    <!-- 基本信息 -->
+    <!-- 基本資訊 -->
     <div class="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
         <div class="px-6 py-5 border-b border-gray-200">
-            <h3 class="text-lg font-medium text-gray-900">实例信息</h3>
+            <h3 class="text-lg font-medium text-gray-900">實例資訊</h3>
         </div>
         <div class="px-6 py-4">
             <dl class="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
                 <div>
-                    <dt class="text-sm font-medium text-gray-500">实例 ID</dt>
+                    <dt class="text-sm font-medium text-gray-500">實例 ID</dt>
                     <dd class="mt-1 text-sm text-gray-900">
                         <code class="bg-gray-100 px-2 py-1 rounded">{{ instance.instance_id }}</code>
                     </dd>
                 </div>
                 <div>
-                    <dt class="text-sm font-medium text-gray-500">实例名称</dt>
+                    <dt class="text-sm font-medium text-gray-500">實例名稱</dt>
                     <dd class="mt-1 text-sm text-gray-900 font-semibold">{{ instance.instance_name }}</dd>
                 </div>
                 <div>
-                    <dt class="text-sm font-medium text-gray-500">主机地址</dt>
+                    <dt class="text-sm font-medium text-gray-500">主機位址</dt>
                     <dd class="mt-1 text-sm text-gray-900">{{ instance.host }}</dd>
                 </div>
                 <div>
-                    <dt class="text-sm font-medium text-gray-500">端口</dt>
+                    <dt class="text-sm font-medium text-gray-500">連接埠</dt>
                     <dd class="mt-1 text-sm text-gray-900">{{ instance.port }}</dd>
                 </div>
                 <div>
-                    <dt class="text-sm font-medium text-gray-500">用户名</dt>
+                    <dt class="text-sm font-medium text-gray-500">使用者名稱</dt>
                     <dd class="mt-1 text-sm text-gray-900">{{ instance.username }}</dd>
                 </div>
                 <div>
-                    <dt class="text-sm font-medium text-gray-500">数据库</dt>
+                    <dt class="text-sm font-medium text-gray-500">資料庫</dt>
                     <dd class="mt-1 text-sm text-gray-900">
                         <code class="bg-gray-100 px-2 py-1 rounded">{{ instance.database }}</code>
                     </dd>
@@ -65,19 +65,19 @@
                     </dd>
                 </div>
                 <div>
-                    <dt class="text-sm font-medium text-gray-500">认证数据库</dt>
+                    <dt class="text-sm font-medium text-gray-500">認證資料庫</dt>
                     <dd class="mt-1 text-sm text-gray-900">{{ instance.auth_source }}</dd>
                 </div>
                 <div>
-                    <dt class="text-sm font-medium text-gray-500">状态</dt>
+                    <dt class="text-sm font-medium text-gray-500">狀態</dt>
                     <dd class="mt-1 text-sm text-gray-900">
                         {% if instance.enabled %}
                         <span class="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
-                            <i class="fas fa-check-circle mr-1"></i> 启用
+                            <i class="fas fa-check-circle mr-1"></i> 啟用
                         </span>
                         {% else %}
                         <span class="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-800">
-                            <i class="fas fa-times-circle mr-1"></i> 禁用
+                            <i class="fas fa-times-circle mr-1"></i> 停用
                         </span>
                         {% endif %}
                     </dd>
@@ -87,13 +87,13 @@
                     <dd class="mt-1 text-sm text-gray-900">{{ instance.description if instance.description else '-' }}</dd>
                 </div>
                 <div>
-                    <dt class="text-sm font-medium text-gray-500">创建时间</dt>
+                    <dt class="text-sm font-medium text-gray-500">建立時間</dt>
                     <dd class="mt-1 text-sm text-gray-900">
                         {{ instance.created_at.strftime('%Y-%m-%d %H:%M:%S') if instance.created_at else '-' }}
                     </dd>
                 </div>
                 <div>
-                    <dt class="text-sm font-medium text-gray-500">更新时间</dt>
+                    <dt class="text-sm font-medium text-gray-500">更新時間</dt>
                     <dd class="mt-1 text-sm text-gray-900">
                         {{ instance.updated_at.strftime('%Y-%m-%d %H:%M:%S') if instance.updated_at else '-' }}
                     </dd>
@@ -117,12 +117,12 @@ async function testConnection() {
         const data = await response.json();
 
         if (data.success) {
-            alert('✓ 连接测试成功\n\n' + data.message);
+            alert('✓ 連線測試成功\\n\\n' + data.message);
         } else {
-            alert('✗ 连接测试失败\n\n' + data.message);
+            alert('✗ 連線測試失敗\\n\\n' + data.message);
         }
     } catch (error) {
-        alert('✗ 连接测试失败\n\n' + error.message);
+        alert('✗ 連線測試失敗\\n\\n' + error.message);
     }
 }
 </script>

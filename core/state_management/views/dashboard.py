@@ -1,6 +1,6 @@
 """
-仪表板视图
-显示系统概览和统计信息
+儀表板視圖
+顯示系統概覽與統計資訊
 """
 from flask import render_template
 from flask_login import login_required
@@ -20,11 +20,11 @@ logger = logging.getLogger(__name__)
 @login_required
 def dashboard():
     """
-    仪表板主页
-    显示系统整体状态和统计信息
+    儀表板首頁
+    顯示系統整體狀態與統計資訊
     """
     try:
-        # 获取统计数据
+        # 取得統計資料
         stats = {
             'configs': {
                 'total': AnalysisConfig.count_all(),
@@ -48,10 +48,10 @@ def dashboard():
             }
         }
 
-        # 获取最近更新的配置（前5个）
+        # 取得最近更新的設定（前5筆）
         recent_configs = AnalysisConfig.get_all(limit=5)
 
-        # 获取在线节点列表
+        # 取得在線節點列表
         online_nodes = NodeStatus.get_online_nodes()
 
         return render_template(
@@ -62,11 +62,11 @@ def dashboard():
         )
 
     except Exception as e:
-        logger.error(f"加载仪表板数据失败: {str(e)}")
+        logger.error(f"載入儀表板資料失敗: {str(e)}")
         return render_template(
             'dashboard.html',
             stats={},
             recent_configs=[],
             online_nodes=[],
-            error="加载数据失败"
+            error="載入資料失敗"
         )

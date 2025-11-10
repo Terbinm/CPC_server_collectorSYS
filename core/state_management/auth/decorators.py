@@ -1,6 +1,6 @@
 """
-权限装饰器
-用于控制路由的访问权限
+權限裝飾器
+用於控制路由的存取權限
 """
 from functools import wraps
 from flask import flash, redirect, url_for, abort
@@ -12,13 +12,13 @@ logger = logging.getLogger(__name__)
 
 def login_required(f):
     """
-    要求用户登录的装饰器
-    Flask-Login 已提供，此处为自定义版本
+    要求使用者登入的裝飾器
+    Flask-Login 已提供，此處為自訂版本
     """
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if not current_user.is_authenticated:
-            flash('请先登录', 'warning')
+            flash('請先登入', 'warning')
             return redirect(url_for('auth.login'))
         return f(*args, **kwargs)
     return decorated_function
@@ -26,17 +26,17 @@ def login_required(f):
 
 def admin_required(f):
     """
-    要求管理员权限的装饰器
+    要求管理員權限的裝飾器
     """
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if not current_user.is_authenticated:
-            flash('请先登录', 'warning')
+            flash('請先登入', 'warning')
             return redirect(url_for('auth.login'))
 
         if not current_user.is_admin():
-            logger.warning(f"用户 {current_user.username} 尝试访问管理员页面")
-            flash('您没有权限访问此页面', 'danger')
+            logger.warning(f"使用者 {current_user.username} 嘗試存取管理員頁面")
+            flash('您沒有權限存取此頁面', 'danger')
             abort(403)
 
         return f(*args, **kwargs)
@@ -45,10 +45,10 @@ def admin_required(f):
 
 def role_required(*roles):
     """
-    要求特定角色的装饰器（工厂函数）
+    要求特定角色的裝飾器（工廠函式）
 
     Args:
-        *roles: 允许的角色列表
+        *roles: 允許的角色列表
 
     Usage:
         @role_required('admin', 'user')
@@ -59,15 +59,15 @@ def role_required(*roles):
         @wraps(f)
         def decorated_function(*args, **kwargs):
             if not current_user.is_authenticated:
-                flash('请先登录', 'warning')
+                flash('請先登入', 'warning')
                 return redirect(url_for('auth.login'))
 
             if current_user.role not in roles:
                 logger.warning(
-                    f"用户 {current_user.username} (角色: {current_user.role}) "
-                    f"尝试访问需要角色 {roles} 的页面"
+                    f"使用者 {current_user.username} (角色: {current_user.role}) "
+                    f"嘗試存取需要角色 {roles} 的頁面"
                 )
-                flash('您没有权限访问此页面', 'danger')
+                flash('您沒有權限存取此頁面', 'danger')
                 abort(403)
 
             return f(*args, **kwargs)
@@ -77,17 +77,17 @@ def role_required(*roles):
 
 def active_required(f):
     """
-    要求用户账户为激活状态的装饰器
+    要求使用者帳戶啟用狀態的裝飾器
     """
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if not current_user.is_authenticated:
-            flash('请先登录', 'warning')
+            flash('請先登入', 'warning')
             return redirect(url_for('auth.login'))
 
         if not current_user.is_active:
-            logger.warning(f"未激活用户 {current_user.username} 尝试访问")
-            flash('您的账户已被停用，请联系管理员', 'danger')
+            logger.warning(f"未啟用使用者 {current_user.username} 嘗試存取")
+            flash('您的帳戶已被停用，請聯絡管理員', 'danger')
             return redirect(url_for('auth.login'))
 
         return f(*args, **kwargs)

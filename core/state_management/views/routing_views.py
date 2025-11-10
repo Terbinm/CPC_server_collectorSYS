@@ -1,6 +1,6 @@
 """
-路由规则管理视图
-处理路由规则的 CRUD 操作
+路由規則管理視圖
+處理路由規則的 CRUD 操作
 """
 from flask import render_template, redirect, url_for, flash, request, jsonify
 from flask_login import login_required
@@ -18,13 +18,13 @@ logger = logging.getLogger(__name__)
 @login_required
 def routing_list():
     """
-    路由规则列表页面
+    路由規則列表頁面
     """
     try:
-        # 获取查询参数
+        # 取得查詢參數
         enabled_only = request.args.get('enabled_only', 'true').lower() == 'true'
 
-        # 获取规则列表（按优先级排序）
+        # 取得規則列表（依優先級排序）
         rules = RoutingRule.get_all(enabled_only=enabled_only)
 
         return render_template(
@@ -34,8 +34,8 @@ def routing_list():
         )
 
     except Exception as e:
-        logger.error(f"加载路由规则列表失败: {str(e)}")
-        flash('加载路由规则列表失败', 'danger')
+        logger.error(f"載入路由規則列表失敗: {str(e)}")
+        flash('載入路由規則列表失敗', 'danger')
         return render_template('routing/list.html', rules=[], enabled_only=True)
 
 
@@ -43,22 +43,22 @@ def routing_list():
 @admin_required
 def routing_create():
     """
-    创建新路由规则
+    建立新路由規則
     """
     form = RoutingRuleForm()
 
     if form.validate_on_submit():
         try:
-            # 解析 JSON 数据
+            # 解析 JSON 資料
             try:
                 conditions = json.loads(form.conditions.data)
                 actions = json.loads(form.actions.data)
                 priority = int(form.priority.data)
             except (json.JSONDecodeError, ValueError) as e:
-                flash(f'JSON 格式错误: {str(e)}', 'danger')
+                flash(f'JSON 格式錯誤: {str(e)}', 'danger')
                 return render_template('routing/edit.html', form=form, mode='create')
 
-            # 创建规则
+            # 建立規則
             rule = RoutingRule.create(
                 rule_name=form.rule_name.data,
                 description=form.description.data,
@@ -69,15 +69,15 @@ def routing_create():
             )
 
             if rule:
-                logger.info(f"路由规则创建成功: {rule.rule_id}")
-                flash('路由规则创建成功', 'success')
+                logger.info(f"路由規則建立成功: {rule.rule_id}")
+                flash('路由規則建立成功', 'success')
                 return redirect(url_for('views.routing_list'))
             else:
-                flash('路由规则创建失败', 'danger')
+                flash('路由規則建立失敗', 'danger')
 
         except Exception as e:
-            logger.error(f"创建路由规则失败: {str(e)}")
-            flash(f'创建路由规则失败: {str(e)}', 'danger')
+            logger.error(f"建立路由規則失敗: {str(e)}")
+            flash(f'建立路由規則失敗: {str(e)}', 'danger')
 
     return render_template('routing/edit.html', form=form, mode='create')
 
@@ -86,24 +86,24 @@ def routing_create():
 @admin_required
 def routing_edit(rule_id):
     """
-    编辑路由规则
+    編輯路由規則
     """
     rule = RoutingRule.get_by_id(rule_id)
     if not rule:
-        flash('路由规则不存在', 'danger')
+        flash('路由規則不存在', 'danger')
         return redirect(url_for('views.routing_list'))
 
     form = RoutingRuleForm()
 
     if form.validate_on_submit():
         try:
-            # 解析 JSON 数据
+            # 解析 JSON 資料
             try:
                 conditions = json.loads(form.conditions.data)
                 actions = json.loads(form.actions.data)
                 priority = int(form.priority.data)
             except (json.JSONDecodeError, ValueError) as e:
-                flash(f'JSON 格式错误: {str(e)}', 'danger')
+                flash(f'JSON 格式錯誤: {str(e)}', 'danger')
                 return render_template(
                     'routing/edit.html',
                     form=form,
@@ -111,7 +111,7 @@ def routing_edit(rule_id):
                     rule=rule
                 )
 
-            # 更新规则
+            # 更新規則
             success = rule.update(
                 rule_name=form.rule_name.data,
                 description=form.description.data,
@@ -122,15 +122,15 @@ def routing_edit(rule_id):
             )
 
             if success:
-                logger.info(f"路由规则更新成功: {rule_id}")
-                flash('路由规则更新成功', 'success')
+                logger.info(f"路由規則更新成功: {rule_id}")
+                flash('路由規則更新成功', 'success')
                 return redirect(url_for('views.routing_list'))
             else:
-                flash('路由规则更新失败', 'danger')
+                flash('路由規則更新失敗', 'danger')
 
         except Exception as e:
-            logger.error(f"更新路由规则失败: {str(e)}")
-            flash(f'更新路由规则失败: {str(e)}', 'danger')
+            logger.error(f"更新路由規則失敗: {str(e)}")
+            flash(f'更新路由規則失敗: {str(e)}', 'danger')
 
     elif request.method == 'GET':
         # 填充表单数据
@@ -153,11 +153,11 @@ def routing_edit(rule_id):
 @login_required
 def routing_view(rule_id):
     """
-    查看路由规则详情
+    查看路由規則詳情
     """
     rule = RoutingRule.get_by_id(rule_id)
     if not rule:
-        flash('路由规则不存在', 'danger')
+        flash('路由規則不存在', 'danger')
         return redirect(url_for('views.routing_list'))
 
     return render_template('routing/view.html', rule=rule)
@@ -167,20 +167,20 @@ def routing_view(rule_id):
 @admin_required
 def routing_delete(rule_id):
     """
-    删除路由规则
+    刪除路由規則
     """
     try:
         success = RoutingRule.delete(rule_id)
 
         if success:
-            logger.info(f"路由规则删除成功: {rule_id}")
-            flash('路由规则删除成功', 'success')
+            logger.info(f"路由規則刪除成功: {rule_id}")
+            flash('路由規則刪除成功', 'success')
         else:
-            flash('路由规则删除失败', 'danger')
+            flash('路由規則刪除失敗', 'danger')
 
     except Exception as e:
-        logger.error(f"删除路由规则失败: {str(e)}")
-        flash(f'删除路由规则失败: {str(e)}', 'danger')
+        logger.error(f"刪除路由規則失敗: {str(e)}")
+        flash(f'刪除路由規則失敗: {str(e)}', 'danger')
 
     return redirect(url_for('views.routing_list'))
 
@@ -189,28 +189,28 @@ def routing_delete(rule_id):
 @admin_required
 def routing_toggle(rule_id):
     """
-    切换路由规则启用状态
+    切換路由規則啟用狀態
     """
     try:
         rule = RoutingRule.get_by_id(rule_id)
         if not rule:
-            return jsonify({'success': False, 'message': '路由规则不存在'}), 404
+            return jsonify({'success': False, 'message': '路由規則不存在'}), 404
 
         new_status = not rule.enabled
         success = rule.update(enabled=new_status)
 
         if success:
-            logger.info(f"路由规则状态切换成功: {rule_id} -> {new_status}")
+            logger.info(f"路由規則狀態切換成功: {rule_id} -> {new_status}")
             return jsonify({
                 'success': True,
                 'enabled': new_status,
-                'message': f'路由规则已{"启用" if new_status else "禁用"}'
+                'message': f'路由規則已{"啟用" if new_status else "停用"}'
             })
         else:
-            return jsonify({'success': False, 'message': '更新失败'}), 500
+            return jsonify({'success': False, 'message': '更新失敗'}), 500
 
     except Exception as e:
-        logger.error(f"切换路由规则状态失败: {str(e)}")
+        logger.error(f"切換路由規則狀態失敗: {str(e)}")
         return jsonify({'success': False, 'message': str(e)}), 500
 
 
@@ -218,19 +218,19 @@ def routing_toggle(rule_id):
 @login_required
 def routing_test():
     """
-    测试路由规则匹配
+    測試路由規則匹配
     """
     try:
         data = request.get_json()
         if not data or 'info_features' not in data:
             return jsonify({
                 'success': False,
-                'message': '请提供 info_features 数据'
+                'message': '請提供 info_features 資料'
             }), 400
 
         info_features = data['info_features']
 
-        # 测试匹配
+        # 測試匹配
         matched_rules = RoutingRule.test_match(info_features)
 
         return jsonify({
@@ -248,5 +248,5 @@ def routing_test():
         })
 
     except Exception as e:
-        logger.error(f"测试路由规则失败: {str(e)}")
+        logger.error(f"測試路由規則失敗: {str(e)}")
         return jsonify({'success': False, 'message': str(e)}), 500

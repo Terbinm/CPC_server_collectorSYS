@@ -1,6 +1,6 @@
 """
-用户管理视图（仅管理员）
-处理用户的 CRUD 操作
+使用者管理視圖（僅管理員）
+處理使用者的 CRUD 操作
 """
 from flask import render_template, redirect, url_for, flash, request, jsonify
 from flask_login import current_user
@@ -18,13 +18,13 @@ logger = logging.getLogger(__name__)
 @admin_required
 def users_list():
     """
-    用户列表页面（仅管理员）
+    使用者列表頁面（僅管理員）
     """
     try:
-        # 获取查询参数
+        # 取得查詢參數
         include_inactive = request.args.get('include_inactive', 'false').lower() == 'true'
 
-        # 获取用户列表
+        # 取得使用者列表
         users = User.get_all(include_inactive=include_inactive)
 
         return render_template(
@@ -34,8 +34,8 @@ def users_list():
         )
 
     except Exception as e:
-        logger.error(f"加载用户列表失败: {str(e)}")
-        flash('加载用户列表失败', 'danger')
+        logger.error(f"載入使用者列表失敗: {str(e)}")
+        flash('載入使用者列表失敗', 'danger')
         return render_template('users/list.html', users=[], include_inactive=False)
 
 
@@ -43,16 +43,16 @@ def users_list():
 @admin_required
 def user_create():
     """
-    创建新用户（仅管理员）
+    建立新使用者（僅管理員）
     """
     form = UserCreateForm()
 
     if form.validate_on_submit():
         try:
-            # 生成密码哈希
+            # 生成密碼雜湊
             password_hash = generate_password_hash(form.password.data).decode('utf-8')
 
-            # 创建用户
+            # 建立使用者
             user = User.create(
                 username=form.username.data,
                 email=form.email.data,
@@ -61,15 +61,15 @@ def user_create():
             )
 
             if user:
-                logger.info(f"用户创建成功: {user.username} (by {current_user.username})")
-                flash(f'用户 {user.username} 创建成功', 'success')
+                logger.info(f"使用者建立成功: {user.username} (by {current_user.username})")
+                flash(f'使用者 {user.username} 建立成功', 'success')
                 return redirect(url_for('views.users_list'))
             else:
-                flash('用户创建失败', 'danger')
+                flash('使用者建立失敗', 'danger')
 
         except Exception as e:
-            logger.error(f"创建用户失败: {str(e)}")
-            flash(f'创建用户失败: {str(e)}', 'danger')
+            logger.error(f"建立使用者失敗: {str(e)}")
+            flash(f'建立使用者失敗: {str(e)}', 'danger')
 
     return render_template('users/create.html', form=form)
 
@@ -78,23 +78,23 @@ def user_create():
 @admin_required
 def user_edit(username):
     """
-    编辑用户（仅管理员）
+    編輯使用者（僅管理員）
     """
     user = User.find_by_username(username)
     if not user:
-        flash('用户不存在', 'danger')
+        flash('使用者不存在', 'danger')
         return redirect(url_for('views.users_list'))
 
-    # 不允许编辑自己的账户
+    # 不允許編輯自己的帳戶
     if user.username == current_user.username:
-        flash('不能编辑自己的账户，请使用个人资料页面', 'warning')
+        flash('不能編輯自己的帳戶，請使用個人資料頁面', 'warning')
         return redirect(url_for('views.users_list'))
 
     form = UserEditForm()
 
     if form.validate_on_submit():
         try:
-            # 更新用户信息
+            # 更新使用者資訊
             success = user.update(
                 email=form.email.data,
                 role=form.role.data,
@@ -102,15 +102,15 @@ def user_edit(username):
             )
 
             if success:
-                logger.info(f"用户信息更新成功: {username} (by {current_user.username})")
-                flash('用户信息更新成功', 'success')
+                logger.info(f"使用者資訊更新成功: {username} (by {current_user.username})")
+                flash('使用者資訊更新成功', 'success')
                 return redirect(url_for('views.users_list'))
             else:
-                flash('用户信息更新失败', 'danger')
+                flash('使用者資訊更新失敗', 'danger')
 
         except Exception as e:
-            logger.error(f"更新用户信息失败: {str(e)}")
-            flash(f'更新用户信息失败: {str(e)}', 'danger')
+            logger.error(f"更新使用者資訊失敗: {str(e)}")
+            flash(f'更新使用者資訊失敗: {str(e)}', 'danger')
 
     elif request.method == 'GET':
         # 填充表单数据
@@ -125,11 +125,11 @@ def user_edit(username):
 @admin_required
 def user_view(username):
     """
-    查看用户详情（仅管理员）
+    查看使用者詳情（僅管理員）
     """
     user = User.find_by_username(username)
     if not user:
-        flash('用户不存在', 'danger')
+        flash('使用者不存在', 'danger')
         return redirect(url_for('views.users_list'))
 
     return render_template('users/view.html', user=user)
@@ -139,30 +139,30 @@ def user_view(username):
 @admin_required
 def user_delete(username):
     """
-    删除用户（软删除，仅管理员）
+    刪除使用者（軟刪除，僅管理員）
     """
     try:
-        # 不允许删除自己
+        # 不允許刪除自己
         if username == current_user.username:
-            flash('不能删除自己的账户', 'danger')
+            flash('不能刪除自己的帳戶', 'danger')
             return redirect(url_for('views.users_list'))
 
         user = User.find_by_username(username)
         if not user:
-            flash('用户不存在', 'danger')
+            flash('使用者不存在', 'danger')
             return redirect(url_for('views.users_list'))
 
         success = user.delete()
 
         if success:
-            logger.info(f"用户删除成功: {username} (by {current_user.username})")
-            flash(f'用户 {username} 已被停用', 'success')
+            logger.info(f"使用者刪除成功: {username} (by {current_user.username})")
+            flash(f'使用者 {username} 已被停用', 'success')
         else:
-            flash('用户删除失败', 'danger')
+            flash('使用者刪除失敗', 'danger')
 
     except Exception as e:
-        logger.error(f"删除用户失败: {str(e)}")
-        flash(f'删除用户失败: {str(e)}', 'danger')
+        logger.error(f"刪除使用者失敗: {str(e)}")
+        flash(f'刪除使用者失敗: {str(e)}', 'danger')
 
     return redirect(url_for('views.users_list'))
 
@@ -171,14 +171,14 @@ def user_delete(username):
 @admin_required
 def user_reset_password(username):
     """
-    重置用户密码（仅管理员）
+    重設使用者密碼（僅管理員）
     """
     try:
         user = User.find_by_username(username)
         if not user:
-            return jsonify({'success': False, 'message': '用户不存在'}), 404
+            return jsonify({'success': False, 'message': '使用者不存在'}), 404
 
-        # 生成临时密码（可以改为发送邮件）
+        # 生成臨時密碼（可改為寄送郵件）
         import secrets
         temp_password = secrets.token_urlsafe(12)
         password_hash = generate_password_hash(temp_password).decode('utf-8')
@@ -186,51 +186,51 @@ def user_reset_password(username):
         success = user.update(password_hash=password_hash)
 
         if success:
-            logger.info(f"密码重置成功: {username} (by {current_user.username})")
+            logger.info(f"密碼重設成功: {username} (by {current_user.username})")
             return jsonify({
                 'success': True,
-                'message': f'密码已重置',
+                'message': '密碼已重設',
                 'temp_password': temp_password
             })
         else:
-            return jsonify({'success': False, 'message': '重置失败'}), 500
+            return jsonify({'success': False, 'message': '重設失敗'}), 500
 
     except Exception as e:
-        logger.error(f"重置密码失败: {str(e)}")
+        logger.error(f"重設密碼失敗: {str(e)}")
         return jsonify({'success': False, 'message': str(e)}), 500
 
 
 @views_bp.route('/profile/change-password', methods=['GET', 'POST'])
 def change_password():
     """
-    修改自己的密码
+    修改自己的密碼
     """
     if not current_user.is_authenticated:
-        flash('请先登录', 'warning')
+        flash('請先登入', 'warning')
         return redirect(url_for('auth.login'))
 
     form = ChangePasswordForm()
 
     if form.validate_on_submit():
         try:
-            # 验证当前密码
+            # 驗證目前密碼
             if not check_password_hash(current_user.password_hash, form.current_password.data):
-                flash('当前密码错误', 'danger')
+                flash('目前密碼錯誤', 'danger')
                 return render_template('users/change_password.html', form=form)
 
-            # 更新密码
+            # 更新密碼
             new_password_hash = generate_password_hash(form.new_password.data).decode('utf-8')
             success = current_user.update(password_hash=new_password_hash)
 
             if success:
-                logger.info(f"密码修改成功: {current_user.username}")
-                flash('密码修改成功', 'success')
+                logger.info(f"密碼修改成功: {current_user.username}")
+                flash('密碼修改成功', 'success')
                 return redirect(url_for('views.dashboard'))
             else:
-                flash('密码修改失败', 'danger')
+                flash('密碼修改失敗', 'danger')
 
         except Exception as e:
-            logger.error(f"修改密码失败: {str(e)}")
-            flash(f'修改密码失败: {str(e)}', 'danger')
+            logger.error(f"修改密碼失敗: {str(e)}")
+            flash(f'修改密碼失敗: {str(e)}', 'danger')
 
     return render_template('users/change_password.html', form=form)

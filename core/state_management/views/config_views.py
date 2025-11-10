@@ -1,6 +1,6 @@
 """
-配置管理视图
-处理分析配置的 CRUD 操作
+設定管理視圖
+處理分析設定的 CRUD 操作
 """
 from flask import render_template, redirect, url_for, flash, request, jsonify
 from flask_login import login_required, current_user
@@ -18,13 +18,13 @@ logger = logging.getLogger(__name__)
 @login_required
 def configs_list():
     """
-    配置列表页面
+    設定列表頁面
     """
     try:
-        # 获取查询参数
+        # 取得查詢參數
         enabled_only = request.args.get('enabled_only', 'false').lower() == 'true'
 
-        # 获取配置列表
+        # 取得設定列表
         configs = AnalysisConfig.get_all(enabled_only=enabled_only)
 
         return render_template(
@@ -34,8 +34,8 @@ def configs_list():
         )
 
     except Exception as e:
-        logger.error(f"加载配置列表失败: {str(e)}")
-        flash('加载配置列表失败', 'danger')
+        logger.error(f"載入設定列表失敗: {str(e)}")
+        flash('載入設定列表失敗', 'danger')
         return render_template('configs/list.html', configs=[], enabled_only=False)
 
 
@@ -43,22 +43,22 @@ def configs_list():
 @admin_required
 def config_create():
     """
-    创建新配置
+    建立新設定
     """
     form = ConfigForm()
 
     if form.validate_on_submit():
         try:
-            # 解析参数 JSON
+            # 解析參數 JSON
             parameters = {}
             if form.parameters.data:
                 try:
                     parameters = json.loads(form.parameters.data)
                 except json.JSONDecodeError:
-                    flash('参数 JSON 格式错误', 'danger')
+                    flash('參數 JSON 格式錯誤', 'danger')
                     return render_template('configs/edit.html', form=form, mode='create')
 
-            # 创建配置
+            # 建立設定
             config = AnalysisConfig.create(
                 analysis_method_id=form.analysis_method_id.data,
                 config_name=form.config_name.data,
@@ -68,15 +68,15 @@ def config_create():
             )
 
             if config:
-                logger.info(f"配置创建成功: {config.config_id}")
-                flash('配置创建成功', 'success')
+                logger.info(f"設定建立成功: {config.config_id}")
+                flash('設定建立成功', 'success')
                 return redirect(url_for('views.configs_list'))
             else:
-                flash('配置创建失败', 'danger')
+                flash('設定建立失敗', 'danger')
 
         except Exception as e:
-            logger.error(f"创建配置失败: {str(e)}")
-            flash(f'创建配置失败: {str(e)}', 'danger')
+            logger.error(f"建立設定失敗: {str(e)}")
+            flash(f'建立設定失敗: {str(e)}', 'danger')
 
     return render_template('configs/edit.html', form=form, mode='create')
 
@@ -85,24 +85,24 @@ def config_create():
 @admin_required
 def config_edit(config_id):
     """
-    编辑配置
+    編輯設定
     """
     config = AnalysisConfig.get_by_id(config_id)
     if not config:
-        flash('配置不存在', 'danger')
+        flash('設定不存在', 'danger')
         return redirect(url_for('views.configs_list'))
 
     form = ConfigForm()
 
     if form.validate_on_submit():
         try:
-            # 解析参数 JSON
+            # 解析參數 JSON
             parameters = {}
             if form.parameters.data:
                 try:
                     parameters = json.loads(form.parameters.data)
                 except json.JSONDecodeError:
-                    flash('参数 JSON 格式错误', 'danger')
+                    flash('參數 JSON 格式錯誤', 'danger')
                     return render_template(
                         'configs/edit.html',
                         form=form,
@@ -110,7 +110,7 @@ def config_edit(config_id):
                         config=config
                     )
 
-            # 更新配置
+            # 更新設定
             success = config.update(
                 config_name=form.config_name.data,
                 description=form.description.data,
@@ -119,15 +119,15 @@ def config_edit(config_id):
             )
 
             if success:
-                logger.info(f"配置更新成功: {config_id}")
-                flash('配置更新成功', 'success')
+                logger.info(f"設定更新成功: {config_id}")
+                flash('設定更新成功', 'success')
                 return redirect(url_for('views.configs_list'))
             else:
-                flash('配置更新失败', 'danger')
+                flash('設定更新失敗', 'danger')
 
         except Exception as e:
-            logger.error(f"更新配置失败: {str(e)}")
-            flash(f'更新配置失败: {str(e)}', 'danger')
+            logger.error(f"更新設定失敗: {str(e)}")
+            flash(f'更新設定失敗: {str(e)}', 'danger')
 
     elif request.method == 'GET':
         # 填充表单数据
@@ -149,11 +149,11 @@ def config_edit(config_id):
 @login_required
 def config_view(config_id):
     """
-    查看配置详情
+    查看設定詳情
     """
     config = AnalysisConfig.get_by_id(config_id)
     if not config:
-        flash('配置不存在', 'danger')
+        flash('設定不存在', 'danger')
         return redirect(url_for('views.configs_list'))
 
     return render_template('configs/view.html', config=config)
@@ -163,20 +163,20 @@ def config_view(config_id):
 @admin_required
 def config_delete(config_id):
     """
-    删除配置
+    刪除設定
     """
     try:
         success = AnalysisConfig.delete(config_id)
 
         if success:
-            logger.info(f"配置删除成功: {config_id}")
-            flash('配置删除成功', 'success')
+            logger.info(f"設定刪除成功: {config_id}")
+            flash('設定刪除成功', 'success')
         else:
-            flash('配置删除失败', 'danger')
+            flash('設定刪除失敗', 'danger')
 
     except Exception as e:
-        logger.error(f"删除配置失败: {str(e)}")
-        flash(f'删除配置失败: {str(e)}', 'danger')
+        logger.error(f"刪除設定失敗: {str(e)}")
+        flash(f'刪除設定失敗: {str(e)}', 'danger')
 
     return redirect(url_for('views.configs_list'))
 
@@ -185,26 +185,26 @@ def config_delete(config_id):
 @admin_required
 def config_toggle(config_id):
     """
-    切换配置启用状态
+    切換設定啟用狀態
     """
     try:
         config = AnalysisConfig.get_by_id(config_id)
         if not config:
-            return jsonify({'success': False, 'message': '配置不存在'}), 404
+            return jsonify({'success': False, 'message': '設定不存在'}), 404
 
         new_status = not config.enabled
         success = config.update(enabled=new_status)
 
         if success:
-            logger.info(f"配置状态切换成功: {config_id} -> {new_status}")
+            logger.info(f"設定狀態切換成功: {config_id} -> {new_status}")
             return jsonify({
                 'success': True,
                 'enabled': new_status,
-                'message': f'配置已{"启用" if new_status else "禁用"}'
+                'message': f'設定已{"啟用" if new_status else "停用"}'
             })
         else:
-            return jsonify({'success': False, 'message': '更新失败'}), 500
+            return jsonify({'success': False, 'message': '更新失敗'}), 500
 
     except Exception as e:
-        logger.error(f"切换配置状态失败: {str(e)}")
+        logger.error(f"切換設定狀態失敗: {str(e)}")
         return jsonify({'success': False, 'message': str(e)}), 500

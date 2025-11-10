@@ -1,12 +1,12 @@
 """
-视图模块初始化
+視圖模組初始化
 """
 from flask import Blueprint
 
-# 创建视图蓝图
+# 建立視圖藍圖
 views_bp = Blueprint('views', __name__)
 
-# 导入所有视图路由
+# 匯入所有視圖路由
 from . import dashboard
 from . import config_views
 from . import routing_views

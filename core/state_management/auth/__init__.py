@@ -1,10 +1,10 @@
 """
-认证模块初始化
+認證模組初始化
 """
 from flask import Blueprint
 
-# 创建认证蓝图
+# 建立認證藍圖
 auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 
-# 导入路由
+# 匯入路由
 from . import routes

@@ -1,6 +1,6 @@
 """
-节点监控视图
-显示和管理分析节点的状态
+節點監控視圖
+顯示並管理分析節點狀態
 """
 from flask import render_template, redirect, url_for, flash, jsonify
 from flask_login import login_required
@@ -16,18 +16,18 @@ logger = logging.getLogger(__name__)
 @login_required
 def nodes_list():
     """
-    节点列表页面
-    显示所有注册节点的状态
+    節點列表頁面
+    顯示所有註冊節點的狀態
     """
     try:
-        # 获取所有节点
+        # 取得所有節點
         all_nodes = NodeStatus.get_all()
 
-        # 分类节点
+        # 分類節點
         online_nodes = [node for node in all_nodes if node.is_online()]
         offline_nodes = [node for node in all_nodes if not node.is_online()]
 
-        # 统计信息
+        # 統計資訊
         stats = {
             'total': len(all_nodes),
             'online': len(online_nodes),
@@ -42,8 +42,8 @@ def nodes_list():
         )
 
     except Exception as e:
-        logger.error(f"加载节点列表失败: {str(e)}")
-        flash('加载节点列表失败', 'danger')
+        logger.error(f"載入節點列表失敗: {str(e)}")
+        flash('載入節點列表失敗', 'danger')
         return render_template(
             'nodes/list.html',
             online_nodes=[],
@@ -56,19 +56,19 @@ def nodes_list():
 @login_required
 def node_detail(node_id):
     """
-    节点详情页面
+    節點詳情頁面
     """
     try:
         node = NodeStatus.get_by_id(node_id)
         if not node:
-            flash('节点不存在', 'danger')
+            flash('節點不存在', 'danger')
             return redirect(url_for('views.nodes_list'))
 
         return render_template('nodes/detail.html', node=node)
 
     except Exception as e:
-        logger.error(f"加载节点详情失败: {str(e)}")
-        flash('加载节点详情失败', 'danger')
+        logger.error(f"載入節點詳情失敗: {str(e)}")
+        flash('載入節點詳情失敗', 'danger')
         return redirect(url_for('views.nodes_list'))
 
 
@@ -76,20 +76,20 @@ def node_detail(node_id):
 @admin_required
 def node_delete(node_id):
     """
-    删除（注销）节点
+    刪除（註銷）節點
     """
     try:
         success = NodeStatus.delete(node_id)
 
         if success:
-            logger.info(f"节点删除成功: {node_id}")
-            flash('节点删除成功', 'success')
+            logger.info(f"節點刪除成功: {node_id}")
+            flash('節點刪除成功', 'success')
         else:
-            flash('节点删除失败', 'danger')
+            flash('節點刪除失敗', 'danger')
 
     except Exception as e:
-        logger.error(f"删除节点失败: {str(e)}")
-        flash(f'删除节点失败: {str(e)}', 'danger')
+        logger.error(f"刪除節點失敗: {str(e)}")
+        flash(f'刪除節點失敗: {str(e)}', 'danger')
 
     return redirect(url_for('views.nodes_list'))
 
@@ -98,7 +98,7 @@ def node_delete(node_id):
 @login_required
 def nodes_stats_api():
     """
-    节点统计信息 API（用于前端轮询）
+    節點統計資訊 API（供前端輪詢）
     """
     try:
         all_nodes = NodeStatus.get_all()
@@ -114,7 +114,7 @@ def nodes_stats_api():
         })
 
     except Exception as e:
-        logger.error(f"获取节点统计信息失败: {str(e)}")
+        logger.error(f"取得節點統計資訊失敗: {str(e)}")
         return jsonify({'success': False, 'message': str(e)}), 500
 
 
@@ -122,7 +122,7 @@ def nodes_stats_api():
 @login_required
 def nodes_list_api():
     """
-    节点列表 API（用于前端轮询）
+    節點列表 API（供前端輪詢）
     """
     try:
         all_nodes = NodeStatus.get_all()
@@ -147,5 +147,5 @@ def nodes_list_api():
         })
 
     except Exception as e:
-        logger.error(f"获取节点列表失败: {str(e)}")
+        logger.error(f"取得節點列表失敗: {str(e)}")
         return jsonify({'success': False, 'message': str(e)}), 500

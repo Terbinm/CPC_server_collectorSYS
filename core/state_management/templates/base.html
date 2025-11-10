@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="zh-CN" class="h-full bg-gray-100">
+<html lang="zh-TW" class="h-full bg-gray-100">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <title>{% block title %}State Management{% endblock %} - 状态管理系统</title>
+    <title>{% block title %}State Management{% endblock %} - 狀態管理系統</title>
 
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -16,7 +16,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <style>
-        /* 自定义滚动条样式 */
+        /* 自訂滾動條樣式 */
         ::-webkit-scrollbar {
             width: 8px;
             height: 8px;
@@ -37,9 +37,9 @@
 </head>
 <body class="h-full">
     {% if current_user.is_authenticated %}
-    <!-- 已登录布局 -->
+    <!-- 已登入版面 -->
     <div class="min-h-full" x-data="{ sidebarOpen: false }">
-        <!-- 侧边栏（移动端） -->
+        <!-- 側邊欄（行動裝置） -->
         <div x-show="sidebarOpen"
              class="relative z-50 lg:hidden"
              role="dialog"
@@ -74,7 +74,7 @@
             </div>
         </div>
 
-        <!-- 侧边栏（桌面端） -->
+        <!-- 側邊欄（桌面端） -->
         <div class="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-64 lg:flex-col">
             <div class="flex grow flex-col gap-y-5 overflow-y-auto bg-gray-900 px-6">
                 <div class="flex h-16 shrink-0 items-center">
@@ -84,18 +84,18 @@
             </div>
         </div>
 
-        <!-- 主内容区域 -->
+        <!-- 主內容區域 -->
         <div class="lg:pl-64">
-            <!-- 顶部导航栏 -->
+            <!-- 頂部導覽列 -->
             <div class="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-gray-200 bg-white px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
                 <button type="button"
                         class="-m-2.5 p-2.5 text-gray-700 lg:hidden"
                         @click="sidebarOpen = true">
-                    <span class="sr-only">打开侧边栏</span>
+                    <span class="sr-only">開啟側邊欄</span>
                     <i class="fas fa-bars text-xl"></i>
                 </button>
 
-                <!-- 分隔线 -->
+                <!-- 分隔線 -->
                 <div class="h-6 w-px bg-gray-200 lg:hidden" aria-hidden="true"></div>
 
                 <div class="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
@@ -103,12 +103,12 @@
                         <h2 class="text-xl font-semibold text-gray-900">{% block page_title %}{% endblock %}</h2>
                     </div>
                     <div class="flex items-center gap-x-4 lg:gap-x-6">
-                        <!-- 用户菜单 -->
+                        <!-- 使用者選單 -->
                         <div class="relative" x-data="{ userMenuOpen: false }">
                             <button type="button"
                                     class="-m-1.5 flex items-center p-1.5"
                                     @click="userMenuOpen = !userMenuOpen">
-                                <span class="sr-only">打开用户菜单</span>
+                                <span class="sr-only">開啟使用者選單</span>
                                 <div class="h-8 w-8 rounded-full bg-gray-800 flex items-center justify-center">
                                     <span class="text-white text-sm font-medium">{{ current_user.username[0].upper() }}</span>
                                 </div>
@@ -127,15 +127,15 @@
                                     <div>{{ current_user.email }}</div>
                                     <div class="mt-1">
                                         <span class="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">
-                                            {% if current_user.is_admin() %}管理员{% else %}普通用户{% endif %}
+                                            {% if current_user.is_admin() %}管理員{% else %}一般使用者{% endif %}
                                         </span>
                                     </div>
                                 </div>
                                 <a href="{{ url_for('auth.profile') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
-                                    <i class="fas fa-user mr-2"></i>个人资料
+                                    <i class="fas fa-user mr-2"></i>個人資料
                                 </a>
                                 <a href="{{ url_for('views.change_password') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
-                                    <i class="fas fa-key mr-2"></i>修改密码
+                                    <i class="fas fa-key mr-2"></i>修改密碼
                                 </a>
                                 <a href="{{ url_for('auth.logout') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
                                     <i class="fas fa-sign-out-alt mr-2"></i>登出
@@ -146,10 +146,10 @@
                 </div>
             </div>
 
-            <!-- 页面内容 -->
+            <!-- 頁面內容 -->
             <main class="py-10">
                 <div class="px-4 sm:px-6 lg:px-8">
-                    <!-- Flash 消息 -->
+                    <!-- Flash 訊息 -->
                     {% with messages = get_flashed_messages(with_categories=true) %}
                         {% if messages %}
                             <div class="mb-6 space-y-2">
@@ -185,7 +185,7 @@
         </div>
     </div>
     {% else %}
-    <!-- 未登录布局（登录页面） -->
+    <!-- 未登入版面（登入頁面） -->
     <div class="flex min-h-full flex-col justify-center py-12 sm:px-6 lg:px-8">
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}

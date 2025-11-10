@@ -1,23 +1,23 @@
 {% extends "base.html" %}
 
-{% block title %}个人资料{% endblock %}
-{% block page_title %}个人资料{% endblock %}
+{% block title %}個人資料{% endblock %}
+{% block page_title %}個人資料{% endblock %}
 
 {% block content %}
 <div class="max-w-4xl">
-    <!-- 用户信息 -->
+    <!-- 使用者資訊 -->
     <div class="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl mb-6">
         <div class="px-6 py-5 border-b border-gray-200">
-            <h3 class="text-lg font-medium text-gray-900">基本信息</h3>
+            <h3 class="text-lg font-medium text-gray-900">基本資訊</h3>
         </div>
         <div class="px-6 py-4">
             <dl class="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
                 <div>
-                    <dt class="text-sm font-medium text-gray-500">用户名</dt>
+                    <dt class="text-sm font-medium text-gray-500">使用者名稱</dt>
                     <dd class="mt-1 text-sm text-gray-900 font-semibold">{{ current_user.username }}</dd>
                 </div>
                 <div>
-                    <dt class="text-sm font-medium text-gray-500">邮箱</dt>
+                    <dt class="text-sm font-medium text-gray-500">電子郵件</dt>
                     <dd class="mt-1 text-sm text-gray-900">{{ current_user.email }}</dd>
                 </div>
                 <div>
@@ -25,21 +25,21 @@
                     <dd class="mt-1 text-sm text-gray-900">
                         {% if current_user.is_admin() %}
                         <span class="inline-flex items-center rounded-full bg-purple-100 px-2.5 py-0.5 text-xs font-medium text-purple-800">
-                            <i class="fas fa-crown mr-1"></i> 管理员
+                            <i class="fas fa-crown mr-1"></i> 管理員
                         </span>
                         {% else %}
                         <span class="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-800">
-                            <i class="fas fa-user mr-1"></i> 普通用户
+                            <i class="fas fa-user mr-1"></i> 一般使用者
                         </span>
                         {% endif %}
                     </dd>
                 </div>
                 <div>
-                    <dt class="text-sm font-medium text-gray-500">账户状态</dt>
+                    <dt class="text-sm font-medium text-gray-500">帳戶狀態</dt>
                     <dd class="mt-1 text-sm text-gray-900">
                         {% if current_user.is_active %}
                         <span class="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
-                            <i class="fas fa-check-circle mr-1"></i> 激活
+                            <i class="fas fa-check-circle mr-1"></i> 啟用中
                         </span>
                         {% else %}
                         <span class="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800">
@@ -49,13 +49,13 @@
                     </dd>
                 </div>
                 <div>
-                    <dt class="text-sm font-medium text-gray-500">注册时间</dt>
+                    <dt class="text-sm font-medium text-gray-500">註冊時間</dt>
                     <dd class="mt-1 text-sm text-gray-900">
                         {{ current_user.created_at.strftime('%Y-%m-%d %H:%M:%S') if current_user.created_at else '-' }}
                     </dd>
                 </div>
                 <div>
-                    <dt class="text-sm font-medium text-gray-500">最后登录</dt>
+                    <dt class="text-sm font-medium text-gray-500">最後登入</dt>
                     <dd class="mt-1 text-sm text-gray-900">
                         {{ current_user.last_login.strftime('%Y-%m-%d %H:%M:%S') if current_user.last_login else '-' }}
                     </dd>
@@ -80,15 +80,15 @@
                         </div>
                     </div>
                     <div class="ml-4 flex-1">
-                        <p class="text-sm font-medium text-gray-900">修改密码</p>
-                        <p class="text-sm text-gray-500">更改您的登录密码</p>
+                        <p class="text-sm font-medium text-gray-900">修改密碼</p>
+                        <p class="text-sm text-gray-500">更改您的登入密碼</p>
                     </div>
                     <div class="ml-4">
                         <i class="fas fa-chevron-right text-gray-400"></i>
                     </div>
                 </a>
 
-                <!-- 返回仪表板 -->
+                <!-- 返回儀表板 -->
                 <a href="{{ url_for('views.dashboard') }}"
                    class="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition">
                     <div class="flex-shrink-0">
@@ -97,8 +97,8 @@
                         </div>
                     </div>
                     <div class="ml-4 flex-1">
-                        <p class="text-sm font-medium text-gray-900">返回仪表板</p>
-                        <p class="text-sm text-gray-500">查看系统概览</p>
+                        <p class="text-sm font-medium text-gray-900">返回儀表板</p>
+                        <p class="text-sm text-gray-500">檢視系統概覽</p>
                     </div>
                     <div class="ml-4">
                         <i class="fas fa-chevron-right text-gray-400"></i>
@@ -115,7 +115,7 @@
                     </div>
                     <div class="ml-4 flex-1">
                         <p class="text-sm font-medium text-gray-900">登出</p>
-                        <p class="text-sm text-gray-500">退出当前账户</p>
+                        <p class="text-sm text-gray-500">退出目前帳戶</p>
                     </div>
                     <div class="ml-4">
                         <i class="fas fa-chevron-right text-gray-400"></i>
@@ -125,12 +125,12 @@
         </div>
     </div>
 
-    <!-- 权限说明 -->
+    <!-- 權限說明 -->
     <div class="mt-6 bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
         <div class="px-6 py-5 border-b border-gray-200">
             <h3 class="text-lg font-medium text-gray-900">
                 <i class="fas fa-shield-alt mr-2 text-gray-400"></i>
-                您的权限
+                您的權限
             </h3>
         </div>
         <div class="px-6 py-4">
@@ -139,22 +139,22 @@
                 <div class="flex items-start">
                     <i class="fas fa-check text-green-500 mt-1 mr-3"></i>
                     <div>
-                        <p class="text-sm font-medium text-gray-900">完全访问权限</p>
-                        <p class="text-sm text-gray-500">可以查看、创建、编辑和删除所有资源</p>
+                        <p class="text-sm font-medium text-gray-900">完全存取權限</p>
+                        <p class="text-sm text-gray-500">可以檢視、建立、編輯與刪除所有資源</p>
                     </div>
                 </div>
                 <div class="flex items-start">
                     <i class="fas fa-check text-green-500 mt-1 mr-3"></i>
                     <div>
-                        <p class="text-sm font-medium text-gray-900">用户管理权限</p>
-                        <p class="text-sm text-gray-500">可以创建、编辑和删除用户账户</p>
+                        <p class="text-sm font-medium text-gray-900">使用者管理權限</p>
+                        <p class="text-sm text-gray-500">可以建立、編輯與刪除使用者帳戶</p>
                     </div>
                 </div>
                 <div class="flex items-start">
                     <i class="fas fa-check text-green-500 mt-1 mr-3"></i>
                     <div>
-                        <p class="text-sm font-medium text-gray-900">系统配置权限</p>
-                        <p class="text-sm text-gray-500">可以修改系统配置和规则</p>
+                        <p class="text-sm font-medium text-gray-900">系統設定權限</p>
+                        <p class="text-sm text-gray-500">可以調整系統設定與規則</p>
                     </div>
                 </div>
             </div>
@@ -163,15 +163,15 @@
                 <div class="flex items-start">
                     <i class="fas fa-check text-blue-500 mt-1 mr-3"></i>
                     <div>
-                        <p class="text-sm font-medium text-gray-900">只读访问权限</p>
-                        <p class="text-sm text-gray-500">可以查看配置、规则、实例和节点信息</p>
+                        <p class="text-sm font-medium text-gray-900">唯讀存取權限</p>
+                        <p class="text-sm text-gray-500">可以檢視設定、規則、實例與節點資訊</p>
                     </div>
                 </div>
                 <div class="flex items-start">
                     <i class="fas fa-info-circle text-gray-400 mt-1 mr-3"></i>
                     <div>
-                        <p class="text-sm font-medium text-gray-900">需要更多权限？</p>
-                        <p class="text-sm text-gray-500">请联系系统管理员升级您的账户权限</p>
+                        <p class="text-sm font-medium text-gray-900">需要更多權限？</p>
+                        <p class="text-sm text-gray-500">請聯絡系統管理員以升級您的帳戶權限</p>
                     </div>
                 </div>
             </div>
