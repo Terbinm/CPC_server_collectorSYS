@@ -160,6 +160,5 @@ UPLOAD_FOLDER = os.getenv('UPLOAD_FOLDER', 'uploads')
 DATABASE_INDEXES = [
     'AnalyzeUUID',
     'info_features.device_id',
-    'current_step',
-    'analysis_status'
+    'analyze_features.active_analysis_id'  # 用於查找待處理記錄
 ]

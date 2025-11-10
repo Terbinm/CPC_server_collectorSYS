@@ -159,7 +159,7 @@ class MongoDBUploader:
 
         document = {
             "AnalyzeUUID": analyze_uuid,
-            "current_step": 0,
+            # "current_step": 0,
             "created_at": current_time,
             "updated_at": current_time,
             "files": {

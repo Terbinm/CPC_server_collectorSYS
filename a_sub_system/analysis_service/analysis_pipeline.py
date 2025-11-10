@@ -8,7 +8,7 @@ from bson.objectid import ObjectId
 
 from config import SERVICE_CONFIG, USE_GRIDFS
 from utils.logger import logger
-from utils.mongodb_handler import MongoDBHandler
+from utils.mongodb_handler import MongoDBHandler, StepNames
 from processors.step0_converter import AudioConverter
 from processors.step1_slicer import AudioSlicer
 from processors.step2_leaf import LEAFFeatureExtractor
@@ -62,12 +62,11 @@ class AnalysisPipeline:
         analyze_uuid = record.get('AnalyzeUUID', 'UNKNOWN')
         converted_file_path = None  # 轉檔後的檔案路徑（用於最後清理）
         analysis_id: Optional[str] = None
-        run_index: Optional[int] = None
 
         try:
-            logger.info(f"=" * 60)
+            logger.info("=" * 60)
             logger.info(f"開始處理記錄: {analyze_uuid}")
-            logger.info(f"=" * 60)
+            logger.info("=" * 60)
 
             # ✅ 先嘗試認領記錄
             if not self.mongodb.try_claim_record(analyze_uuid):
@@ -89,7 +88,6 @@ class AnalysisPipeline:
                 self._mark_error(analyze_uuid, "初始化分析任務失敗", analysis_id=None)
                 return False
             analysis_id = run_info['analysis_id']
-            run_index = run_info['run_index']
 
             # 重新讀取最新記錄，確保 analyze_features 結構同步
             record = self.mongodb.get_record_by_uuid(analyze_uuid) or record
@@ -108,7 +106,6 @@ class AnalysisPipeline:
                 temp_file_path,
                 record,
                 analysis_id,
-                run_index,
                 needs_conversion
             )
 
@@ -128,7 +125,7 @@ class AnalysisPipeline:
                     return False
 
                 # Step 3: 分類
-                if not self._execute_step3(analyze_uuid, analysis_id, run_index):
+                if not self._execute_step3(analyze_uuid, analysis_id):
                     return False
 
                 logger.info(f"✓ 記錄處理完成: {analyze_uuid}")
@@ -155,19 +152,23 @@ class AnalysisPipeline:
 
     def _is_already_processed(self, record: Dict) -> bool:
         """
-        檢查記錄是否已處理
+        檢查記錄是否已處理（檢查是否有正在進行的分析）
 
         Args:
             record: MongoDB 記錄
 
         Returns:
-            是否已處理
+            是否已處理或正在處理中
         """
-        current_step = record.get('current_step', 0)
-        analysis_status = record.get('analysis_status', '')
+        analyze_features = record.get('analyze_features', {})
+        if not isinstance(analyze_features, dict):
+            return False
 
-        if current_step >= 4 or analysis_status == 'completed':
-            return True
+        # 如果有 active_analysis_id，表示正在處理中
+        # 這種情況應該讓 try_claim_record() 處理
+        active_analysis_id = analyze_features.get('active_analysis_id')
+        if active_analysis_id:
+            return True  # 已有正在進行的分析
 
         return False
 
@@ -271,13 +272,22 @@ class AnalysisPipeline:
         analyze_features = record.get('analyze_features')
 
         if isinstance(analyze_features, dict):
-            runs = analyze_features.get('runs', [])
-            if analysis_id:
-                for run in runs:
-                    if run.get('analysis_id') == analysis_id:
-                        return run
-            if runs:
-                return runs[-1]
+            runs = analyze_features.get('runs', {})
+            if isinstance(runs, dict):
+                # 新格式：dict
+                if analysis_id and analysis_id in runs:
+                    return runs[analysis_id]
+                # 如果沒有指定 analysis_id，返回最新的
+                if runs:
+                    return list(runs.values())[-1]
+            elif isinstance(runs, list):
+                # 舊格式：list（向後相容）
+                if analysis_id:
+                    for run in runs:
+                        if run.get('analysis_id') == analysis_id:
+                            return run
+                if runs:
+                    return runs[-1]
         elif isinstance(analyze_features, list):
             # 向後相容：以舊格式包裝成單一 run
             return {
@@ -289,14 +299,20 @@ class AnalysisPipeline:
         return None
 
     @staticmethod
-    def _find_step_in_run(run: Optional[Dict[str, Any]], step_number: int) -> Optional[Dict[str, Any]]:
-        """在 run 中搜尋指定步驟"""
+    def _find_step_in_run(run: Optional[Dict[str, Any]], step_name: str) -> Optional[Dict[str, Any]]:
+        """在 run 中搜尋指定步驟（使用步驟名稱）"""
         if not run:
             return None
 
-        for step in run.get('steps', []):
-            if step.get('features_step') == step_number:
-                return step
+        steps = run.get('steps', {})
+        if isinstance(steps, dict):
+            # 新格式：使用 step name 作為 key
+            return steps.get(step_name)
+        elif isinstance(steps, list):
+            # 舊格式：list（向後相容）
+            for step in steps:
+                if step.get('features_name') == step_name:
+                    return step
         return None
 
     @staticmethod
@@ -346,7 +362,7 @@ class AnalysisPipeline:
         return None
 
     def _execute_step0(self, analyze_uuid: str, filepath: str, record: Dict[str, Any],
-                       analysis_id: Optional[str], run_index: Optional[int],
+                       analysis_id: str,
                        needs_conversion: bool) -> Optional[str]:
         """
         執行 Step 0: 音訊轉檔（CSV -> WAV，或 Pass 記錄）
@@ -356,7 +372,6 @@ class AnalysisPipeline:
             filepath: 原始檔案路徑
             record: MongoDB 記錄（用於推斷來源採樣率）
             analysis_id: 分析 run ID
-            run_index: 分析 run 序號
             needs_conversion: 是否需要實際轉檔
 
         Returns:
@@ -364,7 +379,6 @@ class AnalysisPipeline:
         """
         try:
             logger.info(f"[Step 0] 開始音訊轉檔/對齊流程...")
-            self.mongodb.update_record_step(analyze_uuid, 0, 'processing', analysis_id=analysis_id)
 
             source_sample_rate = self._extract_source_sample_rate(record)
             if source_sample_rate:
@@ -379,7 +393,7 @@ class AnalysisPipeline:
                 if not converted_path:
                     error_msg = "音訊轉檔失敗"
                     logger.error(f"[Step 0] {error_msg}")
-                    self._mark_error(analyze_uuid, error_msg, step=0, analysis_id=analysis_id)
+                    self._mark_error(analyze_uuid, error_msg, analysis_id=analysis_id)
                     return None
 
                 conversion_info = self.converter.get_conversion_info(
@@ -391,7 +405,6 @@ class AnalysisPipeline:
                 conversion_info['needs_conversion'] = True
                 if source_sample_rate:
                     conversion_info['source_sample_rate'] = int(source_sample_rate)
-                conversion_info['run_index'] = run_index
                 conversion_info['conversion_state'] = 'completed'
 
                 success = self.mongodb.save_conversion_results(
@@ -415,7 +428,6 @@ class AnalysisPipeline:
                 'original_format': os.path.splitext(filepath)[1] or '',
                 'original_path': filepath,
                 'message': '原始檔案已符合目標格式，記錄 Pass 以對齊步驟',
-                'run_index': run_index,
                 'source_sample_rate': source_sample_rate
             }
             success = self.mongodb.save_conversion_results(
@@ -434,11 +446,11 @@ class AnalysisPipeline:
 
         except Exception as e:
             logger.error(f"[Step 0] 執行失敗: {e}")
-            self._mark_error(analyze_uuid, f"Step 0 異常: {str(e)}", step=0, analysis_id=analysis_id)
+            self._mark_error(analyze_uuid, f"Step 0 異常: {str(e)}", analysis_id=analysis_id)
             return None
 
     def _execute_step1(self, analyze_uuid: str, filepath: str, target_channels: list,
-                       analysis_id: Optional[str]) -> bool:
+                       analysis_id: str) -> bool:
         """
         執行 Step 1: 音訊切割
 
@@ -446,6 +458,7 @@ class AnalysisPipeline:
             analyze_uuid: 記錄 UUID
             filepath: 音頻檔案路徑（可能是原始檔案或轉檔後檔案）
             target_channels: 目標音軌列表
+            analysis_id: 分析 run ID
 
         Returns:
             是否成功
@@ -453,7 +466,6 @@ class AnalysisPipeline:
         try:
             logger.info(f"[Step 1] 開始音訊切割...")
             logger.info(f"[Step 1] 目標音軌: {target_channels if target_channels else '預設'}")
-            self.mongodb.update_record_step(analyze_uuid, 1, 'processing', analysis_id=analysis_id)
 
             # 執行切割（傳入 target_channels）
             segments = self.slicer.slice_audio(filepath, target_channels)
@@ -461,7 +473,7 @@ class AnalysisPipeline:
             if not segments:
                 error_msg = "音訊切割失敗或無有效切片"
                 logger.error(f"[Step 1] {error_msg}")
-                self._mark_error(analyze_uuid, error_msg, step=1, analysis_id=analysis_id)
+                self._mark_error(analyze_uuid, error_msg, analysis_id=analysis_id)
                 return False
 
             # 儲存切割結果
@@ -476,44 +488,44 @@ class AnalysisPipeline:
 
         except Exception as e:
             logger.error(f"[Step 1] 執行失敗: {e}")
-            self._mark_error(analyze_uuid, f"Step 1 異常: {str(e)}", step=1, analysis_id=analysis_id)
+            self._mark_error(analyze_uuid, f"Step 1 異常: {str(e)}", analysis_id=analysis_id)
             return False
 
     def _execute_step2(self, analyze_uuid: str, filepath: str,
-                       analysis_id: Optional[str]) -> bool:
+                       analysis_id: str) -> bool:
         """
         執行 Step 2: LEAF 特徵提取（簡化格式）
 
         Args:
             analyze_uuid: 記錄 UUID
             filepath: 音頻檔案路徑（可能是轉檔後的臨時檔案）
+            analysis_id: 分析 run ID
 
         Returns:
             是否成功
         """
         try:
             logger.info(f"[Step 2] 開始 LEAF 特徵提取...")
-            self.mongodb.update_record_step(analyze_uuid, 2, 'processing', analysis_id=analysis_id)
 
             # 獲取切割結果
             record = self.mongodb.get_record_by_uuid(analyze_uuid)
             if not record:
                 logger.error(f"[Step 2] 無法獲取記錄")
-                self._mark_error(analyze_uuid, "無法重新讀取記錄", step=2, analysis_id=analysis_id)
+                self._mark_error(analyze_uuid, "無法重新讀取記錄", analysis_id=analysis_id)
                 return False
 
             run_doc = self._get_run_from_record(record, analysis_id)
-            slice_step = self._find_step_in_run(run_doc, 1)
+            slice_step = self._find_step_in_run(run_doc, StepNames.AUDIO_SLICING)
 
             if not slice_step:
                 logger.error(f"[Step 2] 無切割資料")
-                self._mark_error(analyze_uuid, "找不到切割結果", step=2, analysis_id=analysis_id)
+                self._mark_error(analyze_uuid, "找不到切割結果", analysis_id=analysis_id)
                 return False
 
             slice_data = slice_step.get('features_data', [])
             if not slice_data:
                 logger.error(f"[Step 2] 切割資料為空")
-                self._mark_error(analyze_uuid, "切割資料為空", step=2, analysis_id=analysis_id)
+                self._mark_error(analyze_uuid, "切割資料為空", analysis_id=analysis_id)
                 return False
 
             # 提取特徵（使用檔案路徑）- 返回簡化格式 [[feat1], [feat2], ...]
@@ -522,7 +534,7 @@ class AnalysisPipeline:
             if not features_data:
                 error_msg = "LEAF 特徵提取失敗"
                 logger.error(f"[Step 2] {error_msg}")
-                self._mark_error(analyze_uuid, error_msg, step=2, analysis_id=analysis_id)
+                self._mark_error(analyze_uuid, error_msg, analysis_id=analysis_id)
                 return False
 
             # 儲存特徵（簡化格式）
@@ -543,44 +555,43 @@ class AnalysisPipeline:
 
         except Exception as e:
             logger.error(f"[Step 2] 執行失敗: {e}")
-            self._mark_error(analyze_uuid, f"Step 2 異常: {str(e)}", step=2, analysis_id=analysis_id)
+            self._mark_error(analyze_uuid, f"Step 2 異常: {str(e)}", analysis_id=analysis_id)
             return False
 
-    def _execute_step3(self, analyze_uuid: str, analysis_id: Optional[str],
-                       run_index: Optional[int]) -> bool:
+    def _execute_step3(self, analyze_uuid: str, analysis_id: str) -> bool:
         """
         執行 Step 3: 分類（適配簡化格式）
 
         Args:
             analyze_uuid: 記錄 UUID
+            analysis_id: 分析 run ID
 
         Returns:
             是否成功
         """
         try:
             logger.info(f"[Step 3] 開始分類...")
-            self.mongodb.update_record_step(analyze_uuid, 3, 'processing', analysis_id=analysis_id)
 
             # 獲取 LEAF 特徵
             record = self.mongodb.get_record_by_uuid(analyze_uuid)
             if not record:
                 logger.error(f"[Step 3] 無法獲取記錄")
-                self._mark_error(analyze_uuid, "無法重新讀取記錄", step=3, analysis_id=analysis_id)
+                self._mark_error(analyze_uuid, "無法重新讀取記錄", analysis_id=analysis_id)
                 return False
 
             run_doc = self._get_run_from_record(record, analysis_id)
-            leaf_step = self._find_step_in_run(run_doc, 2)
+            leaf_step = self._find_step_in_run(run_doc, StepNames.LEAF_FEATURES)
 
             if not leaf_step:
                 logger.error(f"[Step 3] 無 LEAF 特徵資料")
-                self._mark_error(analyze_uuid, "找不到 LEAF 特徵資料", step=3, analysis_id=analysis_id)
+                self._mark_error(analyze_uuid, "找不到 LEAF 特徵資料", analysis_id=analysis_id)
                 return False
 
             # 簡化格式: features_data 直接是 [[feat1], [feat2], ...]
             leaf_data = leaf_step.get('features_data', [])
             if not leaf_data:
                 logger.error(f"[Step 3] LEAF 特徵資料為空")
-                self._mark_error(analyze_uuid, "LEAF 特徵資料為空", step=3, analysis_id=analysis_id)
+                self._mark_error(analyze_uuid, "LEAF 特徵資料為空", analysis_id=analysis_id)
                 return False
 
             # 執行分類（傳入簡化格式）
@@ -590,8 +601,7 @@ class AnalysisPipeline:
             success = self.mongodb.save_classification_results(
                 analyze_uuid,
                 classification_results,
-                analysis_id=analysis_id,
-                run_index=run_index
+                analysis_id=analysis_id
             )
 
             if success:
@@ -608,10 +618,10 @@ class AnalysisPipeline:
 
         except Exception as e:
             logger.error(f"[Step 3] 執行失敗: {e}")
-            self._mark_error(analyze_uuid, f"Step 3 異常: {str(e)}", step=3, analysis_id=analysis_id)
+            self._mark_error(analyze_uuid, f"Step 3 異常: {str(e)}", analysis_id=analysis_id)
             return False
 
-    def _mark_error(self, analyze_uuid: str, error_message: str, step: int = 0,
+    def _mark_error(self, analyze_uuid: str, error_message: str,
                     analysis_id: Optional[str] = None):
         """
         標記記錄為錯誤狀態
@@ -619,12 +629,23 @@ class AnalysisPipeline:
         Args:
             analyze_uuid: 記錄 UUID
             error_message: 錯誤訊息
-            step: 失敗的步驟
+            analysis_id: 分析 run ID
         """
         try:
-            self.mongodb.update_record_step(
-                analyze_uuid, step, 'error', error_message, analysis_id=analysis_id
-            )
+            if analysis_id:
+                # 標記指定 run 的錯誤
+                current_time = datetime.utcnow()
+                self.mongodb.collection.update_one(
+                    {'AnalyzeUUID': analyze_uuid},
+                    {
+                        '$set': {
+                            f'analyze_features.runs.{analysis_id}.error_message': error_message,
+                            f'analyze_features.runs.{analysis_id}.completed_at': current_time,
+                            'analyze_features.active_analysis_id': None,  # 釋放鎖
+                            'updated_at': current_time
+                        }
+                    }
+                )
             logger.error(f"已標記錯誤: {analyze_uuid} - {error_message}")
         except Exception as e:
             logger.error(f"標記錯誤失敗: {e}")

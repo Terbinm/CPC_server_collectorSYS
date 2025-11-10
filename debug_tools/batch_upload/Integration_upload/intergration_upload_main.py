@@ -165,6 +165,7 @@ class IntegrationUploadCLI:
                 # 建立臨時上傳器來掃描檔案
                 temp_uploader = uploader_class(logger=self.logger)
                 files = temp_uploader.scan_directory()
+                scanned_total = len(files)
 
                 # 取得上傳行為配置
                 upload_behavior = config_class.UPLOAD_BEHAVIOR
@@ -226,7 +227,7 @@ class IntegrationUploadCLI:
                         actual_label_counts[label] = actual_label_counts.get(label, 0) + 1
 
                 preview_data[dataset_name] = {
-                    'scanned': len([f for f, _, _ in temp_uploader.scan_directory()]),
+                    'scanned': scanned_total,
                     'after_limit': len(files),
                     'actual': len(actual_files),
                     'scanned_labels': scanned_label_counts,
