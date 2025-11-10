@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+
+{% block title %}节点监控{% endblock %}
+{% block page_title %}节点监控{% endblock %}
+
+{% block content %}
+<div class="sm:flex sm:items-center">
+    <div class="sm:flex-auto">
+        <p class="mt-2 text-sm text-gray-700">监控所有注册的分析节点状态和任务负载</p>
+    </div>
+</div>
+
+<!-- 统计信息 -->
+<div class="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-3">
+    <div class="overflow-hidden rounded-lg bg-white shadow">
+        <div class="p-5">
+            <div class="flex items-center">
+                <div class="flex-shrink-0">
+                    <i class="fas fa-server text-2xl text-gray-400"></i>
+                </div>
+                <div class="ml-5 w-0 flex-1">
+                    <dl>
+                        <dt class="text-sm font-medium text-gray-500 truncate">总节点数</dt>
+                        <dd class="text-3xl font-semibold text-gray-900">{{ stats.total }}</dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="overflow-hidden rounded-lg bg-white shadow">
+        <div class="p-5">
+            <div class="flex items-center">
+                <div class="flex-shrink-0">
+                    <i class="fas fa-circle text-2xl text-green-500"></i>
+                </div>
+                <div class="ml-5 w-0 flex-1">
+                    <dl>
+                        <dt class="text-sm font-medium text-gray-500 truncate">在线节点</dt>
+                        <dd class="text-3xl font-semibold text-green-600">{{ stats.online }}</dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="overflow-hidden rounded-lg bg-white shadow">
+        <div class="p-5">
+            <div class="flex items-center">
+                <div class="flex-shrink-0">
+                    <i class="fas fa-circle text-2xl text-red-500"></i>
+                </div>
+                <div class="ml-5 w-0 flex-1">
+                    <dl>
+                        <dt class="text-sm font-medium text-gray-500 truncate">离线节点</dt>
+                        <dd class="text-3xl font-semibold text-red-600">{{ stats.offline }}</dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 在线节点 -->
+{% if online_nodes %}
+<div class="mt-8">
+    <h3 class="text-lg font-medium text-gray-900 mb-4">
+        <i class="fas fa-circle text-green-500 mr-2"></i>
+        在线节点
+    </h3>
+    <div class="bg-white shadow-sm ring-1 ring-black ring-opacity-5 sm:rounded-lg">
+        <ul role="list" class="divide-y divide-gray-200">
+            {% for node in online_nodes %}
+            <li class="px-6 py-4 hover:bg-gray-50">
+                <div class="flex items-center justify-between">
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center">
+                            <i class="fas fa-circle text-green-500 text-xs mr-3"></i>
+                            <div>
+                                <p class="text-sm font-medium text-gray-900">{{ node.node_id }}</p>
+                                <p class="text-sm text-gray-500">
+                                    版本: {{ node.version if node.version else 'N/A' }} |
+                                    最后心跳: {{ node.last_heartbeat.strftime('%H:%M:%S') if node.last_heartbeat else 'N/A' }}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="ml-4 flex items-center gap-6">
+                        <div class="text-center">
+                            <p class="text-xs text-gray-500">当前任务</p>
+                            <p class="text-sm font-semibold text-gray-900">
+                                {{ node.current_tasks }} / {{ node.max_concurrent_tasks }}
+                            </p>
+                        </div>
+                        <div class="flex gap-2">
+                            <a href="{{ url_for('views.node_detail', node_id=node.node_id) }}"
+                               class="text-indigo-600 hover:text-indigo-900">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                            {% if current_user.is_admin() %}
+                            <form method="POST" action="{{ url_for('views.node_delete', node_id=node.node_id) }}"
+                                  class="inline"
+                                  onsubmit="return confirm('确定要注销此节点吗？');">
+                                <button type="submit" class="text-red-600 hover:text-red-900">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <!-- 能力标签 -->
+                {% if node.capabilities %}
+                <div class="mt-2 ml-6 flex flex-wrap gap-2">
+                    {% for capability in node.capabilities %}
+                    <span class="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">
+                        {{ capability }}
+                    </span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+{% endif %}
+
+<!-- 离线节点 -->
+{% if offline_nodes %}
+<div class="mt-8">
+    <h3 class="text-lg font-medium text-gray-900 mb-4">
+        <i class="fas fa-circle text-red-500 mr-2"></i>
+        离线节点
+    </h3>
+    <div class="bg-white shadow-sm ring-1 ring-black ring-opacity-5 sm:rounded-lg">
+        <ul role="list" class="divide-y divide-gray-200">
+            {% for node in offline_nodes %}
+            <li class="px-6 py-4 hover:bg-gray-50 opacity-60">
+                <div class="flex items-center justify-between">
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center">
+                            <i class="fas fa-circle text-red-500 text-xs mr-3"></i>
+                            <div>
+                                <p class="text-sm font-medium text-gray-900">{{ node.node_id }}</p>
+                                <p class="text-sm text-gray-500">
+                                    版本: {{ node.version if node.version else 'N/A' }} |
+                                    最后心跳: {{ node.last_heartbeat.strftime('%Y-%m-%d %H:%M:%S') if node.last_heartbeat else 'N/A' }}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="ml-4 flex gap-2">
+                        <a href="{{ url_for('views.node_detail', node_id=node.node_id) }}"
+                           class="text-indigo-600 hover:text-indigo-900">
+                            <i class="fas fa-eye"></i>
+                        </a>
+                        {% if current_user.is_admin() %}
+                        <form method="POST" action="{{ url_for('views.node_delete', node_id=node.node_id) }}"
+                              class="inline"
+                              onsubmit="return confirm('确定要删除此节点吗？');">
+                            <button type="submit" class="text-red-600 hover:text-red-900">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+{% endif %}
+
+{% if not online_nodes and not offline_nodes %}
+<div class="mt-8 text-center py-12">
+    <i class="fas fa-server text-gray-300 text-6xl mb-4"></i>
+    <p class="text-gray-500">暂无注册节点</p>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+
+{% block title %}路由规则{% endblock %}
+{% block page_title %}路由规则管理{% endblock %}
+
+{% block content %}
+<div class="sm:flex sm:items-center">
+    <div class="sm:flex-auto">
+        <p class="mt-2 text-sm text-gray-700">管理数据路由规则，根据条件将数据分配到不同的分析配置</p>
+    </div>
+    <div class="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
+        {% if current_user.is_admin() %}
+        <a href="{{ url_for('views.routing_create') }}"
+           class="block rounded-md bg-indigo-600 px-3 py-2 text-center text-sm font-semibold text-white shadow-sm hover:bg-indigo-500">
+            <i class="fas fa-plus mr-1"></i> 创建规则
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- 过滤器 -->
+<div class="mt-4 flex items-center space-x-4">
+    <div class="flex items-center">
+        <input type="checkbox" id="enabled_only" {% if enabled_only %}checked{% endif %}
+               onchange="window.location.href='{{ url_for('views.routing_list') }}?enabled_only=' + this.checked"
+               class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600">
+        <label for="enabled_only" class="ml-2 text-sm text-gray-700">仅显示启用的规则</label>
+    </div>
+</div>
+
+<!-- 规则列表 -->
+<div class="mt-8 flow-root">
+    <div class="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
+        <div class="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
+            <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
+                <table class="min-w-full divide-y divide-gray-300">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th scope="col" class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">
+                                规则名称
+                            </th>
+                            <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                                优先级
+                            </th>
+                            <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                                描述
+                            </th>
+                            <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                                操作数量
+                            </th>
+                            <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                                状态
+                            </th>
+                            <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                                更新时间
+                            </th>
+                            <th scope="col" class="relative py-3.5 pl-3 pr-4 sm:pr-6">
+                                <span class="sr-only">操作</span>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200 bg-white">
+                        {% if rules %}
+                            {% for rule in rules %}
+                            <tr>
+                                <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
+                                    {{ rule.rule_name }}
+                                </td>
+                                <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                                    <span class="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800">
+                                        <i class="fas fa-star mr-1"></i> {{ rule.priority }}
+                                    </span>
+                                </td>
+                                <td class="px-3 py-4 text-sm text-gray-500">
+                                    {{ rule.description[:50] if rule.description else '-' }}
+                                    {% if rule.description and rule.description|length > 50 %}...{% endif %}
+                                </td>
+                                <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                                    {{ rule.actions|length if rule.actions else 0 }} 个操作
+                                </td>
+                                <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                                    {% if rule.enabled %}
+                                    <span class="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
+                                        <i class="fas fa-check-circle mr-1"></i> 启用
+                                    </span>
+                                    {% else %}
+                                    <span class="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-800">
+                                        <i class="fas fa-times-circle mr-1"></i> 禁用
+                                    </span>
+                                    {% endif %}
+                                </td>
+                                <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                                    {{ rule.updated_at.strftime('%Y-%m-%d %H:%M') if rule.updated_at else '-' }}
+                                </td>
+                                <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+                                    <div class="flex justify-end gap-2">
+                                        <a href="{{ url_for('views.routing_view', rule_id=rule.rule_id) }}"
+                                           class="text-indigo-600 hover:text-indigo-900"
+                                           title="查看">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        {% if current_user.is_admin() %}
+                                        <a href="{{ url_for('views.routing_edit', rule_id=rule.rule_id) }}"
+                                           class="text-blue-600 hover:text-blue-900"
+                                           title="编辑">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <form method="POST" action="{{ url_for('views.routing_delete', rule_id=rule.rule_id) }}"
+                                              class="inline"
+                                              onsubmit="return confirm('确定要删除此规则吗？');">
+                                            <button type="submit" class="text-red-600 hover:text-red-900" title="删除">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </form>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="7" class="px-3 py-8 text-center text-sm text-gray-500">
+                                    <i class="fas fa-inbox text-4xl text-gray-300 mb-2"></i>
+                                    <p>暂无路由规则</p>
+                                    {% if current_user.is_admin() %}
+                                    <a href="{{ url_for('views.routing_create') }}" class="mt-2 text-indigo-600 hover:text-indigo-500">
+                                        创建第一个规则
+                                    </a>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

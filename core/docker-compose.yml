@@ -1,0 +1,92 @@
+version: '3.8'
+
+services:
+  # MongoDB 資料庫
+  mongodb:
+    image: mongo:6.0
+    container_name: core_mongodb
+    restart: unless-stopped
+    ports:
+      - "27020:27017"
+    volumes:
+      - mongodb_data:/data/db
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: web_ui
+      MONGO_INITDB_ROOT_PASSWORD: hod2iddfsgsrl
+      MONGO_INITDB_DATABASE: web_db
+    networks:
+      - core_network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # RabbitMQ 消息隊列
+  rabbitmq:
+    image: rabbitmq:3.12-management
+    container_name: core_rabbitmq
+    restart: unless-stopped
+    ports:
+      - "5672:5672"      # AMQP 協議端口
+      - "15672:15672"    # 管理界面端口
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: rabbitmq_admin_pass
+      RABBITMQ_DEFAULT_VHOST: /
+    networks:
+      - core_network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # 狀態管理系統
+  state_management:
+    build:
+      context: ./state_management
+      dockerfile: Dockerfile
+    container_name: core_state_management
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./state_management:/app
+      - logs:/app/logs
+    environment:
+      # MongoDB 配置
+      - MONGODB_HOST=mongodb
+      - MONGODB_PORT=27017
+      - MONGODB_USERNAME=web_ui
+      - MONGODB_PASSWORD=hod2iddfsgsrl
+      - MONGODB_DATABASE=web_db
+
+      # RabbitMQ 配置
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USERNAME=admin
+      - RABBITMQ_PASSWORD=rabbitmq_admin_pass
+
+      # 服務配置
+      - FLASK_ENV=production
+      - PYTHONUNBUFFERED=1
+      - LOG_LEVEL=INFO
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - core_network
+
+networks:
+  core_network:
+    driver: bridge
+
+volumes:
+  mongodb_data:
+  rabbitmq_data:
+  logs:

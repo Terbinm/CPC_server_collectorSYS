@@ -114,6 +114,7 @@ SERVICE_CONFIG = {
     # Change Stream 配置
     'use_change_stream': False,
     'polling_interval': 5,  # 輪詢間隔（秒），當 Change Stream 不可用時
+    'analysis_Method_ID': "WAV_LEAF_RF_v1",  # 輪詢間隔（秒），當 Change Stream 不可用時
 
     # 處理配置
     'max_concurrent_tasks': 3,  # 最大並行處理任務數

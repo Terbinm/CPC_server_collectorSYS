@@ -1,0 +1,214 @@
+{% extends "base.html" %}
+
+{% block title %}仪表板{% endblock %}
+{% block page_title %}仪表板{% endblock %}
+
+{% block content %}
+<!-- 统计卡片 -->
+<div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4 mb-8">
+    <!-- 分析配置 -->
+    <div class="overflow-hidden rounded-lg bg-white shadow">
+        <div class="p-5">
+            <div class="flex items-center">
+                <div class="flex-shrink-0">
+                    <div class="rounded-md bg-indigo-500 p-3">
+                        <i class="fas fa-cog text-white text-2xl"></i>
+                    </div>
+                </div>
+                <div class="ml-5 w-0 flex-1">
+                    <dl>
+                        <dt class="text-sm font-medium text-gray-500 truncate">分析配置</dt>
+                        <dd class="flex items-baseline">
+                            <div class="text-2xl font-semibold text-gray-900">{{ stats.configs.enabled if stats.configs else 0 }}</div>
+                            <div class="ml-2 text-sm text-gray-500">/ {{ stats.configs.total if stats.configs else 0 }}</div>
+                        </dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+        <div class="bg-gray-50 px-5 py-3">
+            <a href="{{ url_for('views.configs_list') }}" class="text-sm font-medium text-indigo-600 hover:text-indigo-500">
+                查看详情 <i class="fas fa-arrow-right ml-1"></i>
+            </a>
+        </div>
+    </div>
+
+    <!-- 路由规则 -->
+    <div class="overflow-hidden rounded-lg bg-white shadow">
+        <div class="p-5">
+            <div class="flex items-center">
+                <div class="flex-shrink-0">
+                    <div class="rounded-md bg-green-500 p-3">
+                        <i class="fas fa-route text-white text-2xl"></i>
+                    </div>
+                </div>
+                <div class="ml-5 w-0 flex-1">
+                    <dl>
+                        <dt class="text-sm font-medium text-gray-500 truncate">路由规则</dt>
+                        <dd class="flex items-baseline">
+                            <div class="text-2xl font-semibold text-gray-900">{{ stats.routing_rules.enabled if stats.routing_rules else 0 }}</div>
+                            <div class="ml-2 text-sm text-gray-500">/ {{ stats.routing_rules.total if stats.routing_rules else 0 }}</div>
+                        </dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+        <div class="bg-gray-50 px-5 py-3">
+            <a href="{{ url_for('views.routing_list') }}" class="text-sm font-medium text-green-600 hover:text-green-500">
+                查看详情 <i class="fas fa-arrow-right ml-1"></i>
+            </a>
+        </div>
+    </div>
+
+    <!-- MongoDB 实例 -->
+    <div class="overflow-hidden rounded-lg bg-white shadow">
+        <div class="p-5">
+            <div class="flex items-center">
+                <div class="flex-shrink-0">
+                    <div class="rounded-md bg-yellow-500 p-3">
+                        <i class="fas fa-database text-white text-2xl"></i>
+                    </div>
+                </div>
+                <div class="ml-5 w-0 flex-1">
+                    <dl>
+                        <dt class="text-sm font-medium text-gray-500 truncate">MongoDB 实例</dt>
+                        <dd class="flex items-baseline">
+                            <div class="text-2xl font-semibold text-gray-900">{{ stats.mongodb_instances.enabled if stats.mongodb_instances else 0 }}</div>
+                            <div class="ml-2 text-sm text-gray-500">/ {{ stats.mongodb_instances.total if stats.mongodb_instances else 0 }}</div>
+                        </dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+        <div class="bg-gray-50 px-5 py-3">
+            <a href="{{ url_for('views.instances_list') }}" class="text-sm font-medium text-yellow-600 hover:text-yellow-500">
+                查看详情 <i class="fas fa-arrow-right ml-1"></i>
+            </a>
+        </div>
+    </div>
+
+    <!-- 在线节点 -->
+    <div class="overflow-hidden rounded-lg bg-white shadow">
+        <div class="p-5">
+            <div class="flex items-center">
+                <div class="flex-shrink-0">
+                    <div class="rounded-md bg-blue-500 p-3">
+                        <i class="fas fa-server text-white text-2xl"></i>
+                    </div>
+                </div>
+                <div class="ml-5 w-0 flex-1">
+                    <dl>
+                        <dt class="text-sm font-medium text-gray-500 truncate">在线节点</dt>
+                        <dd class="flex items-baseline">
+                            <div class="text-2xl font-semibold text-gray-900">{{ stats.nodes.online if stats.nodes else 0 }}</div>
+                            <div class="ml-2 text-sm text-gray-500">/ {{ stats.nodes.total if stats.nodes else 0 }}</div>
+                        </dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+        <div class="bg-gray-50 px-5 py-3">
+            <a href="{{ url_for('views.nodes_list') }}" class="text-sm font-medium text-blue-600 hover:text-blue-500">
+                查看详情 <i class="fas fa-arrow-right ml-1"></i>
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+    <!-- 最近更新的配置 -->
+    <div class="bg-white shadow rounded-lg">
+        <div class="px-6 py-5 border-b border-gray-200">
+            <h3 class="text-lg font-medium text-gray-900">
+                <i class="fas fa-clock mr-2 text-gray-400"></i>
+                最近更新的配置
+            </h3>
+        </div>
+        <div class="px-6 py-4">
+            {% if recent_configs %}
+            <ul class="divide-y divide-gray-200">
+                {% for config in recent_configs %}
+                <li class="py-3">
+                    <div class="flex items-center justify-between">
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-medium text-gray-900 truncate">
+                                {{ config.config_name }}
+                            </p>
+                            <p class="text-sm text-gray-500 truncate">
+                                {{ config.analysis_method_id }}
+                            </p>
+                        </div>
+                        <div class="ml-4 flex-shrink-0">
+                            {% if config.enabled %}
+                            <span class="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
+                                启用
+                            </span>
+                            {% else %}
+                            <span class="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-800">
+                                禁用
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p class="text-sm text-gray-500 text-center py-4">暂无配置</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- 在线节点列表 -->
+    <div class="bg-white shadow rounded-lg">
+        <div class="px-6 py-5 border-b border-gray-200">
+            <h3 class="text-lg font-medium text-gray-900">
+                <i class="fas fa-server mr-2 text-gray-400"></i>
+                在线节点
+            </h3>
+        </div>
+        <div class="px-6 py-4">
+            {% if online_nodes %}
+            <ul class="divide-y divide-gray-200">
+                {% for node in online_nodes %}
+                <li class="py-3">
+                    <div class="flex items-center justify-between">
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-medium text-gray-900">
+                                <i class="fas fa-circle text-green-500 mr-2 text-xs"></i>
+                                {{ node.node_id }}
+                            </p>
+                            <p class="text-sm text-gray-500">
+                                任务: {{ node.current_tasks }} / {{ node.max_concurrent_tasks }}
+                            </p>
+                        </div>
+                        <div class="ml-4">
+                            <a href="{{ url_for('views.node_detail', node_id=node.node_id) }}"
+                               class="text-indigo-600 hover:text-indigo-900 text-sm">
+                                详情 <i class="fas fa-arrow-right ml-1"></i>
+                            </a>
+                        </div>
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p class="text-sm text-gray-500 text-center py-4">暂无在线节点</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% if error %}
+<div class="mt-6 rounded-md bg-yellow-50 p-4">
+    <div class="flex">
+        <div class="flex-shrink-0">
+            <i class="fas fa-exclamation-triangle text-yellow-400"></i>
+        </div>
+        <div class="ml-3">
+            <p class="text-sm text-yellow-700">{{ error }}</p>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

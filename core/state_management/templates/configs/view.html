@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block title %}配置详情{% endblock %}
+{% block page_title %}配置详情{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl">
+    <!-- 操作按钮 -->
+    <div class="mb-6 flex justify-end gap-2">
+        {% if current_user.is_admin() %}
+        <a href="{{ url_for('views.config_edit', config_id=config.config_id) }}"
+           class="inline-flex items-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500">
+            <i class="fas fa-edit mr-2"></i> 编辑
+        </a>
+        {% endif %}
+        <a href="{{ url_for('views.configs_list') }}"
+           class="inline-flex items-center rounded-md bg-gray-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-500">
+            <i class="fas fa-arrow-left mr-2"></i> 返回列表
+        </a>
+    </div>
+
+    <!-- 基本信息 -->
+    <div class="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl mb-6">
+        <div class="px-6 py-5 border-b border-gray-200">
+            <h3 class="text-lg font-medium text-gray-900">基本信息</h3>
+        </div>
+        <div class="px-6 py-4">
+            <dl class="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">配置 ID</dt>
+                    <dd class="mt-1 text-sm text-gray-900">
+                        <code class="bg-gray-100 px-2 py-1 rounded">{{ config.config_id }}</code>
+                    </dd>
+                </div>
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">配置名称</dt>
+                    <dd class="mt-1 text-sm text-gray-900 font-semibold">{{ config.config_name }}</dd>
+                </div>
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">分析方法 ID</dt>
+                    <dd class="mt-1 text-sm text-gray-900">
+                        <code class="bg-gray-100 px-2 py-1 rounded">{{ config.analysis_method_id }}</code>
+                    </dd>
+                </div>
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">状态</dt>
+                    <dd class="mt-1 text-sm text-gray-900">
+                        {% if config.enabled %}
+                        <span class="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
+                            <i class="fas fa-check-circle mr-1"></i> 启用
+                        </span>
+                        {% else %}
+                        <span class="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-800">
+                            <i class="fas fa-times-circle mr-1"></i> 禁用
+                        </span>
+                        {% endif %}
+                    </dd>
+                </div>
+                <div class="sm:col-span-2">
+                    <dt class="text-sm font-medium text-gray-500">描述</dt>
+                    <dd class="mt-1 text-sm text-gray-900">{{ config.description if config.description else '-' }}</dd>
+                </div>
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">创建时间</dt>
+                    <dd class="mt-1 text-sm text-gray-900">
+                        {{ config.created_at.strftime('%Y-%m-%d %H:%M:%S') if config.created_at else '-' }}
+                    </dd>
+                </div>
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">更新时间</dt>
+                    <dd class="mt-1 text-sm text-gray-900">
+                        {{ config.updated_at.strftime('%Y-%m-%d %H:%M:%S') if config.updated_at else '-' }}
+                    </dd>
+                </div>
+            </dl>
+        </div>
+    </div>
+
+    <!-- 参数配置 -->
+    <div class="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl mb-6">
+        <div class="px-6 py-5 border-b border-gray-200">
+            <h3 class="text-lg font-medium text-gray-900">
+                <i class="fas fa-sliders-h mr-2 text-gray-400"></i>
+                参数配置
+            </h3>
+        </div>
+        <div class="px-6 py-4">
+            {% if config.parameters %}
+            <pre class="bg-gray-50 p-4 rounded-md overflow-x-auto text-sm"><code>{{ config.parameters | tojson(indent=2, ensure_ascii=False) }}</code></pre>
+            {% else %}
+            <p class="text-sm text-gray-500">暂无参数配置</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- 模型文件 -->
+    {% if config.model_files %}
+    <div class="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
+        <div class="px-6 py-5 border-b border-gray-200">
+            <h3 class="text-lg font-medium text-gray-900">
+                <i class="fas fa-file-archive mr-2 text-gray-400"></i>
+                模型文件
+            </h3>
+        </div>
+        <div class="px-6 py-4">
+            <div class="space-y-3">
+                {% for key, file_info in config.model_files.items() %}
+                <div class="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
+                    <div class="flex items-center">
+                        <i class="fas fa-file text-gray-400 mr-3"></i>
+                        <div>
+                            <p class="text-sm font-medium text-gray-900">{{ key }}</p>
+                            <p class="text-xs text-gray-500">文件 ID: {{ file_info.file_id if file_info.file_id else 'N/A' }}</p>
+                        </div>
+                    </div>
+                    {% if current_user.is_admin() and file_info.file_id %}
+                    <a href="{{ url_for('config_bp.download_model', file_id=file_info.file_id) }}"
+                       class="text-indigo-600 hover:text-indigo-900"
+                       download>
+                        <i class="fas fa-download mr-1"></i> 下载
+                    </a>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
