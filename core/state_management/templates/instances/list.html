@@ -131,6 +131,7 @@
                                             <form method="POST" action="{{ url_for('views.instance_delete', instance_id=instance.instance_id) }}"
                                                   class="inline"
                                                   onsubmit="return confirm('確定要刪除此實例嗎？');">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                                 <button type="submit" class="text-red-600 hover:text-red-900" title="刪除">
                                                     <i class="fas fa-trash"></i>
                                                 </button>
@@ -167,10 +168,15 @@
 <script>
 async function testConnection(instanceId) {
     try {
+        const tokenMeta = document.querySelector('meta[name="csrf-token"]');
+        const csrfToken = tokenMeta ? tokenMeta.getAttribute('content') : '';
+
         const response = await fetch(`/instances/${instanceId}/test`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': csrfToken
             }
         });
         const data = await response.json();

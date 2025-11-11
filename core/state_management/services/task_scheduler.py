@@ -131,23 +131,26 @@ class TaskScheduler:
         """使用輪詢模式監聽"""
         logger.info(f"開始輪詢實例資料: {instance_id}")
 
-        last_check_time = datetime.utcnow()
         poll_interval = self.config.TASK_MONITOR_INTERVAL
+
+        last_processed_id = None
+        try:
+            latest = collection.find().sort('_id', -1).limit(1)
+            for doc in latest:
+                last_processed_id = doc['_id']
+        except Exception as e:
+            logger.debug(f"初始化最後處理記錄失敗 ({instance_id}): {e}")
 
         while self.running:
             try:
-                # 查找自上次檢查以來的新記錄
-                new_records = collection.find({
-                    'info_features.upload_time': {'$gt': last_check_time}
-                }).sort('info_features.upload_time', 1)
+                query = {'_id': {'$gt': last_processed_id}} if last_processed_id else {}
+
+                new_records = collection.find(query).sort('_id', 1)
 
                 for record in new_records:
                     self._process_new_record(instance_id, record)
+                    last_processed_id = record.get('_id', last_processed_id)
 
-                # 更新檢查時間
-                last_check_time = datetime.utcnow()
-
-                # 等待下一次輪詢
                 time.sleep(poll_interval)
 
             except Exception as e:

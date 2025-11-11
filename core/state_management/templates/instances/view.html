@@ -125,10 +125,15 @@
 <script>
 async function testConnection() {
     try {
+        const tokenMeta = document.querySelector('meta[name="csrf-token"]');
+        const csrfToken = tokenMeta ? tokenMeta.getAttribute('content') : '';
+
         const response = await fetch(`/instances/{{ instance.instance_id }}/test`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': csrfToken
             }
         });
         const data = await response.json();

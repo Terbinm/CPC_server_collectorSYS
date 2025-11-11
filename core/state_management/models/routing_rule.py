@@ -103,8 +103,8 @@ class RoutingRule:
         try:
             # 遍歷所有條件
             for key, expected_value in self.conditions.items():
-                # 獲取實際值
-                actual_value = info_features.get(key)
+                # 支援巢狀欄位（例如 info_features.dataset_UUID 或 mimii_metadata.machine_type）
+                actual_value = self._resolve_value(info_features, key)
 
                 # 支持多種匹配方式
                 if isinstance(expected_value, list):
@@ -125,6 +125,25 @@ class RoutingRule:
         except Exception as e:
             logger.error(f"匹配規則失敗: {e}")
             return False
+
+    def _resolve_value(self, info_features: Dict[str, Any], key: str):
+        """解析巢狀欄位值，支援 info_features.xx、mimii_metadata.xx 等寫法"""
+        if not key:
+            return None
+
+        parts = key.split('.')
+
+        # 如果明確包含 info_features 前綴，移除後以內層欄位搜尋
+        if parts[0] == 'info_features':
+            parts = parts[1:]
+
+        value = info_features
+        for part in parts:
+            if isinstance(value, dict):
+                value = value.get(part)
+            else:
+                return None
+        return value
 
     def _match_complex(self, actual_value: Any, condition: Dict[str, Any]) -> bool:
         """複雜條件匹配"""

@@ -40,6 +40,7 @@ class SystemDefaultsService:
                 capabilities = [default_capability]
 
             name_prefix = template.get('config_name_prefix', '系統自帶')
+            config_id_prefix = template.get('config_id_prefix', 'sys')
             description_tpl = template.get(
                 'description_template',
                 '系統自帶設定 - 節點 {node_id}（能力: {capability}）'
@@ -49,18 +50,17 @@ class SystemDefaultsService:
             for capability in capabilities:
                 capability_str = str(capability)
                 capability_slug = capability_str.replace(':', '_').replace('.', '_')
-                config_id = f"sys_{node_id}_{capability_slug}"
+                config_id = f"{config_id_prefix}_{capability_slug}".lower()
 
                 parameters = {
                     **default_parameters,
-                    'node_id': node_id,
                     'capability': capability_str
                 }
 
                 payload = {
                     'analysis_method_id': capability_str,
                     'config_id': config_id,
-                    'config_name': f"{name_prefix} - {capability_str}@{node_id}",
+                    'config_name': f"{name_prefix} - {capability_str}",
                     'description': description_tpl.format(
                         node_id=node_id,
                         capability=capability_str
@@ -72,7 +72,6 @@ class SystemDefaultsService:
 
                 existing = AnalysisConfig.get_by_id(config_id)
                 if existing:
-                    # 僅同步描述/參數
                     AnalysisConfig.update(
                         config_id,
                         {

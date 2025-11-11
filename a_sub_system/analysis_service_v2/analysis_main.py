@@ -4,10 +4,11 @@ import signal
 import sys
 import uuid
 import os
+from pathlib import Path
 from typing import Dict, Any
 from threading import Lock
 
-from config import SERVICE_CONFIG, RABBITMQ_CONFIG, STATE_MANAGEMENT_CONFIG
+from config import SERVICE_CONFIG, RABBITMQ_CONFIG, STATE_MANAGEMENT_CONFIG, BASE_DIR
 from utils.logger import logger, analyze_uuid_context
 from utils.mongodb_handler import MongoDBHandler
 from analysis_pipeline import AnalysisPipeline
@@ -22,7 +23,7 @@ class AnalysisServiceV2:
     def __init__(self):
         """初始化服務"""
         self.is_running = False
-        self.node_id = f"analysis_node_{uuid.uuid4().hex[:8]}"
+        self.node_id = self._load_or_create_node_id()
 
         # 核心組件
         self.mongodb_handler = None
@@ -31,6 +32,7 @@ class AnalysisServiceV2:
         self.rabbitmq_consumer = None
         self.heartbeat_sender = None
         self.state_client = None
+        self.node_registered = False
 
         # 任務追蹤
         self.processing_tasks = set()
@@ -44,6 +46,48 @@ class AnalysisServiceV2:
         logger.info("=" * 60)
         logger.info(f"音訊分析服務 V2 初始化 (節點 ID: {self.node_id})")
         logger.info("=" * 60)
+
+    def _load_or_create_node_id(self) -> str:
+        """建立或載入節點 ID，確保重啟沿用同一 ID"""
+        # 1) 先檢查常見環境變數
+        for env_key in ('ANALYSIS_NODE_ID', 'NODE_ID', 'STATE_MANAGEMENT_NODE_ID'):
+            env_value = os.getenv(env_key)
+            if env_value:
+                logger.info(f"使用環境變數 {env_key} 指定的節點 ID: {env_value}")
+                return env_value
+
+        # 2) 其次檢查設定檔提供的 node_id
+        configured_id = STATE_MANAGEMENT_CONFIG.get('node_id')
+        if configured_id:
+            logger.info(f"使用設定檔指定的節點 ID: {configured_id}")
+            return configured_id
+
+        # 3) 最後嘗試從檔案載入，缺少時自動生成並寫回
+        default_path = os.path.join(BASE_DIR, 'temp', 'analysis_node_id.txt')
+        node_id_path = Path(
+            STATE_MANAGEMENT_CONFIG.get('node_id_file')
+            or os.getenv('ANALYSIS_NODE_ID_FILE')
+            or default_path
+        )
+
+        try:
+            if node_id_path.exists():
+                stored_id = node_id_path.read_text(encoding='utf-8').strip()
+                if stored_id:
+                    logger.info(f"載入既有節點 ID: {stored_id}")
+                    return stored_id
+        except Exception as exc:  # 讀檔失敗僅警告，允許後續重新生成
+            logger.warning(f"讀取節點 ID 檔案失敗 ({node_id_path}): {exc}")
+
+        new_node_id = f"analysis_node_{uuid.uuid4().hex[:8]}"
+        try:
+            node_id_path.parent.mkdir(parents=True, exist_ok=True)
+            node_id_path.write_text(new_node_id, encoding='utf-8')
+            logger.info(f"產生新的節點 ID 並寫入 {node_id_path}: {new_node_id}")
+        except Exception as exc:
+            logger.warning(f"寫入節點 ID 檔案失敗 ({node_id_path}): {exc}")
+
+        return new_node_id
 
     def _signal_handler(self, signum, frame):
         """處理終止信號"""
@@ -87,6 +131,7 @@ class AnalysisServiceV2:
             if not success:
                 logger.error(f"節點註冊失敗: {error}")
                 return False
+            self.node_registered = True
 
             # 初始化心跳發送器
             logger.info("初始化心跳發送器...")
@@ -108,6 +153,9 @@ class AnalysisServiceV2:
 
         except Exception as e:
             logger.error(f"✗ 初始化失敗: {e}", exc_info=True)
+            if self.state_client and self.node_registered:
+                self.state_client.unregister_node(self.node_id)
+                self.node_registered = False
             return False
 
     def start(self):
@@ -142,7 +190,7 @@ class AnalysisServiceV2:
 
     def stop(self):
         """停止服務"""
-        if not self.is_running:
+        if not self.is_running and not self.node_registered:
             return
 
         logger.info("正在停止服務...")
@@ -169,6 +217,15 @@ class AnalysisServiceV2:
                 handler.close()
             except:
                 pass
+
+        # 通知狀態管理系統節點已關閉
+        if self.state_client and self.node_registered:
+            success, error = self.state_client.unregister_node(self.node_id)
+            if success:
+                logger.info(f"節點 {self.node_id} 已向狀態管理系統註銷")
+            else:
+                logger.warning(f"節點註銷失敗 ({self.node_id}): {error}")
+            self.node_registered = False
 
         logger.info("服務已停止")
 

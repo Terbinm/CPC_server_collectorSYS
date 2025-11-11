@@ -182,5 +182,9 @@ RABBITMQ_CONFIG = {
 # ==================== 狀態管理系統配置 (V2) ====================
 STATE_MANAGEMENT_CONFIG = {
     'url': os.getenv('STATE_MANAGEMENT_URL', 'http://localhost:8000'),
-    'timeout': int(os.getenv('STATE_MANAGEMENT_TIMEOUT', '10'))
+    'timeout': int(os.getenv('STATE_MANAGEMENT_TIMEOUT', '10')),
+    # 可透過環境變數指定固定節點 ID（優先於自動生成）
+    'node_id': os.getenv('STATE_MANAGEMENT_NODE_ID') or os.getenv('ANALYSIS_NODE_ID'),
+    # 可選：覆寫節點 ID 儲存檔案路徑
+    'node_id_file': os.getenv('STATE_MANAGEMENT_NODE_ID_FILE')
 }

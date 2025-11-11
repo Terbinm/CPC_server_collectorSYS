@@ -73,6 +73,24 @@ class MongoDBHandler:
             except Exception as e:
                 logger.warning(f"索引建立失敗 {index_field}: {e}")
 
+    def get_collection(self, collection_name: Optional[str] = None):
+        """
+        取得指定集合，預設回傳初始化時的主集合
+
+        Args:
+            collection_name: 集合名稱，若為 None 則回傳 self.collection
+        """
+        if self.db is None:
+            raise RuntimeError("MongoDB 尚未連線")
+
+        if collection_name:
+            return self.db[collection_name]
+
+        if self.collection is None:
+            raise RuntimeError("預設集合尚未設置")
+
+        return self.collection
+
     def _merge_container_defaults(self, container: Optional[Dict[str, Any]]) -> Tuple[Dict[str, Any], bool]:
         """
         將既有 analyze_features 容器補齊必要欄位

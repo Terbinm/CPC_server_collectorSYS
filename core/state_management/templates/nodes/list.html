@@ -101,6 +101,7 @@
                             <form method="POST" action="{{ url_for('views.node_delete', node_id=node.node_id) }}"
                                   class="inline"
                                   onsubmit="return confirm('確定要註銷此節點嗎？');">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <button type="submit" class="text-red-600 hover:text-red-900">
                                     <i class="fas fa-trash"></i>
                                 </button>
@@ -159,6 +160,7 @@
                         <form method="POST" action="{{ url_for('views.node_delete', node_id=node.node_id) }}"
                               class="inline"
                               onsubmit="return confirm('確定要刪除此節點嗎？');">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button type="submit" class="text-red-600 hover:text-red-900">
                                 <i class="fas fa-trash"></i>
                             </button>

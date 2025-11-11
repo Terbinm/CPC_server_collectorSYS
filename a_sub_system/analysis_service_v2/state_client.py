@@ -59,6 +59,41 @@ class StateManagementClient:
             logger.error(error_msg)
             return False, error_msg
 
+    def unregister_node(self, node_id: str) -> tuple[bool, str]:
+        """
+        註銷節點
+
+        Args:
+            node_id: 節點 ID
+
+        Returns:
+            (是否成功, 錯誤信息)
+        """
+        try:
+            url = f"{self.base_url}/api/nodes/{node_id}"
+            response = requests.delete(url, timeout=self.timeout)
+
+            if response.status_code == 200:
+                logger.info(f"節點註銷成功: {node_id}")
+                return True, ""
+
+            if response.status_code == 404:
+                logger.warning(f"節點不存在或已被移除: {node_id}")
+                return False, "node not found"
+
+            error_msg = f"註銷失敗: {response.status_code}, {response.text}"
+            logger.error(error_msg)
+            return False, error_msg
+
+        except requests.RequestException as e:
+            error_msg = f"註銷節點網絡錯誤: {e}"
+            logger.error(error_msg)
+            return False, error_msg
+        except Exception as e:
+            error_msg = f"註銷節點異常: {e}"
+            logger.error(error_msg)
+            return False, error_msg
+
     def get_analysis_config(self, config_id: str) -> Optional[Dict[str, Any]]:
         """
         獲取分析配置

@@ -120,6 +120,7 @@
                                         <form method="POST" action="{{ url_for('views.routing_delete', rule_id=rule.rule_id) }}"
                                               class="inline"
                                               onsubmit="return confirm('確定要刪除此規則嗎？');">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                             <button type="submit" class="text-red-600 hover:text-red-900" title="刪除">
                                                 <i class="fas fa-trash"></i>
                                             </button>

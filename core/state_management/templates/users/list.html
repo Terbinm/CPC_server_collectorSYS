@@ -119,6 +119,7 @@
                                         <form method="POST" action="{{ url_for('views.user_delete', username=user.username) }}"
                                               class="inline"
                                               onsubmit="return confirm('確定要停用此使用者嗎？');">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                             <button type="submit" class="text-red-600 hover:text-red-900" title="停用">
                                                 <i class="fas fa-ban"></i>
                                             </button>
@@ -152,10 +153,15 @@ async function resetPassword(username) {
     }
 
     try {
+        const tokenMeta = document.querySelector('meta[name="csrf-token"]');
+        const csrfToken = tokenMeta ? tokenMeta.getAttribute('content') : '';
+
         const response = await fetch(`/users/${username}/reset-password`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': csrfToken
             }
         });
         const data = await response.json();
