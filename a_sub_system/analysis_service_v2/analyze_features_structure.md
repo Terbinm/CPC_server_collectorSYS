@@ -2,7 +2,7 @@
 
 ## 多次分析容器
 
-自 2025-01 起，`analyze_features` 由原本的「步驟列表」改為「分析容器」：
+`analyze_features` 由原本的「步驟列表」改為「分析容器」：
 
 ```json
 "analyze_features": {
@@ -205,14 +205,3 @@ leaf_step = find_step(target_run, 2)
 leaf_features = leaf_step.get('features_data', [])  # 直接為二維陣列
 classifier.classify(leaf_features)
 ```
-
-## 向後相容性說明
-
-**注意**: 本次修改**不提供**向後相容性，因為：
-1. 使用者明確表示不需要資料遷移
-2. 舊格式和新格式差異較大，相容處理會增加複雜度
-3. 新系統啟動後，所有新資料將使用新格式
-
-如需處理舊資料，請：
-- 重新處理舊記錄（刪除後重新上傳）
-- 或手動調整程式碼以支援舊格式讀取

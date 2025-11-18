@@ -15,6 +15,9 @@
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
+    <!-- Socket.IO Client -->
+    <script src="https://cdn.socket.io/4.6.0/socket.io.min.js" integrity="sha384-c79GN5VsunZvi+Q/WObgk2in0CbZsHnjEqvFxC5DxHn9lTfNce2WW6h2pH6u/kF+" crossorigin="anonymous"></script>
+
     {% if csrf_token %}
     <meta name="csrf-token" content="{{ csrf_token() }}">
     {% endif %}
@@ -34,6 +37,64 @@
         }
         ::-webkit-scrollbar-thumb:hover {
             background: #555;
+        }
+
+        /* WebSocket 狀態指示器樣式 */
+        .ws-status {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        .ws-status::before {
+            content: '';
+            width: 0.5rem;
+            height: 0.5rem;
+            border-radius: 50%;
+            margin-right: 0.5rem;
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        .ws-status-connected {
+            background-color: #d1fae5;
+            color: #065f46;
+        }
+        .ws-status-connected::before {
+            background-color: #10b981;
+        }
+        .ws-status-disconnected {
+            background-color: #fee2e2;
+            color: #991b1b;
+        }
+        .ws-status-disconnected::before {
+            background-color: #ef4444;
+            animation: none;
+        }
+        .ws-status-reconnecting {
+            background-color: #fef3c7;
+            color: #92400e;
+        }
+        .ws-status-reconnecting::before {
+            background-color: #f59e0b;
+        }
+        .ws-status-error,
+        .ws-status-failed {
+            background-color: #fee2e2;
+            color: #991b1b;
+        }
+        .ws-status-error::before,
+        .ws-status-failed::before {
+            background-color: #ef4444;
+            animation: none;
+        }
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
         }
     </style>
 
@@ -107,6 +168,10 @@
                         <h2 class="text-xl font-semibold text-gray-900">{% block page_title %}{% endblock %}</h2>
                     </div>
                     <div class="flex items-center gap-x-4 lg:gap-x-6">
+                        <!-- WebSocket 狀態指示器 -->
+                        <div id="ws-status-indicator" class="ws-status ws-status-disconnected" title="WebSocket 連接狀態">
+                            連接中...
+                        </div>
                         <!-- 使用者選單 -->
                         <div class="relative" x-data="{ userMenuOpen: false }">
                             <button type="button"
@@ -222,6 +287,11 @@
 
         {% block login_content %}{% endblock %}
     </div>
+    {% endif %}
+
+    <!-- WebSocket 客戶端 -->
+    {% if current_user.is_authenticated %}
+    <script src="{{ url_for('static', filename='js/websocket_client.js') }}"></script>
     {% endif %}
 
     {% block extra_js %}{% endblock %}

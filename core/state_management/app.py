@@ -12,6 +12,7 @@ from flask_login import LoginManager
 from flask_bcrypt import Bcrypt
 from flask_wtf.csrf import CSRFProtect
 from config import get_config
+from services.websocket_manager import websocket_manager
 
 csrf = CSRFProtect()
 
@@ -59,6 +60,12 @@ def create_app():
     login_manager.login_view = 'auth.login'
     login_manager.login_message = '請先登錄'
     login_manager.login_message_category = 'warning'
+
+    # 初始化 WebSocket
+    socketio = websocket_manager.init_socketio(app)
+    # 將 socketio 存儲到 app 配置中，以便其他模組訪問
+    app.config['SOCKETIO'] = socketio
+    logger.info("WebSocket 服務已初始化")
 
     # 用戶加載器
     @login_manager.user_loader
@@ -180,16 +187,29 @@ def create_app():
         # 啟動後台服務
         start_background_services()
 
-    return app
+    return app, socketio
 
 
 # 創建應用實例
-app = create_app()
+app, socketio = create_app()
 
 if __name__ == '__main__':
     config = get_config()
-    app.run(
-        host=config.HOST,
-        port=config.PORT,
-        debug=config.DEBUG
-    )
+    run_kwargs = {
+        'host': config.HOST,
+        'port': config.PORT,
+        'debug': config.DEBUG,
+        'use_reloader': False,  # 避免重複啟動後台服務
+    }
+
+    async_mode = getattr(socketio, 'async_mode', None)
+    if async_mode == 'threading':
+        # Flask 3 / Werkzeug 3 需明確允許在非調試場合使用內建伺服器
+        run_kwargs['allow_unsafe_werkzeug'] = True
+        logging.getLogger(__name__).warning(
+            "目前使用 Werkzeug (threading) 模式啟動 WebSocket，僅建議用於開發/測試。"
+            "如需正式環境請安裝 eventlet 或 gevent。"
+        )
+
+    # 使用 socketio.run 而不是 app.run，以支持 WebSocket
+    socketio.run(app, **run_kwargs)

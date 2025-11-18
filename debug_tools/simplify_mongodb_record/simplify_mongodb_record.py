@@ -7,7 +7,7 @@ from bson import ObjectId
 # MongoDB 配置
 MONGODB_CONFIG = {
     'host': os.getenv('MONGODB_HOST', 'localhost'),
-    'port': int(os.getenv('MONGODB_PORT', '27020')),
+    'port': int(os.getenv('MONGODB_PORT', '27021')),
     'username': os.getenv('MONGODB_USERNAME', 'web_ui'),
     'password': os.getenv('MONGODB_PASSWORD', 'hod2iddfsgsrl'),
     'database': 'web_db',
@@ -99,9 +99,13 @@ def main():
         json_record = convert_mongo_types(simplified_record)
 
         # 儲存成 JSON 檔案
-        output_filename = f"simplified_record_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        output_filename = f"output/simplified_record_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
         print(f"\n儲存成 JSON 檔案: {output_filename}")
 
+        # 確保 output 目錄存在
+        output_dir = os.path.dirname(output_filename)
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
         with open(output_filename, 'w', encoding='utf-8') as f:
             json.dump(json_record, f, ensure_ascii=False, indent=2)
 

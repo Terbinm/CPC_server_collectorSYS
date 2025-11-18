@@ -7,6 +7,7 @@ from flask_login import login_required
 from views import views_bp
 from auth.decorators import admin_required
 from models.node_status import NodeStatus
+from services.websocket_manager import websocket_manager
 import logging
 
 logger = logging.getLogger(__name__)
@@ -79,11 +80,20 @@ def node_delete(node_id):
     刪除（註銷）節點
     """
     try:
+        # 獲取節點信息（刪除前）
+        node_info = NodeStatus.get_node_info(node_id)
+
         success = NodeStatus.delete(node_id)
 
         if success:
             logger.info(f"節點刪除成功: {node_id}")
             flash('節點刪除成功', 'success')
+
+            # 推送節點離線事件到前端
+            websocket_manager.emit_node_offline({
+                'node_id': node_id,
+                'timestamp': node_info.get('last_heartbeat') if node_info else None
+            })
         else:
             flash('節點刪除失敗', 'danger')
 

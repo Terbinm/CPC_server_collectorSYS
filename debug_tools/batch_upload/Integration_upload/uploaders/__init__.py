@@ -1,3 +1,0 @@
-"""
-Dataset-specific uploader implementations
-"""

@@ -15,6 +15,7 @@ from models.analysis_config import AnalysisConfig
 from utils.mongodb_handler import MultiMongoDBHandler
 from utils.rabbitmq_handler import publish_task
 from config import get_config
+from services.websocket_manager import websocket_manager
 
 logger = logging.getLogger(__name__)
 
@@ -242,6 +243,19 @@ class TaskScheduler:
                         f"任務已發送: {task_data['task_id']} "
                         f"(方法: {analysis_method_id}, 配置: {config_id})"
                     )
+
+                    # 推送任務創建事件到 WebSocket
+                    websocket_manager.emit_task_created({
+                        'task_id': task_data['task_id'],
+                        'rule_id': rule.rule_id,
+                        'rule_name': rule.rule_name,
+                        'analysis_method_id': analysis_method_id,
+                        'config_id': config_id,
+                        'analyze_uuid': analyze_uuid,
+                        'priority': rule.priority,
+                        'created_at': task_data['created_at'],
+                        'status': 'pending'
+                    })
                 else:
                     logger.error(f"任務發送失敗: {task_data['task_id']}")
 

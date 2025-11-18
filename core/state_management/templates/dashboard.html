@@ -212,3 +212,124 @@
 </div>
 {% endif %}
 {% endblock %}
+
+{% block extra_js %}
+<script>
+// 儀表板實時更新
+document.addEventListener('DOMContentLoaded', function() {
+    // 訂閱儀表板房間
+    wsClient.subscribe('dashboard');
+    // 同時訂閱節點房間以接收節點事件
+    wsClient.subscribe('nodes');
+
+    // 監聽統計數據更新事件
+    wsClient.on('stats.updated', function(data) {
+        console.log('[儀表板] 統計更新:', data);
+        updateNodeStats(data);
+    });
+
+    // 監聽節點心跳事件（更新在線節點列表）
+    wsClient.on('node.heartbeat', function(data) {
+        console.log('[儀表板] 節點心跳:', data);
+        updateOnlineNodeTask(data);
+    });
+
+    // 監聽節點註冊/上線/離線事件
+    wsClient.on('node.registered', function(data) {
+        console.log('[儀表板] 節點註冊:', data);
+        location.reload();
+    });
+
+    wsClient.on('node.online', function(data) {
+        console.log('[儀表板] 節點上線:', data);
+        location.reload();
+    });
+
+    wsClient.on('node.offline', function(data) {
+        console.log('[儀表板] 節點離線:', data);
+        location.reload();
+    });
+
+    /**
+     * 更新節點統計數據
+     */
+    function updateNodeStats(data) {
+        // 更新在線節點數
+        if (data.online_nodes !== undefined) {
+            const onlineEl = document.querySelector('.bg-blue-500').closest('.overflow-hidden').querySelector('.text-2xl.font-semibold');
+            if (onlineEl) {
+                animateNumber(onlineEl, parseInt(onlineEl.textContent) || 0, data.online_nodes);
+            }
+        }
+
+        // 更新總節點數
+        if (data.total_nodes !== undefined) {
+            const totalEl = document.querySelector('.bg-blue-500').closest('.overflow-hidden').querySelector('.ml-2.text-sm.text-gray-500');
+            if (totalEl) {
+                totalEl.textContent = `/ ${data.total_nodes}`;
+            }
+        }
+
+        // 添加閃爍效果到節點卡片
+        const nodeCard = document.querySelector('.bg-blue-500').closest('.overflow-hidden');
+        if (nodeCard) {
+            nodeCard.classList.add('ring-2', 'ring-blue-300');
+            setTimeout(function() {
+                nodeCard.classList.remove('ring-2', 'ring-blue-300');
+            }, 1000);
+        }
+    }
+
+    /**
+     * 更新在線節點列表中的任務數
+     */
+    function updateOnlineNodeTask(data) {
+        const nodeId = data.node_id;
+        const nodeListItems = document.querySelectorAll('.fas.fa-circle.text-green-500');
+
+        nodeListItems.forEach(function(icon) {
+            const nodeIdEl = icon.parentElement;
+            if (nodeIdEl && nodeIdEl.textContent.trim().includes(nodeId)) {
+                const taskEl = nodeIdEl.closest('li').querySelector('.text-sm.text-gray-500');
+                if (taskEl && data.current_tasks !== undefined) {
+                    taskEl.textContent = `任務: ${data.current_tasks} / ${data.max_concurrent_tasks || 1}`;
+
+                    // 添加閃爍效果
+                    const li = taskEl.closest('li');
+                    if (li) {
+                        li.classList.add('bg-green-50');
+                        setTimeout(function() {
+                            li.classList.remove('bg-green-50');
+                        }, 800);
+                    }
+                }
+            }
+        });
+    }
+
+    /**
+     * 數字動畫效果
+     */
+    function animateNumber(element, from, to) {
+        if (from === to) return;
+
+        const duration = 500;
+        const steps = 20;
+        const stepValue = (to - from) / steps;
+        const stepDuration = duration / steps;
+        let currentStep = 0;
+
+        const interval = setInterval(function() {
+            currentStep++;
+            const value = Math.round(from + (stepValue * currentStep));
+            element.textContent = value;
+
+            if (currentStep >= steps) {
+                clearInterval(interval);
+                element.textContent = to;
+            }
+        }, stepDuration);
+    }
+});
+</script>
+{% endblock %}

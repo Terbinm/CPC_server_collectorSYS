@@ -6,6 +6,7 @@ import logging
 from flask import Blueprint, request, jsonify
 from models.node_status import NodeStatus
 from services.system_defaults import SystemDefaultsService
+from services.websocket_manager import websocket_manager
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +56,16 @@ def register_node():
         # 自動建立系統內建分析設定
         SystemDefaultsService.ensure_node_analysis_configs(node_id, node_info)
 
+        # 推送節點註冊事件到 WebSocket
+        websocket_manager.emit_node_registered({
+            'node_id': node_id,
+            'status': 'online',
+            'capabilities': data['capabilities'],
+            'version': node_info.get('version', 'unknown'),
+            'max_concurrent_tasks': node_info.get('max_concurrent_tasks', 1),
+            'tags': node_info.get('tags', [])
+        })
+
         return jsonify({
             'success': True,
             'data': {
@@ -85,7 +96,7 @@ def heartbeat():
             }), 400
 
         node_id = data['node_id']
-        current_tasks = data.get('current_tasks')
+        current_tasks = data.get('current_tasks', 0)
 
         # 更新心跳（使用 MongoDB）
         success = NodeStatus.update_heartbeat(node_id, current_tasks)
@@ -95,6 +106,22 @@ def heartbeat():
                 'success': False,
                 'error': '更新心跳失敗'
             }), 500
+
+        # 獲取節點信息以計算負載率
+        node_info = NodeStatus.get_node_info(node_id)
+        max_tasks = node_info.get('max_concurrent_tasks', 1) if node_info else 1
+        load_ratio = (current_tasks / max_tasks) * 100 if max_tasks > 0 else 0
+
+        # 推送節點心跳事件到 WebSocket
+        websocket_manager.emit_node_heartbeat({
+            'node_id': node_id,
+            'status': 'online',
+            'current_tasks': current_tasks,
+            'max_concurrent_tasks': max_tasks,
+            'load_ratio': round(load_ratio, 2),
+            'timestamp': node_info.get('last_heartbeat') if node_info else None,
+            'capability': node_info.get('capability', 'unknown') if node_info else 'unknown'
+        })
 
         return jsonify({
             'success': True,
@@ -174,6 +201,12 @@ def unregister_node(node_id):
                 'success': False,
                 'error': '註銷節點失敗'
             }), 500
+
+        # 推送節點離線事件到前端
+        websocket_manager.emit_node_offline({
+            'node_id': node_id,
+            'timestamp': node_info.get('last_heartbeat')
+        })
 
         return jsonify({
             'success': True,

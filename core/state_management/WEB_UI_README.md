@@ -46,7 +46,9 @@ pip install -r requirements.txt
 ```bash
 # 交互式创建（推荐）
 python init_admin.py
+```
 
+```bash
 # 或者使用命令行参数
 python init_admin.py --username admin --password your_password --email admin@example.com
 ```

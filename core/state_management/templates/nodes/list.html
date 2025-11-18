@@ -182,3 +182,130 @@
 </div>
 {% endif %}
 {% endblock %}
+
+{% block extra_js %}
+<script>
+// 節點列表實時更新
+document.addEventListener('DOMContentLoaded', function() {
+    // 訂閱節點房間
+    wsClient.subscribe('nodes');
+
+    // 監聽節點註冊事件
+    wsClient.on('node.registered', function(data) {
+        console.log('[節點列表] 節點註冊:', data);
+        // 重新載入頁面以顯示新節點
+        location.reload();
+    });
+
+    // 監聽節點心跳事件
+    wsClient.on('node.heartbeat', function(data) {
+        console.log('[節點列表] 節點心跳:', data);
+        updateNodeInfo(data);
+    });
+
+    // 監聽節點上線事件
+    wsClient.on('node.online', function(data) {
+        console.log('[節點列表] 節點上線:', data);
+        // 重新載入頁面以更新節點狀態
+        location.reload();
+    });
+
+    // 監聽節點離線事件
+    wsClient.on('node.offline', function(data) {
+        console.log('[節點列表] 節點離線:', data);
+        // 重新載入頁面以更新節點狀態
+        location.reload();
+    });
+
+    // 監聽統計數據更新事件
+    wsClient.on('stats.updated', function(data) {
+        console.log('[節點列表] 統計更新:', data);
+        updateStats(data);
+    });
+
+    /**
+     * 更新節點信息（心跳數據）
+     */
+    function updateNodeInfo(data) {
+        const nodeId = data.node_id;
+        const nodeElements = document.querySelectorAll(`li`);
+
+        nodeElements.forEach(function(nodeEl) {
+            const nodeIdEl = nodeEl.querySelector('.text-sm.font-medium.text-gray-900');
+            if (nodeIdEl && nodeIdEl.textContent.trim() === nodeId) {
+                // 更新當前任務數
+                const tasksEl = nodeEl.querySelector('.text-sm.font-semibold.text-gray-900');
+                if (tasksEl && data.current_tasks !== undefined) {
+                    tasksEl.textContent = `${data.current_tasks} / ${data.max_concurrent_tasks || 1}`;
+                }
+
+                // 更新最後心跳時間
+                const heartbeatEl = nodeEl.querySelector('.text-sm.text-gray-500');
+                if (heartbeatEl && data.timestamp) {
+                    const time = new Date(data.timestamp).toLocaleTimeString('zh-TW', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit'
+                    });
+                    const versionText = heartbeatEl.textContent.split('|')[0].trim();
+                    heartbeatEl.textContent = `${versionText} | 最後心跳: ${time}`;
+                }
+
+                // 添加閃爍動畫效果
+                nodeEl.classList.add('bg-green-50');
+                setTimeout(function() {
+                    nodeEl.classList.remove('bg-green-50');
+                }, 1000);
+            }
+        });
+    }
+
+    /**
+     * 更新統計數據
+     */
+    function updateStats(data) {
+        // 更新總節點數
+        const totalEl = document.querySelector('.text-3xl.font-semibold.text-gray-900');
+        if (totalEl && data.total_nodes !== undefined) {
+            animateNumber(totalEl, parseInt(totalEl.textContent) || 0, data.total_nodes);
+        }
+
+        // 更新在線節點數
+        const onlineEl = document.querySelector('.text-3xl.font-semibold.text-green-600');
+        if (onlineEl && data.online_nodes !== undefined) {
+            animateNumber(onlineEl, parseInt(onlineEl.textContent) || 0, data.online_nodes);
+        }
+
+        // 更新離線節點數
+        const offlineEl = document.querySelector('.text-3xl.font-semibold.text-red-600');
+        if (offlineEl && data.offline_nodes !== undefined) {
+            animateNumber(offlineEl, parseInt(offlineEl.textContent) || 0, data.offline_nodes);
+        }
+    }
+
+    /**
+     * 數字動畫效果
+     */
+    function animateNumber(element, from, to) {
+        if (from === to) return;
+
+        const duration = 500; // 動畫持續時間（毫秒）
+        const steps = 20;
+        const stepValue = (to - from) / steps;
+        const stepDuration = duration / steps;
+        let currentStep = 0;
+
+        const interval = setInterval(function() {
+            currentStep++;
+            const value = Math.round(from + (stepValue * currentStep));
+            element.textContent = value;
+
+            if (currentStep >= steps) {
+                clearInterval(interval);
+                element.textContent = to;
+            }
+        }, stepDuration);
+    }
+});
+</script>
+{% endblock %}

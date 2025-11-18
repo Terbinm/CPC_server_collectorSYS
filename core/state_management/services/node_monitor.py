@@ -8,6 +8,7 @@ from typing import List, Dict, Any
 
 from models.node_status import NodeStatus
 from config import get_config
+from services.websocket_manager import websocket_manager
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +20,7 @@ class NodeMonitor:
         """初始化"""
         self.config = get_config()
         self.running = False
+        self.previous_node_status = {}  # 記錄上次節點狀態，用於檢測狀態變化
 
     def start(self):
         """啟動監控器"""
@@ -57,15 +59,39 @@ class NodeMonitor:
 
             for node in nodes:
                 node_id = node.get('node_id')
-                status = node.get('status', 'unknown')
+                current_status = node.get('status', 'unknown')
+                previous_status = self.previous_node_status.get(node_id)
 
-                if status == 'online':
+                if current_status == 'online':
                     online_count += 1
+
+                    # 檢測節點從離線變為在線
+                    if previous_status and previous_status != 'online':
+                        logger.info(f"節點重新上線: {node_id}")
+                        # 推送節點上線事件
+                        websocket_manager.emit_node_online({
+                            'node_id': node_id,
+                            'status': current_status,
+                            'timestamp': node.get('last_heartbeat'),
+                            'current_tasks': node.get('current_tasks', 0),
+                            'capability': node.get('capability', 'unknown')
+                        })
                 else:
                     offline_count += 1
 
-                    # 記錄離線節點
-                    logger.warning(f"節點離線: {node_id}")
+                    # 檢測節點從在線變為離線
+                    if previous_status == 'online':
+                        logger.warning(f"節點離線: {node_id}")
+                        # 推送節點離線事件
+                        websocket_manager.emit_node_offline({
+                            'node_id': node_id,
+                            'status': current_status,
+                            'timestamp': node.get('last_heartbeat'),
+                            'capability': node.get('capability', 'unknown')
+                        })
+
+                # 更新節點狀態記錄
+                self.previous_node_status[node_id] = current_status
 
             # 定期記錄統計信息
             if nodes:
@@ -73,6 +99,15 @@ class NodeMonitor:
                     f"節點狀態: 總數={len(nodes)}, "
                     f"在線={online_count}, 離線={offline_count}"
                 )
+
+                # 推送統計數據更新（每次檢查都推送）
+                stats_data = {
+                    'total_nodes': len(nodes),
+                    'online_nodes': online_count,
+                    'offline_nodes': offline_count,
+                    'timestamp': time.time()
+                }
+                websocket_manager.emit_stats_updated(stats_data)
 
         except Exception as e:
             logger.error(f"檢查節點狀態失敗: {e}")

@@ -77,6 +77,12 @@ class Config:
     TASK_MONITOR_INTERVAL = 5     # 任務監控間隔（秒）
     TASK_TIMEOUT = 24 * 60 * 60   # 任務超時時間（秒）
 
+    # WebSocket 配置
+    WEBSOCKET_ENABLED = True      # 啟用 WebSocket 實時推送
+    WEBSOCKET_PING_TIMEOUT = 6   # WebSocket ping 超時（秒）
+    WEBSOCKET_PING_INTERVAL = 2  # WebSocket ping 間隔（秒）
+    WEBSOCKET_ASYNC_MODE = os.environ.get('WEBSOCKET_ASYNC_MODE', 'threading')
+
     # 日誌配置
     LOG_DIR = 'logs'
     LOG_FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
