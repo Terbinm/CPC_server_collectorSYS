@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Tools 使用說明 - CPC 音頻錄製管理系統</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .tool-card {
+            transition: all 0.3s ease;
+        }
+        .tool-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        .config-item {
+            border-left: 3px solid #4F46E5;
+        }
+        code {
+            background-color: #f3f4f6;
+            padding: 0.2rem 0.4rem;
+            border-radius: 0.25rem;
+            font-size: 0.875rem;
+        }
+        pre code {
+            display: block;
+            padding: 1rem;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Header -->
+    <div class="bg-gradient-to-br from-indigo-600 via-purple-600 to-blue-600 text-white py-12">
+        <div class="container mx-auto px-6">
+            <div class="max-w-4xl mx-auto text-center">
+                <h1 class="text-4xl md:text-5xl font-bold mb-4">
+                    Debug Tools 使用說明
+                </h1>
+                <p class="text-xl text-indigo-100">
+                    CPC 音頻錄製管理系統 - 偵錯工具集
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="container mx-auto px-6 py-12">
+        <div class="max-w-6xl mx-auto">
+            
+            <!-- Introduction -->
+            <div class="bg-white rounded-2xl p-8 shadow-lg mb-8">
+                <div class="flex items-center mb-4">
+                    <svg class="w-8 h-8 text-indigo-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <h2 class="text-3xl font-bold text-gray-800">簡介</h2>
+                </div>
+                <p class="text-gray-600 leading-relaxed">
+                    本文檔說明 <code>debug_tools</code> 目錄中各項工具的使用方法與配置說明。這些工具主要用於資料庫維護、批次資料處理與系統偵錯。
+                </p>
+            </div>
+
+            <!-- Table of Contents -->
+            <div class="bg-white rounded-2xl p-8 shadow-lg mb-8">
+                <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+                    <svg class="w-6 h-6 text-indigo-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                    </svg>
+                    目錄
+                </h2>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <a href="#batch-delete" class="text-indigo-600 hover:text-indigo-800 font-medium hover:underline flex items-center">
+                        <span class="mr-2">→</span> 1. batch_delete - 批量刪除工具
+                    </a>
+                    <a href="#batch-upload" class="text-indigo-600 hover:text-indigo-800 font-medium hover:underline flex items-center">
+                        <span class="mr-2">→</span> 2. batch_upload - 批量上傳工具
+                    </a>
+                    <a href="#delete-all" class="text-indigo-600 hover:text-indigo-800 font-medium hover:underline flex items-center">
+                        <span class="mr-2">→</span> 3. delete_all_data.py - 全部刪除工具
+                    </a>
+                    <a href="#download-all" class="text-indigo-600 hover:text-indigo-800 font-medium hover:underline flex items-center">
+                        <span class="mr-2">→</span> 4. download_all_file - 全部下載工具
+                    </a>
+                    <a href="#simplify-record" class="text-indigo-600 hover:text-indigo-800 font-medium hover:underline flex items-center">
+                        <span class="mr-2">→</span> 5. simplify_mongodb_record - 記錄簡化工具
+                    </a>
+                </div>
+            </div>
+
+            <!-- Tool 1: batch_delete -->
+            <div id="batch-delete" class="tool-card bg-white rounded-2xl p-8 shadow-lg mb-8">
+                <div class="flex items-center mb-6">
+                    <div class="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center mr-4">
+                        <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h2 class="text-3xl font-bold text-gray-800">batch_delete</h2>
+                        <p class="text-gray-600">批量刪除工具</p>
+                    </div>
+                </div>
+
+                <div class="mb-6">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-3">功能說明</h3>
+                    <p class="text-gray-600 leading-relaxed mb-4">
+                        根據多種條件批量刪除 MongoDB 記錄，支援軟刪除（標記）或硬刪除，自動備份被刪除的記錄，並可同步刪除 GridFS 中的檔案。
+                    </p>
+                    <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-4">
+                        <p class="text-blue-700">
+                            <strong>檔案位置：</strong> <code>debug_tools/batch_delete/</code>
+                        </p>
+                    </div>
+                </div>
+
+                <div class="mb-6">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-3">使用方式</h3>
+                    <pre class="bg-gray-800 text-gray-100 rounded-lg"><code>cd debug_tools/batch_delete
+python batch_delete.py</code></pre>
+                    <p class="text-gray-600 mt-2">執行後會提示選擇：</p>
+                    <ul class="list-disc list-inside text-gray-600 ml-4">
+                        <li>預覽模式 (1) - 只顯示將被刪除的記錄，不實際刪除</li>
+                        <li>執行刪除 (2) - 實際執行刪除操作</li>
+                    </ul>
+                </div>
+
+                <div class="mb-6">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-4">主要配置說明</h3>
+                    <p class="text-gray-600 mb-4">配置檔案：<code>batch_delete_config.py</code></p>
+
+                    <div class="space-y-4">
+                        <!-- MongoDB Config -->
+                        <div class="config-item pl-4 py-2">
+                            <h4 class="font-semibold text-gray-800 mb-2">MONGODB_CONFIG - MongoDB 連線設定</h4>
+                            <div class="bg-gray-50 rounded p-3 text-sm">
+                                <p class="text-gray-700"><code>host</code>: MongoDB 主機位址（預設 'localhost'）</p>
+                                <p class="text-gray-700"><code>port</code>: MongoDB 連接埠（預設 27021）</p>
+                                <p class="text-gray-700"><code>username</code>: 使用者名稱</p>
+                                <p class="text-gray-700"><code>password</code>: 密碼</p>
+                                <p class="text-gray-700"><code>database</code>: 資料庫名稱（預設 'web_db'）</p>
+                                <p class="text-gray-700"><code>collection</code>: 集合名稱（預設 'recordings'）</p>
+                            </div>
+                        </div>
+
+                        <!-- Delete Conditions -->
+                        <div class="config-item pl-4 py-2">
+                            <h4 class="font-semibold text-gray-800 mb-2">DELETE_CONDITIONS - 刪除條件配置</h4>
+                            <div class="bg-gray-50 rounded p-3 text-sm">
+                                <p class="text-gray-700 mb-2">可以組合多個條件，全部符合才會刪除：</p>
+                                <p class="text-gray-700"><code>label</code>: 按標籤刪除（'normal', 'abnormal', 'unknown' 或 None）</p>
+                                <p class="text-gray-700"><code>dataset_UUID</code>: 按 dataset_UUID 刪除</p>
+                                <p class="text-gray-700"><code>batch_upload_only</code>: True = 只刪除批量上傳的檔案</p>
+                                <p class="text-gray-700"><code>uploaded_before</code>: 刪除此日期之前的（格式：'YYYY-MM-DD'）</p>
+                                <p class="text-gray-700"><code>uploaded_after</code>: 刪除此日期之後的</p>
+                                <p class="text-gray-700"><code>device_id</code>: 按設備 ID 刪除</p>
+                                <p class="text-gray-700"><code>obj_ID</code>: 按 obj_ID 刪除</p>
+                            </div>
+                        </div>
+
+                        <!-- Delete Behavior -->
+                        <div class="config-item pl-4 py-2">
+                            <h4 class="font-semibold text-gray-800 mb-2">DELETE_BEHAVIOR - 刪除行為配置</h4>
+                            <div class="bg-gray-50 rounded p-3 text-sm">
+                                <p class="text-gray-700"><code>delete_gridfs_files</code>: 是否同時刪除 GridFS 中的檔案（預設 True）</p>
+                                <p class="text-gray-700"><code>soft_delete</code>: 是否使用軟刪除（僅標記，不實際移除，預設 False）</p>
+                                <p class="text-gray-700"><code>backup_before_delete</code>: 是否在刪除前備份記錄到 JSON 檔案（預設 True）</p>
+                                <p class="text-gray-700"><code>backup_directory</code>: 備份檔案目錄（預設 'delete_backups'）</p>
+                                <p class="text-gray-700"><code>show_progress</code>: 是否顯示刪除進度（預設 True）</p>
+                            </div>
+                        </div>
+
+                        <!-- Safety Config -->
+                        <div class="config-item pl-4 py-2">
+                            <h4 class="font-semibold text-gray-800 mb-2">SAFETY_CONFIG - 安全配置</h4>
+                            <div class="bg-gray-50 rounded p-3 text-sm">
+                                <p class="text-gray-700"><code>require_confirmation</code>: 是否需要二次確認（預設 True）</p>
+                                <p class="text-gray-700"><code>max_delete_count</code>: 單次刪除數量上限，0 表示無限制（預設 0）</p>
+                                <p class="text-gray-700"><code>preview_sample_size</code>: 預覽模式下顯示前 N 筆記錄詳情（預設 10）</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-yellow-50 border-l-4 border-yellow-500 p-4">
+                    <p class="text-yellow-700">
+                        <strong>⚠️ 注意：</strong> 硬刪除操作不可復原，請務必在刪除前確認條件設定正確，並啟用備份功能。
+                    </p>
+                </div>
+            </div>
+
+            <!-- Tool 2: batch_upload -->
+            <div id="batch-upload" class="tool-card bg-white rounded-2xl p-8 shadow-lg mb-8">
+                <div class="flex items-center mb-6">
+                    <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center mr-4">
+                        <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h2 class="text-3xl font-bold text-gray-800">batch_upload</h2>
+                        <p class="text-gray-600">批量上傳工具</p>
+                    </div>
+                </div>
+
+                <div class="mb-6">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-3">功能說明</h3>
+                    <p class="text-gray-600 leading-relaxed mb-4">
+                        批量上傳音訊檔案到 MongoDB / GridFS。支援三種不同的資料集格式：CPC 工廠音訊、MIMII 資料集、MAFAULDA 資料集。
+                    </p>
+                    <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-4">
+                        <p class="text-blue-700">
+                            <strong>檔案位置：</strong> <code>debug_tools/batch_upload/</code>
+                        </p>
+                    </div>
+                </div>
+
+                <div class="grid md:grid-cols-3 gap-6 mb-6">
+                    <!-- CPC Upload -->
+                    <div class="border-2 border-gray-200 rounded-xl p-6 hover:border-indigo-500 transition-colors">
+                        <h4 class="font-semibold text-gray-800 mb-2">cpc_upload</h4>
+                        <p class="text-sm text-gray-600 mb-3">CPC 工廠音訊批次上傳</p>
+                        <div class="bg-gray-50 rounded p-2 text-xs">
+                            <p class="text-gray-700">檔案：<code>cpc_upload/cpc_batch_upload.py</code></p>
+                            <p class="text-gray-700">配置：<code>cpc_upload/config.py</code></p>
+                        </div>
+                    </div>
+
+                    <!-- MIMII Upload -->
+                    <div class="border-2 border-gray-200 rounded-xl p-6 hover:border-indigo-500 transition-colors">
+                        <h4 class="font-semibold text-gray-800 mb-2">mimii_upload</h4>
+                        <p class="text-sm text-gray-600 mb-3">MIMII 資料集批次上傳</p>
+                        <div class="bg-gray-50 rounded p-2 text-xs">
+                            <p class="text-gray-700">檔案：<code>mimii_upload/mimii_batch_upload.py</code></p>
+                            <p class="text-gray-700">配置：<code>mimii_upload/config.py</code></p>
+                        </div>
+                    </div>
+
+                    <!-- MAFAULDA Upload -->
+                    <div class="border-2 border-gray-200 rounded-xl p-6 hover:border-indigo-500 transition-colors">
+                        <h4 class="font-semibold text-gray-800 mb-2">mafaulda_upload</h4>
+                        <p class="text-sm text-gray-600 mb-3">MAFAULDA 資料集批次上傳</p>
+                        <div class="bg-gray-50 rounded p-2 text-xs">
+                            <p class="text-gray-700">檔案：<code>mafaulda_upload/mafaulda_batch_upload.py</code></p>
+                            <p class="text-gray-700">配置：<code>mafaulda_upload/config.py</code></p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-6">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-3">使用方式（以 cpc_upload 為例）</h3>
+                    <pre class="bg-gray-800 text-gray-100 rounded-lg"><code>cd debug_tools/batch_upload/cpc_upload
+python cpc_batch_upload.py</code></pre>
+                </div>
+
+                <div class="mb-6">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-4">主要配置說明（config.py）</h3>
+
+                    <div class="space-y-4">
+                        <!-- MongoDB Config -->
+                        <div class="config-item pl-4 py-2">
+                            <h4 class="font-semibold text-gray-800 mb-2">MONGODB_CONFIG - MongoDB 連線設定</h4>
+                            <div class="bg-gray-50 rounded p-3 text-sm">
+                                <p class="text-gray-700">與 batch_delete 相同，設定 MongoDB 連線參數</p>
+                            </div>
+                        </div>
+
+                        <!-- Upload Directory -->
+                        <div class="config-item pl-4 py-2">
+                            <h4 class="font-semibold text-gray-800 mb-2">UPLOAD_DIRECTORY - 資料來源</h4>
+                            <div class="bg-gray-50 rounded p-3 text-sm">
+                                <p class="text-gray-700">設定要上傳的音訊檔案資料夾路徑</p>
+                                <p class="text-gray-600 text-xs mt-1">範例：<code>r"C:\path\to\audio\files"</code></p>
+                            </div>
+                        </div>
+
+                        <!-- Dataset Config -->
+                        <div class="config-item pl-4 py-2">
+                            <h4 class="font-semibold text-gray-800 mb-2">DATASET_CONFIG - 資料集固定欄位</h4>
+                            <div class="bg-gray-50 rounded p-3 text-sm">
+                                <p class="text-gray-700"><code>dataset_UUID</code>: 資料集識別碼（如 'cpc_batch_upload'）</p>
+                                <p class="text-gray-700"><code>obj_ID</code>: 物件 ID（如 '-1' 表示工廠環境音）</p>
+                            </div>
+                        </div>
+
+                        <!-- Audio Config -->
+                        <div class="config-item pl-4 py-2">
+                            <h4 class="font-semibold text-gray-800 mb-2">AUDIO_CONFIG - 音訊配置</h4>
+                            <div class="bg-gray-50 rounded p-3 text-sm">
+                                <p class="text-gray-700"><code>expected_sample_rate_hz</code>: 預期取樣率（如 16000）</p>
+                                <p class="text-gray-700"><code>allow_mono_only</code>: 是否只允許單聲道（True/False）</p>
+                            </div>
+                        </div>
+
+                        <!-- Upload Behavior -->
+                        <div class="config-item pl-4 py-2">
+                            <h4 class="font-semibold text-gray-800 mb-2">UPLOAD_BEHAVIOR - 上傳行為設定</h4>
+                            <div class="bg-gray-50 rounded p-3 text-sm">
+                                <p class="text-gray-700"><code>skip_existing</code>: 是否略過已存在的檔案（預設 True）</p>
+                                <p class="text-gray-700"><code>check_duplicates</code>: 是否檢查重複檔案（預設 True）</p>
+                                <p class="text-gray-700"><code>concurrent_uploads</code>: 並行上傳數量（預設 3）</p>
+                                <p class="text-gray-700"><code>retry_attempts</code>: 重試次數（預設 3）</p>
+                                <p class="text-gray-700"><code>per_label_limit</code>: 每個標籤的檔案數量限制，0 表示不限制（預設 0）</p>
+                            </div>
+                        </div>
+
+                        <!-- Label & Device -->
+                        <div class="config-item pl-4 py-2">
+                            <h4 class="font-semibold text-gray-800 mb-2">標籤與設備設定</h4>
+                            <div class="bg-gray-50 rounded p-3 text-sm">
+                                <p class="text-gray-700"><code>DEFAULT_LABEL</code>: 預設標籤（如 'factory_ambient'）</p>
+                                <p class="text-gray-700"><code>DEVICE_ID</code>: 設備 ID（如 'cpc006'）</p>
+                                <p class="text-gray-700"><code>LABEL_FOLDERS</code>: 標籤對應資料夾的映射（dict）</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-green-50 border-l-4 border-green-500 p-4">
+                    <p class="text-green-700">
+                        <strong>💡 提示：</strong> 不同的 upload 工具（cpc/mimii/mafaulda）配置結構相似，但資料集欄位定義不同。請根據資料集類型選擇對應的工具。
+                    </p>
+                </div>
+            </div>
+
+            <!-- Tool 3: delete_all_data.py -->
+            <div id="delete-all" class="tool-card bg-white rounded-2xl p-8 shadow-lg mb-8">
+                <div class="flex items-center mb-6">
+                    <div class="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center mr-4">
+                        <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h2 class="text-3xl font-bold text-gray-800">delete_all_data.py</h2>
+                        <p class="text-gray-600">全部刪除工具</p>
+                    </div>
+                </div>
+
+                <div class="mb-6">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-3">功能說明</h3>
+                    <p class="text-gray-600 leading-relaxed mb-4">
+                        透過 HTTP API 刪除伺服器上所有錄音記錄。這是一個簡單的腳本，適用於快速清空測試資料。
+                    </p>
+                    <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-4">
+                        <p class="text-blue-700">
+                            <strong>檔案位置：</strong> <code>debug_tools/delete_all_data.py</code>
+                        </p>
+                    </div>
+                </div>
+
+                <div class="mb-6">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-3">使用方式</h3>
+                    <pre class="bg-gray-800 text-gray-100 rounded-lg"><code>cd debug_tools
+python delete_all_data.py</code></pre>
+                    <p class="text-gray-600 mt-2">執行後會提示確認，輸入 'y' 後執行刪除。</p>
+                </div>
+
+                <div class="mb-6">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-4">配置說明</h3>
+                    <div class="config-item pl-4 py-2">
+                        <h4 class="font-semibold text-gray-800 mb-2">SERVER_URL - 伺服器位址</h4>
+                        <div class="bg-gray-50 rounded p-3 text-sm">
+                            <p class="text-gray-700 mb-2">在檔案開頭修改 <code>SERVER_URL</code> 變數，指定要操作的伺服器</p>
+                            <p class="text-gray-600 text-xs">範例：<code>SERVER_URL = 'http://192.168.31.66:5000/'</code></p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-red-50 border-l-4 border-red-500 p-4">
+                    <p class="text-red-700">
+                        <strong>⚠️ 警告：</strong> 此工具會刪除所有錄音記錄，操作不可復原。僅適用於開發測試環境，切勿在生產環境使用。
+                    </p>
+                </div>
+            </div>
+
+            <!-- Tool 4: download_all_file -->
+            <div id="download-all" class="tool-card bg-white rounded-2xl p-8 shadow-lg mb-8">
+                <div class="flex items-center mb-6">
+                    <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mr-4">
+                        <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h2 class="text-3xl font-bold text-gray-800">download_all_file</h2>
+                        <p class="text-gray-600">全部下載工具</p>
+                    </div>
+                </div>
+
+                <div class="mb-6">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-3">功能說明</h3>
+                    <p class="text-gray-600 leading-relaxed mb-4">
+                        從伺服器下載所有音訊檔案到本地。支援斷點續傳、自動重試、進度顯示與下載記錄管理。
+                    </p>
+                    <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-4">
+                        <p class="text-blue-700">
+                            <strong>檔案位置：</strong> <code>debug_tools/download_all_file/download_all_file.py</code>
+                        </p>
+                    </div>
+                </div>
+
+                <div class="mb-6">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-3">使用方式</h3>
+                    <pre class="bg-gray-800 text-gray-100 rounded-lg"><code>cd debug_tools/download_all_file
+python download_all_file.py</code></pre>
+                    <p class="text-gray-600 mt-2">下載的檔案會儲存到 <code>downloaded_recordings</code> 目錄。</p>
+                </div>
+
+                <div class="mb-6">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-4">主要配置說明</h3>
+
+                    <div class="space-y-4">
+                        <!-- Server URL -->
+                        <div class="config-item pl-4 py-2">
+                            <h4 class="font-semibold text-gray-800 mb-2">SERVER_URL - 伺服器位址</h4>
+                            <div class="bg-gray-50 rounded p-3 text-sm">
+                                <p class="text-gray-700">在檔案開頭修改，指定要下載的伺服器位址</p>
+                                <p class="text-gray-600 text-xs mt-1">範例：<code>SERVER_URL = 'http://163.18.22.51:88'</code></p>
+                            </div>
+                        </div>
+
+                        <!-- Download Directory -->
+                        <div class="config-item pl-4 py-2">
+                            <h4 class="font-semibold text-gray-800 mb-2">DOWNLOAD_DIR - 下載目錄</h4>
+                            <div class="bg-gray-50 rounded p-3 text-sm">
+                                <p class="text-gray-700">設定下載檔案的儲存位置（預設 "downloaded_recordings"）</p>
+                            </div>
+                        </div>
+
+                        <!-- Timeout Settings -->
+                        <div class="config-item pl-4 py-2">
+                            <h4 class="font-semibold text-gray-800 mb-2">下載參數（在 download_recording 函數中）</h4>
+                            <div class="bg-gray-50 rounded p-3 text-sm">
+                                <p class="text-gray-700"><code>overall_timeout</code>: 單檔上限時間（預設 1200 秒 = 20 分鐘）</p>
+                                <p class="text-gray-700"><code>stall_timeout</code>: 兩次進度間隔不可超過（預設 30 秒）</p>
+                                <p class="text-gray-700"><code>max_stall_retries</code>: 連續續傳最多次數（預設 5 次）</p>
+                                <p class="text-gray-700"><code>chunk_size</code>: 每次讀取大小（預設 64 KB）</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-6">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-3">特色功能</h3>
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <div class="bg-gray-50 rounded-lg p-4">
+                            <div class="flex items-center mb-2">
+                                <svg class="w-5 h-5 text-indigo-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                <span class="font-semibold text-gray-800">斷點續傳</span>
+                            </div>
+                            <p class="text-sm text-gray-600">下載中斷後可從中斷處繼續下載，不需重新開始</p>
+                        </div>
+                        <div class="bg-gray-50 rounded-lg p-4">
+                            <div class="flex items-center mb-2">
+                                <svg class="w-5 h-5 text-indigo-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                                </svg>
+                                <span class="font-semibold text-gray-800">自動重試</span>
+                            </div>
+                            <p class="text-sm text-gray-600">下載失敗自動重試，提高成功率</p>
+                        </div>
+                        <div class="bg-gray-50 rounded-lg p-4">
+                            <div class="flex items-center mb-2">
+                                <svg class="w-5 h-5 text-indigo-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                                </svg>
+                                <span class="font-semibold text-gray-800">進度顯示</span>
+                            </div>
+                            <p class="text-sm text-gray-600">即時顯示下載進度與速率</p>
+                        </div>
+                        <div class="bg-gray-50 rounded-lg p-4">
+                            <div class="flex items-center mb-2">
+                                <svg class="w-5 h-5 text-indigo-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                </svg>
+                                <span class="font-semibold text-gray-800">Manifest 記錄</span>
+                            </div>
+                            <p class="text-sm text-gray-600">記錄下載狀態與歷史，方便追蹤管理</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-blue-50 border-l-4 border-blue-500 p-4">
+                    <p class="text-blue-700">
+                        <strong>💡 提示：</strong> 下載記錄儲存在 <code>download_manifest.json</code>，包含每個檔案的下載狀態、大小與路徑等資訊。
+                    </p>
+                </div>
+            </div>
+
+            <!-- Tool 5: simplify_mongodb_record -->
+            <div id="simplify-record" class="tool-card bg-white rounded-2xl p-8 shadow-lg mb-8">
+                <div class="flex items-center mb-6">
+                    <div class="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center mr-4">
+                        <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h2 class="text-3xl font-bold text-gray-800">simplify_mongodb_record</h2>
+                        <p class="text-gray-600">記錄簡化工具</p>
+                    </div>
+                </div>
+
+                <div class="mb-6">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-3">功能說明</h3>
+                    <p class="text-gray-600 leading-relaxed mb-4">
+                        從 MongoDB 提取最新一筆記錄，並精簡 <code>analyze_features</code> 中的 <code>features_data</code>，僅保留前 2 筆資料，方便查看資料結構而不會產生過大的 JSON 檔案。
+                    </p>
+                    <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-4">
+                        <p class="text-blue-700">
+                            <strong>檔案位置：</strong> <code>debug_tools/simplify_mongodb_record/simplify_mongodb_record.py</code>
+                        </p>
+                    </div>
+                </div>
+
+                <div class="mb-6">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-3">使用方式</h3>
+                    <pre class="bg-gray-800 text-gray-100 rounded-lg"><code>cd debug_tools/simplify_mongodb_record
+python simplify_mongodb_record.py</code></pre>
+                    <p class="text-gray-600 mt-2">執行後會產生 <code>simplified_record_YYYYMMDD_HHMMSS.json</code> 檔案。</p>
+                </div>
+
+                <div class="mb-6">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-4">配置說明</h3>
+
+                    <div class="space-y-4">
+                        <!-- MongoDB Config -->
+                        <div class="config-item pl-4 py-2">
+                            <h4 class="font-semibold text-gray-800 mb-2">MONGODB_CONFIG - MongoDB 連線設定</h4>
+                            <div class="bg-gray-50 rounded p-3 text-sm">
+                                <p class="text-gray-700">在檔案開頭的 <code>MONGODB_CONFIG</code> 字典中修改：</p>
+                                <p class="text-gray-700"><code>host</code>: MongoDB 主機位址（預設 'localhost'）</p>
+                                <p class="text-gray-700"><code>port</code>: MongoDB 連接埠（預設 27020）</p>
+                                <p class="text-gray-700"><code>username</code>: 使用者名稱（預設 'web_ui'）</p>
+                                <p class="text-gray-700"><code>password</code>: 密碼</p>
+                                <p class="text-gray-700"><code>database</code>: 資料庫名稱（預設 'web_db'）</p>
+                                <p class="text-gray-700"><code>collection</code>: 集合名稱（預設 'recordings'）</p>
+                            </div>
+                        </div>
+
+                        <!-- Environment Variables -->
+                        <div class="config-item pl-4 py-2">
+                            <h4 class="font-semibold text-gray-800 mb-2">環境變數支援</h4>
+                            <div class="bg-gray-50 rounded p-3 text-sm">
+                                <p class="text-gray-700 mb-2">可使用環境變數設定連線資訊：</p>
+                                <p class="text-gray-600 text-xs"><code>MONGODB_HOST</code>, <code>MONGODB_PORT</code>, <code>MONGODB_USERNAME</code>, <code>MONGODB_PASSWORD</code></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-6">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-3">用途</h3>
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <ul class="list-disc list-inside text-gray-600 space-y-2">
+                            <li>檢視 MongoDB 記錄的資料結構</li>
+                            <li>偵錯分析功能欄位內容</li>
+                            <li>產生小型範例資料供文件或測試使用</li>
+                            <li>避免完整匯出時產生過大的 JSON 檔案</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="bg-purple-50 border-l-4 border-purple-500 p-4">
+                    <p class="text-purple-700">
+                        <strong>💡 提示：</strong> 此工具會自動轉換 MongoDB 的特殊類型（如 ObjectId、datetime）為可 JSON 序列化的格式。
+                    </p>
+                </div>
+            </div>
+
+            <!-- Summary Section -->
+            <div class="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl p-8 shadow-lg">
+                <div class="flex items-center mb-6">
+                    <svg class="w-8 h-8 text-indigo-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
+                    </svg>
+                    <h2 class="text-2xl font-bold text-gray-800">使用建議與注意事項</h2>
+                </div>
+
+                <div class="space-y-4">
+                    <div class="bg-white rounded-lg p-4">
+                        <h3 class="font-semibold text-gray-800 mb-2">💡 配置管理</h3>
+                        <p class="text-gray-600 text-sm">所有工具的配置檔案都支援直接修改 Python 檔案中的配置字典。修改後無需重新安裝，直接執行即可。</p>
+                    </div>
+
+                    <div class="bg-white rounded-lg p-4">
+                        <h3 class="font-semibold text-gray-800 mb-2">⚠️ 安全性</h3>
+                        <p class="text-gray-600 text-sm">刪除類工具（batch_delete、delete_all_data）操作不可復原，務必在測試環境先驗證配置正確性。建議啟用備份功能。</p>
+                    </div>
+
+                    <div class="bg-white rounded-lg p-4">
+                        <h3 class="font-semibold text-gray-800 mb-2">🔄 批次操作</h3>
+                        <p class="text-gray-600 text-sm">batch_upload 和 download_all_file 支援大量檔案處理，建議根據網路狀況調整並行數量與逾時參數。</p>
+                    </div>
+
+                    <div class="bg-white rounded-lg p-4">
+                        <h3 class="font-semibold text-gray-800 mb-2">📝 記錄保存</h3>
+                        <p class="text-gray-600 text-sm">多數工具會產生日誌檔案或報告，建議定期檢查這些記錄以追蹤操作歷史。</p>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white py-8 mt-12">
+        <div class="container mx-auto px-6 text-center">
+            <p class="text-gray-300">&copy; 2025 CPC 音頻錄製管理系統. 版權所有.</p>
+            <p class="text-gray-400 text-sm mt-2">Debug Tools Documentation v1.0</p>
+        </div>
+    </footer>
+
+</body>
+</html>
